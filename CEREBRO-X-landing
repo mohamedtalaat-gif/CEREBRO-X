@@ -61,6 +61,7 @@
             display: inline-block;
             border: none;
             cursor: pointer;
+            text-align: center;
         }
 
         .cta-btn:hover {
@@ -95,6 +96,9 @@
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             border-top: 4px solid var(--teal);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .step-number {
@@ -282,19 +286,28 @@
         <h2 class="section-title">How It Works</h2>
         <div class="grid-3">
             <div class="card">
-                <div class="step-number">1</div>
-                <h3>Upload Specs</h3>
-                <p>Provide your drug's SMILES or FASTA sequence and the DDS formulations you wish to test.</p>
+                <div>
+                    <div class="step-number">1</div>
+                    <h3>Download & Fill Template</h3>
+                    <p style="margin-bottom: 15px;">Download our standardized Excel template and fill in your drug's SMILES/FASTA and DDS specs.</p>
+                </div>
+                <a href="CEREBRO_Input_Template.xlsx" download class="cta-btn" style="padding: 10px; font-size: 0.9rem; background-color: var(--navy);">
+                    Download Template (.xlsx)
+                </a>
             </div>
             <div class="card">
-                <div class="step-number">2</div>
-                <h3>62-Principle Analysis</h3>
-                <p>Our Molecule-Aware Engine calculates PK, BBB permeability, and Carrier-API interactions.</p>
+                <div>
+                    <div class="step-number">2</div>
+                    <h3>62-Principle Analysis</h3>
+                    <p>Our Molecule-Aware Engine calculates PK, BBB permeability, and Carrier-API interactions.</p>
+                </div>
             </div>
             <div class="card">
-                <div class="step-number">3</div>
-                <h3>Decision Report</h3>
-                <p>Receive a comprehensive, publication-ready report ranking your optimal carriers.</p>
+                <div>
+                    <div class="step-number">3</div>
+                    <h3>Decision Report</h3>
+                    <p>Receive a comprehensive, publication-ready report ranking your optimal carriers.</p>
+                </div>
             </div>
         </div>
     </section>
@@ -406,7 +419,12 @@
 
     <section id="request-form" class="section" style="background: var(--navy); color: var(--text-dark);">
         <h2 class="section-title" style="color: var(--white);">Request Your Analysis</h2>
+        
         <div class="form-container">
+            <p style="text-align: center; margin-bottom: 25px; color: var(--navy); font-weight: 500;">
+                Before submitting, please ensure you have filled out the <a href="CEREBRO_Input_Template.xlsx" download style="color: var(--teal); text-decoration: underline;">Official Input Template</a>.
+            </p>
+
             <form action="https://formspree.io/f/YOUR_FORMSPREE_ENDPOINT" method="POST">
                 <div class="form-group">
                     <label>Full Name</label>
