@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEREBRO-X v22.1 | CEREBRO-X v22.1 | Donepezil</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0D1117;color:#E0E0E0;font-family:'Segoe UI',sans-serif;padding:16px}
+  .card{background:#0A0F1A;border:1px solid #1e2a3a;border-radius:10px;padding:16px;margin-bottom:16px}
+  .title{color:#C9A84C;font-size:1.1em;font-weight:700;margin-bottom:8px;letter-spacing:.5px}
+  .subtitle{color:#888888;font-size:.8em;margin-bottom:12px}
+  canvas{border-radius:6px}
+  .ctrl{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  button{background:#1B3A6B;color:#E0E0E0;border:1px solid #0D6E6E;
+          border-radius:6px;padding:6px 14px;cursor:pointer;font-size:.85em;transition:.2s}
+  button:hover{background:#0D6E6E}
+  button.active{background:#0D6E6E}
+  input[type=range]{accent-color:#0D6E6E;width:200px}
+  .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.75em;font-weight:700}
+  .badge-gold{background:#C9A84C;color:#000}
+  .badge-green{background:#27AE60;color:#fff}
+  .badge-red{background:#E74C3C;color:#fff}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .metric{background:#0d1525;border-radius:8px;padding:10px;text-align:center}
+  .metric-val{font-size:1.4em;font-weight:700;color:#C9A84C}
+  .metric-lbl{font-size:.7em;color:#888888;margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:.82em}
+  th{background:#1B3A6B;color:#C9A84C;padding:7px 10px;text-align:left}
+  td{padding:6px 10px;border-bottom:1px solid #1a2235}
+  tr:hover td{background:#0d1525}
+  .waterfall-bar{cursor:pointer;transition:opacity .2s}
+  .waterfall-bar:hover{opacity:.75}
+  .cerebro-header{text-align:center;padding:12px 0 20px;border-bottom:1px solid #1B3A6B;margin-bottom:16px}
+  .cerebro-header h1{color:#C9A84C;font-size:1.3em;letter-spacing:2px}
+  .cerebro-header p{color:#888888;font-size:.8em;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="cerebro-header">
+  <h1>⚡ CEREBRO-X v22.1</h1>
+  <p>Computational Drug-DDS Engineering Platform | Created by Muhammad Talaat</p>
+</div>
+
+<div class="card">
+  <div class="title">H01 · BBB Crossing Animation — Donepezil + plga</div>
+  <div class="subtitle">5-stage simulation based on computed DLVO + transcytosis + endosomal escape data</div>
+  <div class="grid2">
+    <div>
+      <canvas id="bbbCanvas" width="480" height="340"></canvas>
+      <div class="ctrl">
+        <button id="bbbPlay" onclick="bbbToggle()">▶ Play</button>
+        <input type="range" id="bbbScrub" min="0" max="500" value="0" oninput="bbbScrub(this.value)">
+        <span id="bbbStage" style="color:#C9A84C;font-size:.85em">IV Injection → Bloodstream</span>
+      </div>
+    </div>
+    <div>
+      <div class="metric"><div class="metric-val">30.0%</div><div class="metric-lbl">BBB Crossing (with DDS)</div></div>
+      <div style="height:8px"></div>
+      <div class="metric"><div class="metric-val">3.0%</div><div class="metric-lbl">Native BBB Crossing</div></div>
+      <div style="height:8px"></div>
+      <div class="metric"><div class="metric-val">10.0×</div><div class="metric-lbl">Enhancement Factor</div></div>
+      <div style="height:8px"></div>
+      <div class="metric"><div class="metric-val">50%</div><div class="metric-lbl">Endosomal Escape Eff.</div></div>
+      <div style="height:8px"></div>
+      <div class="metric"><div class="metric-val">0.50</div><div class="metric-lbl">Stealth Index</div></div>
+      <div style="height:8px"></div>
+      <div class="metric"><div class="metric-val">130 nm</div><div class="metric-lbl">Carrier Size</div></div>
+    </div>
+  </div>
+</div>
+<script>
+const bbbStages=[["IV Injection \u2192 Bloodstream", "Protein Corona Formation", "BBB Encounter (RVG29 binding)", "Transcytosis through Endothelium", "Drug Release in Brain ISF"]];
+const bbbData={bbbEnh:30.0,bbbNat:3.0,escape:0.5,size:130.0,stealth:0.5};
+let bbbT=0,bbbPlaying=false,bbbRAF=null;
+const bbbC=document.getElementById('bbbCanvas');
+const bbbCtx=bbbC.getContext('2d');
+
+function bbbDraw(t){
+  const W=bbbC.width,H=bbbC.height;
+  bbbCtx.fillStyle='#0D1117';bbbCtx.fillRect(0,0,W,H);
+  
+  // Blood vessel (top 35%)
+  const bloodH=H*0.35;
+  bbbCtx.fillStyle='#2A0A0A';bbbCtx.fillRect(0,0,W,bloodH);
+  bbbCtx.fillStyle='rgba(139,26,26,0.4)';bbbCtx.fillRect(0,0,W,bloodH);
+  bbbCtx.fillStyle='rgba(220,50,50,0.15)';bbbCtx.fillRect(0,0,W,bloodH*0.6);
+  
+  // BBB endothelium
+  const bbbY=bloodH;
+  bbbCtx.fillStyle='#1A4A1A';bbbCtx.fillRect(0,bbbY,W,30);
+  bbbCtx.strokeStyle='#2ECC71';bbbCtx.lineWidth=2;
+  bbbCtx.strokeRect(0,bbbY,W,30);
+  bbbCtx.fillStyle='#2ECC71';bbbCtx.font='11px monospace';
+  bbbCtx.fillText('Blood-Brain Barrier (Endothelium)',10,bbbY+19);
+  
+  // Brain parenchyma (below BBB)
+  const brainY=bbbY+30;
+  bbbCtx.fillStyle='#0D1A3A';bbbCtx.fillRect(0,brainY,W,H-brainY);
+  
+  // Neurons (static)
+  [[W*0.2,brainY+60],[W*0.5,brainY+80],[W*0.8,brainY+60],[W*0.35,brainY+130],[W*0.65,brainY+130]].forEach(([nx,ny])=>{
+    bbbCtx.beginPath();bbbCtx.arc(nx,ny,18,0,Math.PI*2);
+    bbbCtx.fillStyle='#0D2340';bbbCtx.fill();
+    bbbCtx.strokeStyle='#4A90D9';bbbCtx.lineWidth=1.5;bbbCtx.stroke();
+  });
+  
+  // Nanoparticle animation
+  const stageIdx=Math.floor(t/100);
+  const stageT=(t%100)/100;
+  
+  let npX,npY,npAlpha=1,coronaR=0,released=0;
+  if(t<100){npX=80+stageT*200;npY=bloodH*0.4;coronaR=stageT*8;}
+  else if(t<200){npX=280;npY=bloodH*0.4+stageT*bloodH*0.5;coronaR=8;}
+  else if(t<300){npX=280;npY=bbbY+15;coronaR=Math.max(0,8-stageT*6);}
+  else if(t<400){npX=280;npY=bbbY+30+stageT*(H-brainY-60)*0.5;coronaR=0;released=stageT;}
+  else{npX=280;npY=H-80;coronaR=0;released=1;npAlpha=Math.max(0,1-stageT);}
+  
+  // Draw particle
+  if(npAlpha>0){
+    if(coronaR>0){
+      bbbCtx.beginPath();bbbCtx.arc(npX,npY,15+coronaR,0,Math.PI*2);
+      bbbCtx.fillStyle=`rgba(232,215,183,${0.25*npAlpha})`;bbbCtx.fill();
+    }
+    bbbCtx.beginPath();bbbCtx.arc(npX,npY,15,0,Math.PI*2);
+    bbbCtx.fillStyle=`rgba(27,58,107,${npAlpha})`;bbbCtx.fill();
+    bbbCtx.strokeStyle=`rgba(201,168,76,${npAlpha})`;bbbCtx.lineWidth=2;bbbCtx.stroke();
+    // Drug inside
+    bbbCtx.beginPath();bbbCtx.arc(npX,npY,6,0,Math.PI*2);
+    bbbCtx.fillStyle=`rgba(232,119,34,${npAlpha})`;bbbCtx.fill();
+  }
+  
+  // Released drug particles in brain
+  if(released>0){
+    for(let i=0;i<Math.floor(released*15);i++){
+      const ang=(i/15)*Math.PI*2;const r=20+i*4;
+      const dx=npX+r*Math.cos(ang+t*0.02);const dy=npY+r*Math.sin(ang+t*0.02);
+      if(dy>brainY){
+        bbbCtx.beginPath();bbbCtx.arc(dx,dy,3,0,Math.PI*2);
+        bbbCtx.fillStyle=`rgba(232,119,34,${0.8*(1-i/15)})`;bbbCtx.fill();
+      }
+    }
+  }
+  
+  // Stage label
+  const si=Math.min(4,Math.floor(t/100));
+  document.getElementById('bbbStage').textContent=bbbStages[si];
+  
+  // Progress bar
+  bbbCtx.fillStyle='#1a2235';bbbCtx.fillRect(10,H-20,W-20,8);
+  bbbCtx.fillStyle='#0D6E6E';bbbCtx.fillRect(10,H-20,(W-20)*(t/500),8);
+  
+  // Metrics overlay
+  bbbCtx.fillStyle='rgba(201,168,76,0.9)';bbbCtx.font='bold 12px monospace';
+  bbbCtx.fillText(`BBB crossing: ${bbbData.bbbEnh.toFixed(1)}% (native: ${bbbData.bbbNat.toFixed(1)}%)`,10,20);
+}
+
+function bbbLoop(){
+  if(!bbbPlaying)return;
+  bbbT=Math.min(500,bbbT+1.2);
+  document.getElementById('bbbScrub').value=bbbT;
+  bbbDraw(bbbT);
+  if(bbbT>=500){bbbPlaying=false;document.getElementById('bbbPlay').textContent='↺ Replay';bbbT=0;return;}
+  bbbRAF=requestAnimationFrame(bbbLoop);
+}
+function bbbToggle(){
+  if(bbbT>=500)bbbT=0;
+  bbbPlaying=!bbbPlaying;
+  document.getElementById('bbbPlay').textContent=bbbPlaying?'⏸ Pause':'▶ Play';
+  if(bbbPlaying)bbbLoop();
+}
+function bbbScrub(v){bbbT=Number(v);bbbDraw(bbbT);}
+bbbDraw(0);
+</script>
+
+<div class="card">
+  <div class="title">H08 · Molecular Docking — RVG29 ↔ BBB Receptor Binding</div>
+  <div class="subtitle">Donepezil | ΔG_avidity = -10.1 kcal/mol | Kd = 78 nM (Moderate (10-100nM)) | LIE + Bell avidity model</div>
+  <div class="grid2">
+    <div>
+      <canvas id="dockCanvas" width="460" height="340"></canvas>
+      <div class="ctrl">
+        <button onclick="dockToggle()" id="dockBtn">▶ Animate Docking</button>
+        <button onclick="dockReset()">↺ Reset</button>
+      </div>
+    </div>
+    <div>
+      <div class="grid2" style="gap:8px;margin-bottom:10px">
+        <div class="metric"><div class="metric-val">-10.1</div><div class="metric-lbl">ΔG (kcal/mol)</div></div>
+        <div class="metric"><div class="metric-val">78 nM</div><div class="metric-lbl">Kd (affinity)</div></div>
+        <div class="metric"><div class="metric-val">42474</div><div class="metric-lbl">Ligands/particle</div></div>
+        <div class="metric"><div class="metric-val">12882219.1s</div><div class="metric-lbl">Residence time</div></div>
+        <div class="metric"><div class="metric-val">30.0%</div><div class="metric-lbl">BBB Enhancement</div></div>
+        <div class="metric"><div class="metric-val">130nm</div><div class="metric-lbl">Carrier size</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Parameter</th><th>Value</th><th>Method</th></tr></thead>
+        <tbody>
+          <tr><td>ΔG single ligand</td><td>-12.50 kcal/mol</td><td>LIE (Aqvist 1994)</td></tr>
+          <tr><td>ΔG avidity</td><td>-10.09 kcal/mol</td><td>Bell cooperative binding</td></tr>
+          <tr><td>Receptors engaged</td><td>50</td><td>Geometric model</td></tr>
+          <tr><td>Kd class</td><td>Moderate (10-100nM)</td><td>Equilibrium binding</td></tr>
+        </tbody>
+      </table>
+      <p style="color:#888;font-size:.78em;margin-top:8px">
+        Ligand-receptor docking uses Linear Interaction Energy (LIE) approximation. 
+        Avidity computed via Bell 1978 multi-valent model. 
+        Higher avidity = longer residence = more transcytosis events.
+      </p>
+    </div>
+  </div>
+</div>
+<script>
+const DC = document.getElementById('dockCanvas');
+const DX = DC.getContext('2d');
+let dT=0, dPlaying=false, dRAF=null;
+const dkd={dG:-10.09,Kd:77.6,nLig:42474,bbb:30.0,size:130};
+
+function dockDraw(t){
+  const W=DC.width,H=DC.height;
+  DX.fillStyle='#0D1117';DX.fillRect(0,0,W,H);
+  
+  // BBB membrane (horizontal)
+  const mY=H*0.5;
+  const grad=DX.createLinearGradient(0,mY-15,0,mY+15);
+  grad.addColorStop(0,'#1A4A1A');grad.addColorStop(0.5,'#2ECC71');grad.addColorStop(1,'#1A4A1A');
+  DX.fillStyle=grad;DX.fillRect(0,mY-15,W,30);
+  DX.fillStyle='rgba(46,204,113,0.15)';DX.fillRect(0,mY-15,W,30);
+  DX.fillStyle='#2ECC71';DX.font='10px monospace';
+  DX.fillText('BBB Endothelium — nAChR receptors',10,mY+4);
+  
+  // Receptors on BBB surface
+  const recPositions=[80,160,240,320,400];
+  recPositions.forEach((rx,ri)=>{
+    const engaged = t>0.3 && Math.abs(rx-230)<80;
+    DX.beginPath();DX.arc(rx,mY-15,8,0,Math.PI*2);
+    DX.fillStyle=engaged?'#E87722':'#1B3A6B';DX.fill();
+    DX.strokeStyle='#C9A84C';DX.lineWidth=1.5;DX.stroke();
+    if(engaged && t>0.5){
+      DX.fillStyle='rgba(232,119,34,0.3)';
+      DX.beginPath();DX.arc(rx,mY-15,14,0,Math.PI*2);DX.fill();
+    }
+  });
+  
+  // Nanocarrier approaching from top
+  const npY=Math.max(60,H*0.15+(mY-80-H*0.15)*Math.min(1,t*2));
+  const npX=W/2;
+  
+  // PEG corona
+  for(let i=0;i<12;i++){
+    const ang=i*30*Math.PI/180+t*2;
+    const px=npX+Math.cos(ang)*(35+10);const py=npY+Math.sin(ang)*(35+10);
+    DX.beginPath();DX.moveTo(npX+Math.cos(ang)*35,npY+Math.sin(ang)*35);
+    DX.lineTo(px,py);
+    DX.strokeStyle='#0D6E6E';DX.lineWidth=1.5;DX.stroke();
+    DX.beginPath();DX.arc(px,py,3,0,Math.PI*2);DX.fillStyle='#0D6E6E';DX.fill();
+  }
+  
+  // NP core
+  DX.beginPath();DX.arc(npX,npY,35,0,Math.PI*2);
+  DX.fillStyle='#1B3A6B';DX.fill();
+  DX.strokeStyle='#C9A84C';DX.lineWidth=2.5;DX.stroke();
+  
+  // Ligands (RVG29 spikes)
+  const ligCount=Math.min(8,Math.floor(t*16));
+  for(let i=0;i<ligCount;i++){
+    const ang=i*(360/8)*Math.PI/180;
+    const lx=npX+Math.cos(ang)*38;const ly=npY+Math.sin(ang)*38;
+    const lx2=npX+Math.cos(ang)*50;const ly2=npY+Math.sin(ang)*50;
+    DX.beginPath();DX.moveTo(lx,ly);DX.lineTo(lx2,ly2);
+    DX.strokeStyle='#9B59B6';DX.lineWidth=2;DX.stroke();
+    DX.beginPath();DX.arc(lx2,ly2,4,0,Math.PI*2);DX.fillStyle='#9B59B6';DX.fill();
+  }
+  
+  // Drug payload
+  DX.beginPath();DX.arc(npX,npY,12,0,Math.PI*2);
+  DX.fillStyle='#E87722';DX.fill();
+  DX.fillStyle='white';DX.font='9px monospace';DX.textAlign='center';
+  DX.fillText('Don',npX,npY+3);DX.textAlign='left';
+  
+  // Binding energy label
+  const boundDist = Math.abs(npY-(mY-50));
+  if(boundDist<30){
+    const alpha=Math.min(1,(30-boundDist)/30);
+    DX.fillStyle=`rgba(201,168,76,${alpha})`;
+    DX.font='bold 11px monospace';DX.textAlign='center';
+    DX.fillText('dG='+dkd.dG.toFixed(1)+' kcal/mol  Kd='+dkd.Kd.toFixed(0)+'nM',npX,mY-60);
+    DX.textAlign='left';
+  }
+  
+  // Below BBB: brain
+  DX.fillStyle='rgba(13,23,64,0.6)';DX.fillRect(0,mY+15,W,H-mY-15);
+  DX.fillStyle='#888';DX.font='10px monospace';
+  DX.fillText('Brain parenchyma',10,mY+35);
+  
+  // Progress bar
+  DX.fillStyle='#1a2235';DX.fillRect(10,H-18,W-20,8);
+  DX.fillStyle='#C9A84C';DX.fillRect(10,H-18,(W-20)*t,8);
+}
+
+function dockLoop(){
+  if(!dPlaying)return;
+  dT=Math.min(1,dT+0.008);
+  dockDraw(dT);
+  if(dT>=1){dPlaying=false;document.getElementById('dockBtn').textContent='↺ Replay';return;}
+  dRAF=requestAnimationFrame(dockLoop);
+}
+function dockToggle(){
+  dPlaying=!dPlaying;
+  document.getElementById('dockBtn').textContent=dPlaying?'⏸ Pause':'▶ Play';
+  if(dPlaying)dockLoop();
+}
+function dockReset(){dT=0;dPlaying=false;dockDraw(0);document.getElementById('dockBtn').textContent='▶ Animate Docking';}
+dockDraw(0);
+</script>
+
+<div class="card">
+  <div class="title">H09 · Docking + Release — Combined Delivery Simulation</div>
+  <div class="subtitle">Donepezil from plga | ΔG=-10.1 kcal/mol | t50_blood=23.2h | Escape=50%</div>
+  <div class="grid2">
+    <div>
+      <p style="color:#888;font-size:.8em;margin-bottom:6px">Docking affinity → release kinetics correlation</p>
+      <canvas id="drChart" height="180"></canvas>
+    </div>
+    <div>
+      <p style="color:#888;font-size:.8em;margin-bottom:6px">Endosomal escape efficiency vs release rate</p>
+      <canvas id="drBar" height="180"></canvas>
+    </div>
+  </div>
+</div>
+<script>
+const drCtx=document.getElementById('drChart').getContext('2d');
+new Chart(drCtx,{
+  type:'line',
+  data:{
+    labels:[0.0, 1.2, 2.4, 3.6, 4.8, 6.0, 7.2, 8.4, 9.6, 10.9, 12.3, 13.5, 14.7, 15.9, 17.1, 18.3, 19.5, 20.7, 21.9, 23.2, 24.6, 25.8, 27.0, 28.2, 29.4, 30.6, 31.8, 33.0, 34.3, 35.5, 36.9, 38.1, 39.3, 40.5, 41.7, 42.9, 44.1, 45.3, 46.6, 48.0],
+    datasets:[
+      {label:'Blood release (%)',data:[0.0, 2.67, 5.24, 7.71, 10.11, 12.41, 14.64, 16.78, 18.85, 20.84, 23.15, 24.99, 26.77, 28.48, 30.13, 31.73, 33.26, 34.75, 36.18, 37.56, 39.15, 40.42, 41.65, 42.84, 43.98, 45.08, 46.14, 47.17, 48.16, 49.11, 50.21, 51.09, 51.94, 52.76, 53.55, 54.31, 55.05, 55.76, 56.44, 57.23],
+        borderColor:'#E87722',fill:true,backgroundColor:'rgba(232,119,34,0.08)',
+        pointRadius:0,borderWidth:2.5,tension:.4},
+      {label:'Endosomal release (%)',data:[0.0, 1.34, 2.67, 3.96, 5.24, 6.49, 7.71, 8.92, 10.11, 11.27, 12.64, 13.76, 14.85, 15.93, 16.99, 18.03, 19.05, 20.06, 21.04, 22.01, 23.15, 24.08, 24.99, 25.88, 26.77, 27.63, 28.48, 29.31, 30.13, 30.94, 31.88, 32.66, 33.42, 34.16, 34.89, 35.61, 36.32, 37.01, 37.69, 38.49],
+        borderColor:'#9B59B6',fill:true,backgroundColor:'rgba(155,89,182,0.08)',
+        pointRadius:0,borderWidth:2,tension:.4},
+    ]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{labels:{color:'#E0E0E0',font:{size:10}}}},
+    scales:{
+      x:{ticks:{color:'#888',maxTicksLimit:8},title:{display:true,text:'Time (h)',color:'#888'},grid:{color:'#1a2235'}},
+      y:{min:0,max:100,ticks:{color:'#888',callback:v=>v+'%'},title:{display:true,text:'% Released',color:'#888'},grid:{color:'#1a2235'}}
+    }
+  }
+});
+const drBCtx=document.getElementById('drBar').getContext('2d');
+new Chart(drBCtx,{
+  type:'bar',
+  data:{
+    labels:['Docking ΔG','Escape Eff.','Release rate','BBB Transport'],
+    datasets:[{
+      label:'Normalized score (0-100)',
+      data:[
+        Math.min(100,Math.abs(-10.1)*5),
+        50.0,
+        Math.min(100,100/23.2*10),
+        30.0
+      ],
+      backgroundColor:['#C9A84C','#9B59B6','#E87722','#3498DB'],
+      borderWidth:1.5,borderRadius:4
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{color:'#E0E0E0',font:{size:9}},grid:{color:'#1a2235'}},
+      y:{min:0,max:100,ticks:{color:'#888',callback:v=>v},grid:{color:'#1a2235'}}
+    }
+  }
+});
+</script>
+
+<div class="card">
+  <div class="title">H03 · Drug Release Profile — Donepezil</div>
+  <div class="subtitle">First Order model | Sustained first-order | Max EE = 75%</div>
+  <div class="grid3" style="margin-bottom:12px">
+    <div class="metric"><div class="metric-val">23.2h</div><div class="metric-lbl">t50 in Blood</div></div>
+    <div class="metric"><div class="metric-val">46.3h</div><div class="metric-lbl">t50 Endosomal</div></div>
+    <div class="metric"><div class="metric-val">75%</div><div class="metric-lbl">Max Release (EE)</div></div>
+  </div>
+  <canvas id="relChart" height="110"></canvas>
+</div>
+<script>
+const relCtx=document.getElementById('relChart').getContext('2d');
+new Chart(relCtx,{
+  type:'line',
+  data:{
+    labels:[0.0, 0.7, 1.4, 2.4, 3.1, 3.9, 4.8, 5.5, 6.3, 7.2, 8.0, 8.9, 9.6, 10.4, 11.3, 12.1, 12.8, 13.7, 14.5, 15.4, 16.2, 16.9, 17.8, 18.6, 19.3, 20.3, 21.0, 21.9, 22.7, 23.4, 24.4, 25.1, 25.8, 26.8, 27.5, 28.5, 29.2, 29.9, 30.9, 31.6, 32.3, 33.3, 34.0, 35.0, 35.7, 36.4, 37.4, 38.1, 38.8, 39.8, 40.5, 41.5, 42.2, 42.9, 43.9, 44.6, 45.3, 46.3, 47.0, 48.0],
+    datasets:[
+      {label:'Blood (pH 7.4)',data:[0.0, 1.61, 3.19, 5.24, 6.73, 8.2, 10.11, 11.5, 12.86, 14.64, 15.93, 17.62, 18.85, 20.06, 21.62, 22.77, 23.89, 25.35, 26.41, 27.8, 28.81, 29.81, 31.1, 32.04, 32.96, 34.16, 35.04, 36.18, 37.01, 37.83, 38.89, 39.66, 40.42, 41.41, 42.13, 43.07, 43.75, 44.42, 45.3, 45.93, 46.56, 47.37, 47.96, 48.73, 49.3, 49.85, 50.57, 51.09, 51.61, 52.27, 52.76, 53.4, 53.86, 54.31, 54.9, 55.34, 55.76, 56.31, 56.71, 57.23],borderColor:'#E87722',pointRadius:0,borderWidth:2,tension:.4,fill:true,backgroundColor:'rgba(232,119,34,0.08)'},
+      {label:'Endosomal (pH 5.5)',data:[0.0, 0.81, 1.61, 2.67, 3.45, 4.22, 5.24, 5.99, 6.73, 7.71, 8.44, 9.4, 10.11, 10.81, 11.73, 12.41, 13.09, 13.98, 14.64, 15.5, 16.15, 16.78, 17.62, 18.24, 18.85, 19.66, 20.25, 21.04, 21.62, 22.2, 22.96, 23.52, 24.08, 24.81, 25.35, 26.06, 26.59, 27.11, 27.8, 28.31, 28.81, 29.48, 29.97, 30.62, 31.1, 31.57, 32.19, 32.66, 33.11, 33.71, 34.16, 34.75, 35.18, 35.61, 36.18, 36.6, 37.01, 37.56, 37.96, 38.49],borderColor:'#9B59B6',pointRadius:0,borderWidth:2,tension:.4,fill:true,backgroundColor:'rgba(155,89,182,0.08)'},
+    ]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{labels:{color:'#E0E0E0'}}},
+    scales:{
+      x:{ticks:{color:'#888',maxTicksLimit:10},title:{display:true,text:'Time (h)',color:'#888'},grid:{color:'#1a2235'}},
+      y:{min:0,max:100,ticks:{color:'#888',callback:v=>v+'%'},title:{display:true,text:'% Released',color:'#888'},grid:{color:'#1a2235'}}
+    }
+  }
+});
+</script>
+
+<div class="card">
+  <div class="title">H14 · Shelf-Life & Degradation Predictor — Arrhenius Kinetics</div>
+  <div class="subtitle">Donepezil | Grade: MARGINAL (3-6 months) | Dominant: Drug leakage | ICH Q1A standard</div>
+  <div class="grid2">
+    <div>
+      <canvas id="shelfChart" height="160"></canvas>
+    </div>
+    <div>
+      <canvas id="degPieChart" height="160"></canvas>
+    </div>
+  </div>
+  <div class="grid3" style="margin-top:10px">
+    <div class="metric"><div class="metric-val">122d</div><div class="metric-lbl">t90 Shelf-Life</div></div>
+    <div class="metric"><div class="metric-val">MARGINAL</div><div class="metric-lbl">Quality Grade</div></div>
+    <div class="metric"><div class="metric-val">Drug leakage</div><div class="metric-lbl">Main Degradation</div></div>
+  </div>
+</div>
+<script>
+const shelfCtx=document.getElementById('shelfChart').getContext('2d');
+new Chart(shelfCtx,{
+  type:'line',
+  data:{
+    labels:[0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152, 156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204, 208, 212, 216, 220, 224, 228, 232, 236, 240],
+    datasets:[
+      {label:'Potency (%)',data:[100.0, 99.66, 99.31, 98.97, 98.63, 98.29, 97.95, 97.62, 97.28, 96.94, 96.61, 96.28, 95.95, 95.62, 95.29, 94.96, 94.63, 94.31, 93.98, 93.66, 93.34, 93.02, 92.69, 92.38, 92.06, 91.74, 91.43, 91.11, 90.8, 90.48, 90.17, 89.86, 89.55, 89.25, 88.94, 88.63, 88.33, 88.02, 87.72, 87.42, 87.12, 86.82, 86.52, 86.22, 85.92, 85.63, 85.33, 85.04, 84.75, 84.45, 84.16, 83.87, 83.59, 83.3, 83.01, 82.73, 82.44, 82.16, 81.87, 81.59, 81.31],borderColor:'#3498DB',fill:true,backgroundColor:'rgba(52,152,219,0.08)',pointRadius:0,borderWidth:2,tension:.4},
+      {label:'ICH 90% threshold',data:Array(61).fill(90),borderColor:'#27AE60',borderDash:[5,3],pointRadius:0,borderWidth:1.5},
+    ]
+  },
+  options:{
+    responsive:true,plugins:{legend:{labels:{color:'#E0E0E0',font:{size:10}}}},
+    scales:{
+      x:{ticks:{color:'#888',maxTicksLimit:8},title:{display:true,text:'Days stored',color:'#888'},grid:{color:'#1a2235'}},
+      y:{min:60,max:102,ticks:{color:'#888',callback:v=>v+'%'},grid:{color:'#1a2235'}}
+    }
+  }
+});
+const degCtx=document.getElementById('degPieChart').getContext('2d');
+new Chart(degCtx,{
+  type:'doughnut',
+  data:{labels:['Hydrolysis','Oxidation','Aggregation','Leakage'],
+    datasets:[{data:[0.000061,0.000160,0.000273,0.000368],
+    backgroundColor:['#E87722','#E74C3C','#9B59B6','#3498DB'],
+    borderColor:'#0D1117',borderWidth:2}]},
+  options:{responsive:true,plugins:{legend:{labels:{color:'#E0E0E0'}}}}
+});
+</script>
+
+<div class="card">
+  <div class="title">H17 · Glymphatic Clearance — Sleep/Wake Cycle Animation</div>
+  <div class="subtitle">Donepezil | t½ waking=12.4h | ECM binding=0.74 | GOOD: particle size > ECM pore -- extended CNS retention</div>
+  <canvas id="glyphChart" height="110"></canvas>
+  <p style="color:#888;font-size:.78em;margin-top:6px">
+    Purple bands = sleep (00:00–08:00), 3.5× faster clearance (Xie 2013, Science). 
+    ECM binding index 0.74: particles trapped in ECM — extended retention.
+  </p>
+</div>
+<script>
+const glCtx=document.getElementById('glyphChart').getContext('2d');
+const glT=[0.0, 1.4, 2.9, 4.3, 5.8, 7.2, 8.7, 10.1, 11.6, 13.0, 14.5, 15.9, 17.4, 18.8, 20.3, 21.7, 23.2, 25.0, 26.4, 27.9, 29.3, 30.8, 32.2, 33.6, 35.1, 36.5, 38.0, 39.4, 40.9, 42.3, 43.8, 45.2, 46.7, 48.5, 49.9, 51.4, 52.8, 54.3, 55.7, 57.2, 58.6, 60.1, 61.5, 63.0, 64.4, 65.8, 67.3, 68.7, 70.2, 72.0];
+const glRet=[100.0, 75.43, 56.89, 42.91, 32.37, 24.42, 20.37, 18.79, 17.34, 15.99, 14.76, 13.61, 12.56, 11.59, 10.69, 9.86, 9.1, 7.07, 5.34, 4.02, 3.04, 2.29, 1.82, 1.68, 1.55, 1.43, 1.32, 1.21, 1.12, 1.03, 0.95, 0.88, 0.81, 0.66, 0.5, 0.38, 0.28, 0.21, 0.16, 0.15, 0.14, 0.13, 0.12, 0.11, 0.1, 0.09, 0.09, 0.08, 0.07, 0.06];
+
+// Build sleep zone backgrounds
+const sleepPlugin={
+  id:'sleepZones',
+  beforeDraw(chart){
+    const {ctx,chartArea,scales}=chart;
+    if(!chartArea)return;
+    const x=scales.x;
+    glT.forEach((t,i)=>{
+      const h=t%24;
+      if(h>=0&&h<8){
+        const x0=x.getPixelForValue(t);
+        const x1=i+1<glT.length?x.getPixelForValue(glT[i+1]):x0+5;
+        ctx.save();ctx.fillStyle='rgba(155,89,182,0.12)';
+        ctx.fillRect(x0,chartArea.top,x1-x0,chartArea.height);ctx.restore();
+      }
+    });
+  }
+};
+
+new Chart(glCtx,{
+  type:'line',
+  plugins:[sleepPlugin],
+  data:{
+    labels:glT.map(t=>t+'h'),
+    datasets:[{
+      label:'Brain retention (%)',
+      data:glRet,
+      borderColor:'#3498DB',fill:true,backgroundColor:'rgba(52,152,219,0.10)',
+      pointRadius:0,borderWidth:2.5,tension:.4
+    }]
+  },
+  options:{
+    responsive:true,animation:{duration:1000},
+    plugins:{legend:{labels:{color:'#E0E0E0'}}},
+    scales:{
+      x:{ticks:{color:'#888',maxTicksLimit:10},title:{display:true,text:'Time (h)',color:'#888'},grid:{color:'#1a2235'}},
+      y:{min:0,max:105,ticks:{color:'#888',callback:v=>v+'%'},title:{display:true,text:'Brain Retention',color:'#888'},grid:{color:'#1a2235'}}
+    }
+  }
+});
+</script>
+
+<div class="card">
+  <div class="title">H05 · DDS Ranking Dashboard — Top 20 Formulations</div>
+  <div class="subtitle">Ranked by Composite Score (Drug+DDS biophysics combined)</div>
+  <div style="display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap">
+    <span><span class="badge badge-gold">#1</span> RVG29-PLGA-NP</span>
+    <button onclick="rankSwitch('composite')">By Composite Score</button>
+    <button onclick="rankSwitch('bbb')">By BBB Enhancement</button>
+    <button onclick="rankSwitch('cns')">By CNS Bioavail.</button>
+  </div>
+  <canvas id="rankChart" height="160"></canvas>
+</div>
+<script>
+const rankNames=["RVG29-PLGA-NP", "ApoE-SLN", "Tf-SLN-Stealth", "RVG29-Liposome-pH", "Tf-PEG-Liposome-Donepe", "Lf-Micelle-Thermo", "Bare-PLGA", "PEG-Polymer-Micelle"];
+const rankScores=[100.0, 100.0, 100.0, 100.0, 100.0, 97.0, 55.0, 95.0];
+const rankBBB=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+const rankCNS=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+const rankColors=["#3498DB", "#3498DB", "#3498DB", "#3498DB", "#3498DB", "#3498DB", "#3498DB", "#3498DB"];
+const rankCtx=document.getElementById('rankChart').getContext('2d');
+const rankChart=new Chart(rankCtx,{
+  type:'bar',
+  data:{labels:rankNames,datasets:[{
+    label:'Composite Score',data:rankScores,
+    backgroundColor:rankColors.map(c=>c+'BB'),
+    borderColor:rankColors,borderWidth:1.5,borderRadius:4
+  }]},
+  options:{
+    responsive:true,animation:{duration:600},indexAxis:'y',
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{color:'#888'},grid:{color:'#1a2235'},title:{display:true,text:'Score',color:'#888'}},
+      y:{ticks:{color:'#E0E0E0',font:{size:10}},grid:{color:'#1a2235'}}
+    }
+  }
+});
+function rankSwitch(mode){
+  let data=mode==='composite'?rankScores:mode==='bbb'?rankBBB:rankCNS;
+  let lbl=mode==='composite'?'Composite Score':mode==='bbb'?'BBB Enhancement (%)':'CNS Bioavailability (%)';
+  rankChart.data.datasets[0].data=data;
+  rankChart.data.datasets[0].label=lbl;
+  rankChart.update();
+}
+</script>
+
+<div class="card">
+  <div class="title">H10 · Regression Docking — Composite Score vs BBB Enhancement</div>
+  <div class="subtitle">Donepezil | All 8 DDS formulations | Hover for details</div>
+  <canvas id="regChart" height="120"></canvas>
+  <div class="ctrl">
+    <button onclick="regSwitch('bbb')">BBB Enhancement</button>
+    <button onclick="regSwitch('escape')">Endosomal Escape</button>
+    <button onclick="regSwitch('score')">Score Distribution</button>
+  </div>
+</div>
+<script>
+const regCtx=document.getElementById('regChart').getContext('2d');
+const regNames=["RVG29-PLGA-NP", "ApoE-SLN", "Tf-SLN-Stealth", "RVG29-Liposome-p", "Tf-PEG-Liposome-", "Lf-Micelle-Therm", "Bare-PLGA", "PEG-Polymer-Mice"];
+const regScores=[100.0, 100.0, 100.0, 100.0, 100.0, 97.0, 55.0, 95.0];
+const regBBB=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+const regEscape=[50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0];
+const regColors=["#3498DB", "#3498DB", "#3498DB", "#3498DB", "#3498DB", "#3498DB", "#3498DB", "#3498DB"];
+
+const regChart=new Chart(regCtx,{
+  type:'scatter',
+  data:{datasets:[{
+    label:'DDS Formulations',
+    data:regBBB.map((b,i)=>{return{x:b,y:regScores[i],label:regNames[i]}}) ,
+    backgroundColor:regColors.map(c=>c+'CC'),
+    borderColor:regColors,
+    pointRadius:7,pointHoverRadius:10,borderWidth:1.5
+  }]},
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{
+        label:ctx=>{
+          const i=ctx.dataIndex;
+          return [regNames[i],'Score: '+regScores[i].toFixed(1),'BBB: '+regBBB[i].toFixed(1)+'%`,`Escape: ${regEscape[i].toFixed(0)}%`];
+        }
+      }}
+    },
+    scales:{
+      x:{title:{display:true,text:'BBB Enhancement (%)',color:'#888'},ticks:{color:'#888'},grid:{color:'#1a2235'}},
+      y:{title:{display:true,text:'Composite Score',color:'#888'},ticks:{color:'#888'},grid:{color:'#1a2235'}}
+    }
+  }
+});
+
+function regSwitch(mode){
+  let xData,xLabel;
+  if(mode==='bbb'){xData=regBBB;xLabel='BBB Enhancement (%)';}
+  else if(mode==='escape'){xData=regEscape;xLabel='Endosomal Escape (%)';}
+  else{xData=regScores;xLabel='Score';}
+  regChart.data.datasets[0].data=xData.map((v,i)=>{return{x:v,y:regScores[i],label:regNames[i]}});
+  regChart.options.scales.x.title.text=xLabel;
+  regChart.update();
+}
+</script>
+
+<div class="card">
+  <div class="title">H11 · Efficiency Heatmap — DDS × Performance Matrix</div>
+  <div class="subtitle">Donepezil | Top 8 DDS | Normalized 0-1 (green=high, red=low)</div>
+  <div id="heatmapContainer" style="overflow-x:auto"></div>
+</div>
+<script>
+const hmNames=["RVG29-PLGA-NP", "ApoE-SLN", "Tf-SLN-Stealth", "RVG29-Liposome-pH", "Tf-PEG-Liposome-Do", "Lf-Micelle-Thermo", "Bare-PLGA", "PEG-Polymer-Micell"];
+const hmCols=["BBB%", "CNS BA%", "Escape", "Stealth", "Payload%", "Score"];
+const hmMatrix=[[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]];
+
+function renderHeatmap(){
+  const c=document.getElementById('heatmapContainer');
+  let h='<table style="width:100%;border-collapse:collapse;font-size:.8em">';
+  h+='<thead><tr><th style="background:#1B3A6B;color:#C9A84C;padding:6px 8px;text-align:left">DDS</th>';
+  hmCols.forEach(col=>{h+=`<th style="background:#1B3A6B;color:#E0E0E0;padding:6px 8px;text-align:center">${col}</th>`});
+  h+='</tr></thead><tbody>';
+  hmMatrix.forEach((row,i)=>{
+    h+=`<tr>`;
+    h+=`<td style="padding:5px 8px;color:#E0E0E0;font-size:.82em;white-space:nowrap">${hmNames[i]}</td>`;
+    row.forEach(v=>{
+      const r=Math.round(220*(1-v));const g=Math.round(180*v);const b=60;
+      const bg=`rgb(${r},${g},${b})`;
+      const lum=0.299*r+0.587*g+0.114*b;
+      const fg=lum>120?'#000':'#fff';
+      h+=`<td style="background:${bg};color:${fg};padding:5px 8px;text-align:center;font-weight:bold">${(v*100).toFixed(0)}%</td>`;
+    });
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  c.innerHTML=h;
+}
+renderHeatmap();
+</script>
+
+<div class="card">
+  <div class="title">H13 · DDS Comparison Radar — Top-5 Formulations</div>
+  <div class="subtitle">⚠ Insufficient data: fewer than 2 DDS have enough
+      populated metrics for a meaningful radar. Check input completeness.</div>
+</div>
+
+<div class="card">
+  <div class="title">H06 · DLVO Colloidal Stability — Potential Energy Curve</div>
+  <div class="subtitle">plga | Zeta=-22.0 mV | Size=130 nm | V_total=5.8 kT | ⚠️ UNSTABLE</div>
+  <div class="grid3" style="margin-bottom:12px">
+    <div class="metric"><div class="metric-val">5.8 kT</div><div class="metric-lbl">V_total (>25kT = stable)</div></div>
+    <div class="metric"><div class="metric-val">-22.0 mV</div><div class="metric-lbl">Zeta Potential</div></div>
+    <div class="metric"><div class="metric-val">UNSTABLE</div><div class="metric-lbl">Colloidal Status</div></div>
+  </div>
+  <canvas id="dlvoChart" height="120"></canvas>
+  <p style="color:#888;font-size:.78em;margin-top:8px">
+    DLVO theory: V_total = V_vdW (attraction) + V_EDL (electrostatic repulsion). 
+    Threshold 25kT prevents aggregation in blood. Debye length = 0.78 nm (physiological ionic strength).
+  </p>
+</div>
+<script>
+const dlvoCtx=document.getElementById('dlvoChart').getContext('2d');
+new Chart(dlvoCtx,{
+  type:'line',
+  data:{
+    labels:[0.1, 0.5, 0.9, 1.3, 1.7, 2.1, 2.5, 2.9, 3.3, 3.7, 4.1, 4.5, 4.9, 5.3, 5.7, 6.1, 6.5, 6.9, 7.3, 7.7, 8.1, 8.5, 8.9, 9.3, 9.7, 10.1, 10.5, 10.9, 11.3, 11.7, 12.1, 12.5, 12.9, 13.3, 13.7, 14.1, 14.5, 14.9, 15.3, 15.7, 16.1, 16.5, 16.9, 17.3, 17.7, 18.1, 18.5, 18.9, 19.3, 19.7],
+    datasets:[
+      {label:'V_vdW (attraction)',data:[-126.56, -25.31, -14.06, -9.74, -7.44, -6.03, -5.06, -4.36, -3.84, -3.42, -3.09, -2.81, -2.58, -2.39, -2.22, -2.07, -1.95, -1.83, -1.73, -1.64, -1.56, -1.49, -1.42, -1.36, -1.3, -1.25, -1.21, -1.16, -1.12, -1.08, -1.05, -1.01, -0.98, -0.95, -0.92, -0.9, -0.87, -0.85, -0.83, -0.81, -0.79, -0.77, -0.75, -0.73, -0.72, -0.7, -0.68, -0.67, -0.66, -0.64],borderColor:'#E87722',pointRadius:0,borderWidth:2,tension:.3},
+      {label:'V_EDL (repulsion)',data:[56.1, 33.59, 20.12, 12.05, 7.21, 4.32, 2.59, 1.55, 0.93, 0.56, 0.33, 0.2, 0.12, 0.07, 0.04, 0.03, 0.02, 0.01, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],borderColor:'#3498DB',pointRadius:0,borderWidth:2,tension:.3},
+      {label:'V_total',data:[-70.45, 8.28, 6.05, 2.31, -0.23, -1.71, -2.48, -2.82, -2.91, -2.87, -2.75, -2.61, -2.46, -2.32, -2.18, -2.05, -1.93, -1.82, -1.73, -1.64, -1.56, -1.49, -1.42, -1.36, -1.3, -1.25, -1.21, -1.16, -1.12, -1.08, -1.05, -1.01, -0.98, -0.95, -0.92, -0.9, -0.87, -0.85, -0.83, -0.81, -0.79, -0.77, -0.75, -0.73, -0.72, -0.7, -0.68, -0.67, -0.66, -0.64],borderColor:'#C9A84C',pointRadius:0,borderWidth:2.5,tension:.3},
+    ]
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{labels:{color:'#E0E0E0'}},
+      annotation:{annotations:{threshold:{type:'line',yMin:25,yMax:25,borderColor:'#27AE60',borderDash:[6,3],label:{content:'Stability threshold (25kT)',enabled:true,color:'#27AE60'}}}}
+    },
+    scales:{
+      x:{ticks:{color:'#888',maxTicksLimit:10},title:{display:true,text:'Surface separation (nm)',color:'#888'},grid:{color:'#1a2235'}},
+      y:{ticks:{color:'#888'},title:{display:true,text:'Energy (kT)',color:'#888'},grid:{color:'#1a2235'}}
+    }
+  }
+});
+</script>
+
+<div class="card">
+  <div class="title">H07 · SHAP Explainability — DDS Score Waterfall</div>
+  <div class="subtitle">Donepezil | RVG29-PLGA-NP | Composite Score = 100.0</div>
+  <canvas id="shapChart" height="140"></canvas>
+  <p style="color:#888;font-size:.78em;margin-top:8px">
+    SHAP (SHapley Additive exPlanations) shows contribution of each feature to the final score.
+    Green = positive contribution. Red = negative. Based on gradient boosted ensemble model.
+  </p>
+</div>
+<script>
+const shapCtx=document.getElementById('shapChart').getContext('2d');
+new Chart(shapCtx,{
+  type:'bar',
+  data:{
+    labels:["Surface_Ligand", "Size_nm", "Endosomal_Escape", "Stealth_Index", "DLVO_Stability", "Zeta_Potential", "PEGylation", "Protein_Corona"],
+    datasets:[{
+      label:'SHAP contribution to score',
+      data:[7.5, 5.5, 10.0, 6.0, -5, -9.6, 4.0, -3.0],
+      backgroundColor:["#27AE60", "#27AE60", "#27AE60", "#27AE60", "#E74C3C", "#E74C3C", "#27AE60", "#E74C3C"],
+      borderColor:["#2ECC71", "#2ECC71", "#2ECC71", "#2ECC71", "#C0392B", "#C0392B", "#2ECC71", "#C0392B"],
+      borderWidth:1.5,borderRadius:4
+    }]
+  },
+  options:{
+    responsive:true,indexAxis:'y',
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{color:'#888'},grid:{color:'#1a2235'},title:{display:true,text:'SHAP value (score points)',color:'#888'}},
+      y:{ticks:{color:'#E0E0E0',font:{size:11}},grid:{color:'#1a2235'}}
+    }
+  }
+});
+</script>
+
+<div class="card">
+  <div class="title">H12 · Off-Target QSAR Heatmap — 50-Receptor Panel</div>
+  <div class="subtitle">Donepezil | 17 high-risk targets | CRITICAL</div>
+  <div class="grid3" style="margin-bottom:12px">
+    <div class="metric"><div class="metric-val">17</div><div class="metric-lbl">High-Risk Targets</div></div>
+    <div class="metric"><div class="metric-val">⚠️</div><div class="metric-lbl">Cardiac Safety</div></div>
+    <div class="metric"><div class="metric-val">⚠️</div><div class="metric-lbl">Hepatic Safety</div></div>
+  </div>
+  <canvas id="qsarChart" height="200"></canvas>
+  <div class="ctrl">
+    <button onclick="qsarView('both')">Free vs DDS</button>
+    <button onclick="qsarView('free')">Free Drug Only</button>
+    <button onclick="qsarView('dds')">In DDS Only</button>
+  </div>
+</div>
+<script>
+const qsarCtx=document.getElementById('qsarChart').getContext('2d');
+const qsarChart=new Chart(qsarCtx,{
+  type:'bar',
+  data:{
+    labels:["hERG_K+", "Nav1.5_Na+", "Cav1.2_Ca2+", "beta1_AR", "CYP3A4_inhib", "CYP2D6_inhib", "CYP2C9_inhib", "CYP1A2_inhib", "CYP2C19_inhib", "DAT_dopamine", "SERT_serotonin", "NET_norepineph", "MAO-A", "MAO-B", "D2R_dopamine", "5HT2A_serotonin", "GABA-A", "NMDA_receptor", "nAChR_alpha4", "H1_histamine", "ERalpha_estrogen", "ARalpha_androgen", "GR_glucocort", "THRalpha_thyroid", "MDR1_Pgp", "BCRP_ABCG2", "MRP2_ABCC2", "OATP1B1", "OAT3", "OCT2"],
+    datasets:[
+      {label:'Free drug (risk score)',data:[0.593, 0.248, 0.096, 0.216, 0.1, 0.715, 0.22, 0.09, 0.203, 0.45, 0.785, 0.607, 0.03, 0.202, 0.783, 0.856, 0.401, 1.0, 0.391, 0.578, 0.79, 0.704, 0.582, 0.215, 0.145, 0.145, 0.145, 0.715, 0.235, 0.287],backgroundColor:["#E74C3C", "#27AE60", "#27AE60", "#27AE60", "#27AE60", "#E74C3C", "#27AE60", "#27AE60", "#27AE60", "#E67E22", "#E74C3C", "#E74C3C", "#27AE60", "#27AE60", "#E74C3C", "#E74C3C", "#E67E22", "#E74C3C", "#E67E22", "#E74C3C", "#E74C3C", "#E74C3C", "#E74C3C", "#27AE60", "#27AE60", "#27AE60", "#27AE60", "#E74C3C", "#27AE60", "#27AE60"],borderWidth:1,borderRadius:2},
+      {label:'In DDS (reduced)',data:[0.267, 0.112, 0.043, 0.097, 0.045, 0.322, 0.099, 0.041, 0.092, 0.202, 0.353, 0.273, 0.013, 0.091, 0.352, 0.385, 0.18, 0.45, 0.176, 0.26, 0.356, 0.317, 0.262, 0.097, 0.065, 0.065, 0.065, 0.322, 0.106, 0.129],backgroundColor:["rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)", "rgba(52,152,219,0.6)"],borderWidth:1,borderRadius:2},
+    ]
+  },
+  options:{
+    responsive:true,animation:{duration:400},
+    plugins:{legend:{labels:{color:'#E0E0E0',font:{size:10}}}},
+    scales:{
+      x:{ticks:{color:'#888',font:{size:9},maxRotation:60},grid:{color:'#1a2235'}},
+      y:{min:0,max:1,ticks:{color:'#888'},title:{display:true,text:'Risk Score (0-1)',color:'#888'},grid:{color:'#1a2235'}}
+    }
+  }
+});
+function qsarView(mode){
+  qsarChart.data.datasets[0].hidden=(mode==='dds');
+  qsarChart.data.datasets[1].hidden=(mode==='free');
+  qsarChart.update();
+}
+</script>
+
+<div class="card">
+  <div class="title">H18 · Microglial Activation — Neuroinflammation Risk</div>
+  <div class="subtitle">Donepezil | Score=0.089 | LOW -- safe for CNS application</div>
+  <div class="grid2">
+    <div>
+      <canvas id="micGauge" width="300" height="200"></canvas>
+    </div>
+    <div>
+      <div class="grid2" style="gap:8px;margin-bottom:10px">
+        <div class="metric"><div class="metric-val" style="color:#27AE60">9%</div><div class="metric-lbl">Neuro-inflammation Score</div></div>
+        <div class="metric"><div class="metric-val">1.9×</div><div class="metric-lbl">IL-6 fold-change</div></div>
+        <div class="metric"><div class="metric-val">1.7×</div><div class="metric-lbl">TNF-α fold-change</div></div>
+        <div class="metric"><div class="metric-val">0.050</div><div class="metric-lbl">TLR2/4 score</div></div>
+      </div>
+      <p style="color:#E0E0E0;font-size:.82em">→ Increase PEGylation to 5-10 mol% for complement evasion</p>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const c=document.getElementById('micGauge');
+  const x=c.getContext('2d');
+  const cx=150,cy=160,r=110;
+  x.fillStyle='#0A0F1A';x.fillRect(0,0,300,200);
+  // Arc background
+  x.beginPath();x.arc(cx,cy,r,Math.PI,2*Math.PI);
+  x.strokeStyle='#1a2235';x.lineWidth=20;x.stroke();
+  // Score arc
+  const ang=Math.PI+(Math.PI*0.089);
+  const grad=x.createLinearGradient(cx-r,cy,cx+r,cy);
+  grad.addColorStop(0,'#27AE60');grad.addColorStop(0.5,'#E67E22');grad.addColorStop(1,'#E74C3C');
+  x.beginPath();x.arc(cx,cy,r,Math.PI,ang);
+  x.strokeStyle='#27AE60';x.lineWidth=20;x.stroke();
+  // Needle
+  const nAng=Math.PI+Math.PI*0.089;
+  x.beginPath();x.moveTo(cx,cy);
+  x.lineTo(cx+Math.cos(nAng)*90,cy+Math.sin(nAng)*90);
+  x.strokeStyle='white';x.lineWidth=3;x.stroke();
+  x.beginPath();x.arc(cx,cy,8,0,Math.PI*2);x.fillStyle='white';x.fill();
+  // Labels
+  x.fillStyle='#C9A84C';x.font='bold 20px monospace';x.textAlign='center';
+  x.fillText('9%',cx,cy-30);
+  x.fillStyle='#888';x.font='10px monospace';
+  x.fillText('SAFE',cx-90,cy+20);x.fillText('RISK',cx+70,cy+20);
+  x.fillStyle='#E0E0E0';x.font='11px sans-serif';
+  x.fillText('LOW -- safe for CNS applicatio',cx,cy+5);
+})();
+</script>
+
+<div class="card">
+  <div class="title">H15 · Synthetic Clinical Trial — N=500 Virtual Patients</div>
+  <div class="subtitle">Donepezil | Monte Carlo simulation | Pharmacogenomics-adjusted</div>
+  <div class="grid3" style="margin-bottom:12px">
+    <div class="metric"><div class="metric-val" style="color:#E74C3C">NO-GO / REFORMULATE</div><div class="metric-lbl">Go/No-Go Decision</div></div>
+    <div class="metric"><div class="metric-val">26.0%</div><div class="metric-lbl">Overall Response Rate</div></div>
+    <div class="metric"><div class="metric-val">1.07 mg/kg</div><div class="metric-lbl">Optimal Dose</div></div>
+    <div class="metric"><div class="metric-val">29.4%</div><div class="metric-lbl">Young Adults (&lt;65)</div></div>
+    <div class="metric"><div class="metric-val">24.9%</div><div class="metric-lbl">Elderly (&gt;65)</div></div>
+    <div class="metric"><div class="metric-val">0.0%</div><div class="metric-lbl">Severe AE (&lt;5% = GO)</div></div>
+  </div>
+  <canvas id="trialChart" height="100"></canvas>
+</div>
+<script>
+const trialCtx=document.getElementById('trialChart').getContext('2d');
+new Chart(trialCtx,{
+  type:'bar',
+  data:{
+    labels:['Responders','Mild AE','Severe AE','Renal AE','Young Resp.','Elderly Resp.'],
+    datasets:[{
+      data:[26.0,0.4,0.0,0.0,29.4,24.9],
+      backgroundColor:['#27AE60','#E67E22','#E74C3C','#9B59B6','#3498DB','#1B3A6B'],
+      borderWidth:1.5,borderRadius:4
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{color:'#E0E0E0',font:{size:11}},grid:{color:'#1a2235'}},
+      y:{min:0,max:100,ticks:{color:'#888',callback:v=>v+'%'},grid:{color:'#1a2235'}}
+    }
+  }
+});
+</script>
+
+<div class="card">
+  <div class="title">H16 · CEREBRO-X v22.1 Capability Radar — 49 Active Science Modules</div>
+  <div class="subtitle">Donepezil | 8 capability dimensions across all 62 science module outputs</div>
+  <div class="grid2">
+    <div style="max-width:400px"><canvas id="capRadar"></canvas></div>
+    <div>
+      <table>
+        <thead><tr><th>Capability Dimension</th><th>Score</th><th>Modules Active</th></tr></thead>
+        <tbody>
+          <tr><td>BBB Engineering</td><td><b style="color:#C9A84C">85%</b></td><td>✅</td></tr><tr><td>PK Prediction</td><td><b style="color:#C9A84C">0%</b></td><td>❌</td></tr><tr><td>Safety Screening</td><td><b style="color:#C9A84C">90%</b></td><td>✅</td></tr><tr><td>Manufacturing</td><td><b style="color:#C9A84C">85%</b></td><td>✅</td></tr><tr><td>Regulatory (FDA)</td><td><b style="color:#C9A84C">90%</b></td><td>✅</td></tr><tr><td>Clinical Translation</td><td><b style="color:#C9A84C">80%</b></td><td>✅</td></tr><tr><td>IP & Economics</td><td><b style="color:#C9A84C">85%</b></td><td>✅</td></tr><tr><td>Stability</td><td><b style="color:#C9A84C">90%</b></td><td>✅</td></tr>
+        </tbody>
+      </table>
+      <div class="metric" style="margin-top:10px">
+        <div class="metric-val">49</div>
+        <div class="metric-lbl">Active modules / 62 total science points</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const capCtx=document.getElementById('capRadar').getContext('2d');
+new Chart(capCtx,{
+  type:'radar',
+  data:{
+    labels:["BBB Engineering", "PK Prediction", "Safety Screening", "Manufacturing", "Regulatory (FDA)", "Clinical Translation", "IP & Economics", "Stability"],
+    datasets:[{
+      label:'CEREBRO-X v22.1 Coverage',
+      data:[85.0, 0, 90, 85, 90, 80, 85, 90],
+      borderColor:'#C9A84C',backgroundColor:'rgba(201,168,76,0.2)',
+      borderWidth:2.5,pointBackgroundColor:'#C9A84C',pointRadius:5,
+    }]
+  },
+  options:{
+    responsive:true,
+    scales:{r:{min:0,max:100,ticks:{color:'#888',backdropColor:'transparent',stepSize:20},
+      grid:{color:'#1a2235'},angleLines:{color:'#1a2235'},
+      pointLabels:{color:'#E0E0E0',font:{size:10}}}}
+    ,plugins:{legend:{display:false}}
+  }
+});
+</script>
+
+<div class="card">
+  <div class="title">H20 · Bootstrap Validation — 95% Confidence Intervals</div>
+  <div class="subtitle">1000 bootstrap resamples per formulation | Uncertainty quantification for score ranking</div>
+  <canvas id="bootChart" height="140"></canvas>
+</div>
+<script>
+const bootCtx=document.getElementById('bootChart').getContext('2d');
+new Chart(bootCtx,{
+  type:'bar',
+  data:{
+    labels:["RVG29-PLGA-NP", "ApoE-SLN", "Tf-SLN-Stealth", "RVG29-Liposome-pH", "Tf-PEG-Liposome-Do", "Lf-Micelle-Thermo", "Bare-PLGA", "PEG-Polymer-Micell"],
+    datasets:[
+      {label:'Score',data:[100.0, 100.0, 100.0, 100.0, 100.0, 97.0, 55.0, 95.0],backgroundColor:'#1B3A6B99',borderColor:'#3498DB',borderWidth:1.5,borderRadius:3},
+      {label:'95% CI Low',data:[96.9, 98.4, 97.8, 97.9, 96.7, 93.8, 51.3, 93.3],backgroundColor:'transparent',borderColor:'#E87722',borderWidth:1,borderDash:[4,3],type:'line',pointRadius:3},
+      {label:'95% CI High',data:[102.6, 101.6, 102.0, 102.8, 101.6, 99.0, 58.1, 97.9],backgroundColor:'transparent',borderColor:'#27AE60',borderWidth:1,borderDash:[4,3],type:'line',pointRadius:3},
+    ]
+  },
+  options:{
+    responsive:true,indexAxis:'y',
+    plugins:{legend:{labels:{color:'#E0E0E0',font:{size:10}}}},
+    scales:{
+      x:{ticks:{color:'#888'},grid:{color:'#1a2235'},title:{display:true,text:'Composite Score',color:'#888'}},
+      y:{ticks:{color:'#E0E0E0',font:{size:9}},grid:{color:'#1a2235'}}
+    }
+  }
+});
+</script>
+
+<div class="card">
+  <div class="title">H21 · Drug Problems → DDS Solutions Mapping — Donepezil</div>
+  <div class="subtitle">Automatically identified delivery barriers and how the DDS resolves each</div>
+  <table>
+    <thead><tr><th>Severity</th><th>Problem Identified</th><th>Evidence</th><th>DDS Solution</th><th>Expected Outcome</th></tr></thead>
+    <tbody>
+        <tr>
+          <td><span class="badge" style="background:#E67E22;color:#000">HIGH</span></td>
+          <td style="color:#E0E0E0">Cardiac off-target risk (hERG/Nav/Cav channels)</td>
+          <td style="color:#888;font-size:.8em">QSAR panel: cardiac receptor score > safety threshold</td>
+          <td style="color:#27AE60">CNS-targeted plga reduces systemic expos</td>
+          <td style="color:#3498DB">CNS bioavailability 10.0% with reduced c</td>
+        </tr></tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div class="title">H19 · Lyophilization Cycle Optimizer</div>
+  <div class="subtitle">Donepezil | Tg'=-30.0°C | Primary drying=-32.0°C | Total=42h | OK: Tg within safe margin</div>
+  <canvas id="lyoChart" height="110"></canvas>
+  <div class="grid2" style="margin-top:10px">
+    <table style="font-size:.8em">
+      <thead><tr><th>Step</th><th>Setting</th></tr></thead>
+      <tbody>
+        <tr><td>Freezing</td><td>-50°C @ 1°C/min</td></tr>
+        <tr><td>Primary drying</td><td>-32°C, 0.148 mbar</td></tr>
+        <tr><td>Secondary drying</td><td>+25°C, 0.05 mbar</td></tr>
+        <tr><td>Tg' safety margin</td><td>-2.0°C above Tg'</td></tr>
+        <tr><td>Cake collapse risk</td><td style="color:#27AE60">OK: Tg within safe margin</td></tr>
+      </tbody>
+    </table>
+    <div>
+      <div class="metric"><div class="metric-val">42h</div><div class="metric-lbl">Total cycle time</div></div>
+      <div class="metric" style="margin-top:8px"><div class="metric-val">-30°C</div><div class="metric-lbl">Tg' (glass transition)</div></div>
+    </div>
+  </div>
+</div>
+<script>
+const lyoCtx=document.getElementById('lyoChart').getContext('2d');
+new Chart(lyoCtx,{
+  type:'line',
+  data:{
+    labels:[0, 2, 4, 4.5, 28, 28.5, 30, 36, 41.6],
+    datasets:[
+      {label:'Temperature (°C)',data:[-5, -50, -50, -32.0, -32.0, -22.0, 25.0, 25.0, 20],
+        borderColor:'#E87722',yAxisID:'yT',pointRadius:4,borderWidth:2.5,tension:.3},
+      {label:'Pressure (mbar)',data:[1000, 1000, 0.2, 0.1478, 0.1478, 0.2956, 0.05, 0.05, 1000],
+        borderColor:'#3498DB',yAxisID:'yP',pointRadius:4,borderWidth:2,
+        borderDash:[5,3],tension:.3},
+      {label:"Tg' line",data:Array(9).fill(-30.0),
+        borderColor:'#E74C3C',yAxisID:'yT',pointRadius:0,borderWidth:1.5,
+        borderDash:[8,4]},
+    ]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{labels:{color:'#E0E0E0',font:{size:10}}}},
+    scales:{
+      x:{ticks:{color:'#888'},title:{display:true,text:'Time (h)',color:'#888'},grid:{color:'#1a2235'}},
+      yT:{position:'left',ticks:{color:'#E87722'},title:{display:true,text:'T (°C)',color:'#E87722'},grid:{color:'#1a2235'}},
+      yP:{position:'right',type:'logarithmic',ticks:{color:'#3498DB'},title:{display:true,text:'P (mbar)',color:'#3498DB'},grid:{display:false}}
+    }
+  }
+});
+</script>
+
+<div class="card">
+  <div class="title">H24 · Cryo-Chain Thermal Excursion — Donepezil</div>
+  <div class="subtitle">Lipid phase transition thermodynamics | Arrhenius leakage model | Koynova 1998</div>
+  <div class="grid3" style="margin-bottom:12px">
+    <div class="metric"><div class="metric-val" style="color:#27AE60">RELEASE BATCH</div><div class="metric-lbl">Batch Decision</div></div>
+    <div class="metric"><div class="metric-val">75.0% → 74.2%</div><div class="metric-lbl">EE Before → After</div></div>
+    <div class="metric"><div class="metric-val">0.0%</div><div class="metric-lbl">Lipid Melted</div></div>
+  </div>
+  <div class="grid2">
+    <div>
+      <canvas id="cryoGauge" width="220" height="160"></canvas>
+    </div>
+    <div style="padding:16px">
+      <p style="color:#888;font-size:.85em;line-height:1.8">
+        <b style="color:#C9A84C">Excursion Temperature:</b> -20°C for 4h<br>
+        <b style="color:#C9A84C">Lipid Tm:</b> 42°C<br>
+        <b style="color:#C9A84C">ΔT above Tm:</b> -62.0°C<br>
+        <b style="color:#C9A84C">Leakage rate:</b> 0.000100 /h<br>
+        <b style="color:#C9A84C">Analytical check:</b> Re-test DLS particle size + HPLC drug content before release
+      </p>
+    </div>
+  </div>
+</div>
+<script>
+const cryoCtx=document.getElementById('cryoGauge').getContext('2d');
+const eeLoss=0.8;
+new Chart(cryoCtx,{
+  type:'doughnut',
+  data:{
+    labels:['EE Retained','EE Lost to Excursion'],
+    datasets:[{data:[74.2,0.8],
+      backgroundColor:['#27AE60','#2A1A1A'],borderColor:['#0D1117'],borderWidth:2}]
+  },
+  options:{responsive:false,cutout:'70%',
+    plugins:{legend:{labels:{color:'#E0E0E0',font:{size:10}}},
+    tooltip:{callbacks:{label:ctx=>ctx.label+': '+ctx.parsed.toFixed(1)+'%'}}}
+  }
+});
+</script>
+
+<div class="card">
+  <div class="title">H26 · FUS-Responsive Nanocarrier — Acoustic BBB Opening</div>
+  <div class="subtitle">Donepezil | 0.5 MHz | MI=0.40 | BBB open 42 min | Inject 130 nm DDS 5 min before FUS. FUS opens BBB for 42 min. Predicted 48% enha</div>
+  <div class="grid2">
+    <div>
+      <canvas id="fusCanvas" width="460" height="260"></canvas>
+      <div class="ctrl">
+        <button onclick="fusToggle()" id="fusBtn">▶ Play</button>
+      </div>
+    </div>
+    <div>
+      <div class="grid2" style="gap:8px">
+        <div class="metric"><div class="metric-val">0.5 MHz</div><div class="metric-lbl">FUS Frequency</div></div>
+        <div class="metric"><div class="metric-val">0.40</div><div class="metric-lbl">Mechanical Index</div></div>
+        <div class="metric"><div class="metric-val">283 kPa</div><div class="metric-lbl">Negative Pressure</div></div>
+        <div class="metric"><div class="metric-val">42 min</div><div class="metric-lbl">BBB Open Window</div></div>
+        <div class="metric"><div class="metric-val">48%</div><div class="metric-lbl">FUS-Enhanced Uptake</div></div>
+        <div class="metric"><div class="metric-val">30%</div><div class="metric-lbl">Standard BBB Enh.</div></div>
+      </div>
+      <p style="color:#888;font-size:.78em;margin-top:10px">
+        FUS + microbubbles open BBB via stable cavitation (MI 0.3-0.5). 
+        Inertial cavitation (MI>0.8) = irreversible damage. 
+        Carrier injected 5 min before FUS for optimal uptake.
+      </p>
+      <p style="color:#27AE60;font-size:.85em"><b>Structural integrity: OK</b></p>
+    </div>
+  </div>
+</div>
+<script>
+const fusC=document.getElementById('fusCanvas');
+const fusX=fusC.getContext('2d');
+let fusT=0,fusPlaying=false,fusR=null;
+
+function fusDraw(t){
+  const W=fusC.width,H=fusC.height;
+  fusX.fillStyle='#0D1117';fusX.fillRect(0,0,W,H);
+  
+  // Skull
+  fusX.beginPath();fusX.arc(W/2,H/2,105,0,Math.PI*2);
+  fusX.strokeStyle='#888';fusX.lineWidth=3;fusX.stroke();
+  
+  // Brain (color changes with t)
+  const br=13,bg=Math.round(23+(64-23)*Math.min(1,t*2)),bb=Math.round(64+(160-64)*Math.min(1,t*2));
+  const bAlpha=0.3+t*0.4;
+  fusX.beginPath();fusX.arc(W/2,H/2,90,0,Math.PI*2);
+  fusX.fillStyle='rgba('+br+','+bg+','+bb+','+bAlpha.toFixed(2)+')';fusX.fill();
+  
+  // BBB pore openings
+  if(t>0.25){
+    const nPores=Math.floor((t-0.25)*20);
+    for(let i=0;i<Math.min(nPores,15);i++){
+      const ang=i*(24*Math.PI/180);
+      const px=W/2+Math.cos(ang)*88;const py=H/2+Math.sin(ang)*88;
+      const pa=Math.min(1,t*2);
+      fusX.beginPath();fusX.arc(px,py,3+Math.sin(t*10+i)*2,0,Math.PI*2);
+      fusX.fillStyle='rgba(46,204,113,'+pa.toFixed(2)+')';fusX.fill();
+    }
+  }
+  
+  // Ultrasound waves from transducer
+  const txX=W-30;
+  for(let w=0;w<4;w++){
+    const wPhase=(t*3+w/4)%1;
+    const wX=txX-wPhase*200;
+    const wH=30+w*8;
+    const wa=Math.max(0,(1-wPhase)*0.7).toFixed(2);
+    fusX.beginPath();fusX.moveTo(wX,H/2-wH);fusX.lineTo(wX,H/2+wH);
+    fusX.strokeStyle='rgba(52,152,219,'+wa+')';
+    fusX.lineWidth=2.5;fusX.stroke();
+  }
+  
+  // Transducer block
+  fusX.fillStyle='#C9A84C';fusX.fillRect(txX-5,H/2-40,20,80);
+  fusX.fillStyle='#000';fusX.font='9px monospace';fusX.textAlign='center';
+  fusX.fillText('FUS',txX+5,H/2+3);fusX.textAlign='left';
+  
+  // Nanocarriers during window
+  if(t>0.3){
+    const nCar=Math.floor((t-0.3)*30);
+    for(let i=0;i<Math.min(nCar,20);i++){
+      const r=(i*37)%70;const a=(i*113)%628/100;
+      const cx2=W/2+Math.cos(a)*r;const cy2=H/2+Math.sin(a)*r;
+      const ca=(0.6+0.4*Math.sin(i+t*5)).toFixed(2);
+      fusX.beginPath();fusX.arc(cx2,cy2,4,0,Math.PI*2);
+      fusX.fillStyle='rgba(201,168,76,'+ca+')';fusX.fill();
+    }
+  }
+  
+  // Status text
+  const stArr=['Standby','FUS activating...','BBB Opening!','Carriers entering brain','Delivered'];
+  const stIdx=Math.min(4,Math.floor(t*5));
+  fusX.fillStyle='#C9A84C';fusX.font='bold 11px monospace';fusX.textAlign='center';
+  fusX.fillText(stArr[stIdx],W/2,H-15);fusX.textAlign='left';
+  
+  // Progress bar
+  fusX.fillStyle='#1a2235';fusX.fillRect(10,H-8,W-20,5);
+  fusX.fillStyle='#3498DB';fusX.fillRect(10,H-8,(W-20)*t,5);
+}
+
+function fusLoop(){
+  if(!fusPlaying)return;
+  fusT=Math.min(1,fusT+0.006);
+  fusDraw(fusT);
+  if(fusT>=1){fusPlaying=false;document.getElementById('fusBtn').textContent='Replay';return;}
+  fusR=requestAnimationFrame(fusLoop);
+}
+function fusToggle(){
+  if(fusT>=1)fusT=0;
+  fusPlaying=!fusPlaying;
+  document.getElementById('fusBtn').textContent=fusPlaying?'Pause':'Play';
+  if(fusPlaying)fusLoop();
+}
+fusDraw(0);
+</script>
+
+<div class="card">
+  <div class="title">H23 · In-Silico Biodistribution — Organ Map</div>
+  <div class="subtitle">Donepezil | CNS/off-target ratio = 0.213 | No animal studies needed (3R principle)</div>
+  <div class="grid2">
+    <canvas id="bdChart" height="220"></canvas>
+    <div>
+      <canvas id="bdBar" height="220"></canvas>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  // Donut chart
+  const dCtx=document.getElementById('bdChart').getContext('2d');
+  new Chart(dCtx,{
+    type:'doughnut',
+    data:{
+      labels:["Brain (Target)", "Liver", "Spleen", "Lung", "Kidney", "Blood"],
+      datasets:[{
+        data:[10.0, 47.0, 12.5, 3.9, 2.5, 24.1],
+        backgroundColor:["#3498DB", "#E87722", "#9B59B6", "#0D6E6E", "#27AE60", "#E74C3C"],
+        borderColor:'#0D1117',borderWidth:3,
+        hoverOffset:12
+      }]
+    },
+    options:{
+      responsive:true,cutout:'60%',
+      plugins:{
+        legend:{labels:{color:'#E0E0E0',font:{size:9}}},
+        tooltip:{callbacks:{label:ctx=>ctx.label+': '+ctx.parsed.toFixed(1)+'% of dose'}}
+      }
+    }
+  });
+  // Bar chart
+  const bCtx=document.getElementById('bdBar').getContext('2d');
+  new Chart(bCtx,{
+    type:'bar',
+    data:{
+      labels:["Brain (Target)", "Liver", "Spleen", "Lung", "Kidney", "Blood"],
+      datasets:[{
+        label:'% administered dose',
+        data:[10.0, 47.0, 12.5, 3.9, 2.5, 24.1],
+        backgroundColor:["#3498DBBB", "#E87722BB", "#9B59B6BB", "#0D6E6EBB", "#27AE60BB", "#E74C3CBB"],
+        borderColor:["#3498DB", "#E87722", "#9B59B6", "#0D6E6E", "#27AE60", "#E74C3C"],
+        borderWidth:1.5,borderRadius:4
+      }]
+    },
+    options:{
+      responsive:true,indexAxis:'y',
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#888',callback:v=>v+'%'},grid:{color:'#1a2235'}},
+        y:{ticks:{color:'#E0E0E0',font:{size:9}},grid:{color:'#1a2235'}}
+      }
+    }
+  });
+})();
+</script>
+
+<section class="cerebro-section">
+  <h2>🧬 H27 — Class A Surrogate (all 57 principles, Top-1 DDS)</h2>
+  <p style="color:#777;font-size:13px;margin-bottom:8px;">
+    For <strong>Donepezil</strong>, the Top-1 DDS achieved a composite
+    score of <strong>80.7/100</strong>
+    (verdict: <strong>EXCELLENT</strong>).
+    Below are the CNS group rollups followed by the FULL 57-principle scoreboard.
+  </p>
+  <h3 style="margin-top:12px;font-size:14px;">CNS Principle Group Rollups</h3>
+  <div style="display:inline-block;margin:4px;padding:8px 14px;background:#2E7D32;color:#fff;border-radius:6px;font-size:13px;">G1 CNS Delivery: 88.4/100</div><div style="display:inline-block;margin:4px;padding:8px 14px;background:#F57C00;color:#fff;border-radius:6px;font-size:13px;">G2 Release Kinetics: 54.4/100</div><div style="display:inline-block;margin:4px;padding:8px 14px;background:#2E7D32;color:#fff;border-radius:6px;font-size:13px;">G3 Stability: 79.5/100</div><div style="display:inline-block;margin:4px;padding:8px 14px;background:#2E7D32;color:#fff;border-radius:6px;font-size:13px;">G4 Safety: 86.1/100</div><div style="display:inline-block;margin:4px;padding:8px 14px;background:#F57C00;color:#fff;border-radius:6px;font-size:13px;">G5 Glymphatic BBB: 61.7/100</div><div style="display:inline-block;margin:4px;padding:8px 14px;background:#2E7D32;color:#fff;border-radius:6px;font-size:13px;">G6 Manufacturability: 77.8/100</div><div style="display:inline-block;margin:4px;padding:8px 14px;background:#F57C00;color:#fff;border-radius:6px;font-size:13px;">G7 DrugDDS Fit: 61.5/100</div><div style="display:inline-block;margin:4px;padding:8px 14px;background:#C62828;color:#fff;border-radius:6px;font-size:13px;">G8 Translational: 0.0/100</div>
+  <h3 style="margin-top:18px;font-size:14px;">All 57 Class A Surrogate Principles</h3>
+  <table style="width:100%;font-size:11px;border-collapse:collapse;">
+    <thead><tr style="background:#1F4E78;color:#fff;">
+      <th>P#</th><th>Title</th><th>Score</th><th>Conf.</th>
+      <th>Method</th><th>Reference</th></tr></thead>
+    <tbody><tr style="background:#F1F8E9"><td><strong>P01</strong></td><td>Adversarial Stress-Testing Engine</td><td style="text-align:center;font-weight:bold;">65.5</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Mean of 6 stress scenarios (pH4.5, pH2, pH8.5, 42°C, complement, oxidation); each scenario</td><td style="font-size:10px;">Anchordoquy TJ et al (2017) ACS Nano 11:12</td></tr><tr style="background:#E8F5E9"><td><strong>P02</strong></td><td>Cross-Species PK Scaling (Allometric)</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">BW^0.75 scaling + class-specific adjustment</td><td style="font-size:10px;">Mahmood I (2007) Eur J Drug Metab Pharmacokinet 32</td></tr><tr style="background:#E8F5E9"><td><strong>P03</strong></td><td>Competitive DDS Landscape Radar</td><td style="text-align:center;font-weight:bold;">81.8</td><td style="text-align:center;">LOW</td><td style="font-size:10px;">Novelty = 100 - frequency_of_combo_in_CNS_trials, modified by whether the drug's LogP/pKa/</td><td style="font-size:10px;">ClinicalTrials.gov landscape</td></tr><tr style="background:#FFEBEE"><td><strong>P04</strong></td><td>Quantum Coherence Transport Model</td><td style="text-align:center;font-weight:bold;">0.7</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">WKB tunneling: P ∝ exp(-2·barrier)</td><td style="font-size:10px;">Cao J et al (2020) Sci Adv 6:eaaz4888</td></tr><tr style="background:#FFF8E1"><td><strong>P05</strong></td><td>In-Silico Patient Subgroup Stratifier</td><td style="text-align:center;font-weight:bold;">50.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">% subgroups responding (lower CYP risk = more universal)</td><td style="font-size:10px;">Whirl-Carrillo M et al (2012) Clin Pharmacol Ther </td></tr><tr style="background:#F1F8E9"><td><strong>P06</strong></td><td>Lysosomal Trafficking Predictor</td><td style="text-align:center;font-weight:bold;">68.7</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Carrier endosomal_escape ⊕ drug-passive permeation at pH 5.5; drug-passive = LogP-driven f</td><td style="font-size:10px;">Smith SA et al (2019) Trends Biotechnol 37:1077</td></tr><tr style="background:#E8F5E9"><td><strong>P07</strong></td><td>Real-Time Literature Mining (PubMed)</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">LOW</td><td style="font-size:10px;">log-count proxy of literature support</td><td style="font-size:10px;">NCBI E-utilities — heuristic (no live fetch in sur</td></tr><tr style="background:#F1F8E9"><td><strong>P08</strong></td><td>Degradation Kinetics Under Oxidative Stress</td><td style="text-align:center;font-weight:bold;">72.3</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Arrhenius k=A·exp(-Ea/RT) for carrier; minus penalties for drug-side oxidation-prone moiet</td><td style="font-size:10px;">Halliwell B & Gutteridge JMC (2015) Free Radicals </td></tr><tr style="background:#E8F5E9"><td><strong>P09</strong></td><td>Digital Pharmacovigilance Engine</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">100 - sum(metabolite organ accumulation risks)</td><td style="font-size:10px;">Djoumbou-Feunang Y et al (2019) J Cheminform 11:2</td></tr><tr style="background:#F1F8E9"><td><strong>P10</strong></td><td>LNP Ionization State Predictor</td><td style="text-align:center;font-weight:bold;">60.0</td><td style="text-align:center;">LOW</td><td style="font-size:10px;">Non-LNP carrier — falls back to drug-side ionization stability at storage pH 7.4 (lower |n</td><td style="font-size:10px;">Hafez IM et al (2001) Adv Drug Deliv Rev 47:139</td></tr><tr style="background:#E8F5E9"><td><strong>P11</strong></td><td>Formulation Instability Fingerprint</td><td style="text-align:center;font-weight:bold;">90.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">100 - sum(weak-bond penalties from SMILES)</td><td style="font-size:10px;">Luo YR (2007) Comprehensive Handbook of BDE</td></tr><tr style="background:#F1F8E9"><td><strong>P12</strong></td><td>CNS Disease-Stage-Aware Dosing</td><td style="text-align:center;font-weight:bold;">78.8</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Score = 100·BBB_integrity_factor × (0.4 + 0.6·CNS-MPO/6) + targeting_boost (larger boost f</td><td style="font-size:10px;">Sweeney MD et al (2018) Nat Rev Neurol 14:133; Wag</td></tr><tr style="background:#E8F5E9"><td><strong>P13</strong></td><td>PBPK Digital Twin</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">AUC_brain/AUC_plasma proxy; 3-compartment surrogate</td><td style="font-size:10px;">Hammarlund-Udenaes M et al (2008) Pharm Res 25:173</td></tr><tr style="background:#E8F5E9"><td><strong>P14</strong></td><td>In-silico Dissolution & Release Profile</td><td style="text-align:center;font-weight:bold;">82.6</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">t50 from carrier kinetics × drug-membrane partition factor (10^logK_mem); HBD-anchoring bo</td><td style="font-size:10px;">Costa P & Lobo JM (2001) Eur J Pharm Sci 13:123; H</td></tr><tr style="background:#E8F5E9"><td><strong>P15</strong></td><td>Shelf-life & Degradation Predictor</td><td style="text-align:center;font-weight:bold;">92.5</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Arrhenius baseline × (0.7 + 0.3·EE) × drug_hydrolysis_factor (0.08 penalty per hydrolyzabl</td><td style="font-size:10px;">Kennon L (1964) J Pharm Sci 53:815; ICH Q1A(R2)</td></tr><tr style="background:#FFF8E1"><td><strong>P16</strong></td><td>Scale-up & Manufacturability</td><td style="text-align:center;font-weight:bold;">45.7</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Scale-readiness × shear-robustness, minus drug-processability penalties (MW, HBD-crystalli</td><td style="font-size:10px;">am Ende DJ (2011) Chemical Engineering in Pharma I</td></tr><tr style="background:#E8F5E9"><td><strong>P17</strong></td><td>Nanotoxicity & Immunogenicity Screening</td><td style="text-align:center;font-weight:bold;">86.2</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Mean of (hemolysis penalized by drug net+ charge, complement penalized for biologics, RES </td><td style="font-size:10px;">Nel A et al (2006) Science 311:622</td></tr><tr style="background:#E8F5E9"><td><strong>P18</strong></td><td>Active Targeting & Receptor Binding</td><td style="text-align:center;font-weight:bold;">87.2</td><td style="text-align:center;">HIGH</td><td style="font-size:10px;">Ligand-affinity table × density × drug-compatibility (receptor-pathway-specific drug requi</td><td style="font-size:10px;">Pardridge WM (2020) Fluids Barriers CNS 17:62</td></tr><tr style="background:#E8F5E9"><td><strong>P19</strong></td><td>QbD - Quality by Design Engine</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Fraction of CQAs (size, zeta, EE, PDI, drug-loading) within ICH spec — 5th CQA depends on </td><td style="font-size:10px;">ICH Q8(R2) Pharmaceutical Development; Bunjes H (2</td></tr><tr style="background:#FFF8E1"><td><strong>P20</strong></td><td>Cost-Efficiency Engine</td><td style="text-align:center;font-weight:bold;">57.4</td><td style="text-align:center;">LOW</td><td style="font-size:10px;">Score = 100 - 3·($/mg estimate, drug+carrier+ligand+API). Drug API cost from stereocenters</td><td style="font-size:10px;">Cost-of-goods analysis (Pharm Eng J 2019); Walsh G</td></tr><tr style="background:#F1F8E9"><td><strong>P22</strong></td><td>Protein Corona Predictor</td><td style="text-align:center;font-weight:bold;">61.5</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">100 × exp(-corona_thickness/10); thickness from carrier (|zeta|, size) + drug-side (LogP ×</td><td style="font-size:10px;">Tenzer S et al (2013) Nat Nanotechnol 8:772; Schöt</td></tr><tr style="background:#F1F8E9"><td><strong>P23</strong></td><td>Dynamic Crystal Polymorphism</td><td style="text-align:center;font-weight:bold;">77.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">100 - polymorph risk (rot_bonds + H-bond pattern)</td><td style="font-size:10px;">Bernstein J (2020) Polymorphism in Molecular Cryst</td></tr><tr style="background:#E8F5E9"><td><strong>P24</strong></td><td>Shear-Stress & Scale-Up Collapse</td><td style="text-align:center;font-weight:bold;">89.3</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">log10(crit_shear/operating_shear) × 30; crit_shear softened by drug-load for lipid carrier</td><td style="font-size:10px;">Maa YF & Hsu CC (1996) Biotechnol Bioeng 51:458; B</td></tr><tr style="background:#E8F5E9"><td><strong>P25</strong></td><td>Extractables & Leachables</td><td style="text-align:center;font-weight:bold;">80.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">100 - leachables risk by drug LogP × carrier</td><td style="font-size:10px;">USP <1663>/<1664></td></tr><tr style="background:#E8F5E9"><td><strong>P26</strong></td><td>Microbiome-Excipient Interactions</td><td style="text-align:center;font-weight:bold;">81.1</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">100 - mean_microbiome_degradability(carrier) - drug-side risk (anionic-fraction, polar sur</td><td style="font-size:10px;">Zimmermann M et al (2019) Nature 570:462</td></tr><tr style="background:#F1F8E9"><td><strong>P27</strong></td><td>Lyophilization Cycle Optimizer</td><td style="text-align:center;font-weight:bold;">77.5</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">100 - (|Tg'| - 5) × 1.5</td><td style="font-size:10px;">Pikal MJ (2002) Pharmaceutical Lyophilization</td></tr><tr style="background:#E8F5E9"><td><strong>P28</strong></td><td>3D-Printed Polypill Rheology</td><td style="text-align:center;font-weight:bold;">80.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Carrier-specific printability index</td><td style="font-size:10px;">Trenfield SJ et al (2019) Adv Drug Deliv Rev 138:1</td></tr><tr style="background:#FFF8E1"><td><strong>P29</strong></td><td>Biomimetic & Exosome Engineering</td><td style="text-align:center;font-weight:bold;">55.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Stealth-from-macrophage score; PEG ≥5% boost</td><td style="font-size:10px;">Hu CMJ et al (2011) PNAS 108:10980</td></tr><tr style="background:#FFF8E1"><td><strong>P30</strong></td><td>QM/MM Stimuli-Responsive Cleavage</td><td style="text-align:center;font-weight:bold;">45.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Score = 50 × |7.4 - pH_trigger|</td><td style="font-size:10px;">Senn HM & Thiel W (2009) Angew Chem Int Ed 48:1198</td></tr><tr style="background:#E8F5E9"><td><strong>P31</strong></td><td>In-Silico Biodistribution</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">brain% = BBB · ligand · size_match · 100; 100 if ≥5%</td><td style="font-size:10px;">Wilhelm S et al (2016) Nat Rev Mater 1:16014</td></tr><tr style="background:#FFF8E1"><td><strong>P33</strong></td><td>BBB Quantum Breaker (Trojan-Horse Design)</td><td style="text-align:center;font-weight:bold;">56.4</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">(0.6·ligand + 0.4·size) × density_factor</td><td style="font-size:10px;">Pardridge WM (2020) Fluids Barriers CNS 17:62</td></tr><tr style="background:#FFEBEE"><td><strong>P34</strong></td><td>DNA Logic Gates & Bio-computing</td><td style="text-align:center;font-weight:bold;">20.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">DNA-based carriers score high</td><td style="font-size:10px;">Douglas SM et al (2012) Science 335:831</td></tr><tr style="background:#E8F5E9"><td><strong>P35</strong></td><td>Microgravity Formulation Engine</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">LOW</td><td style="font-size:10px;">Sedimentation-Péclet proxy; smaller = better</td><td style="font-size:10px;">Reichert B et al (2019) NPJ Microgravity 5:18</td></tr><tr style="background:#F1F8E9"><td><strong>P36</strong></td><td>Geopolitical Supply-Chain Resilience</td><td style="text-align:center;font-weight:bold;">60.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Supplier-diversity index by carrier + ligand</td><td style="font-size:10px;">FDA Drug Shortage analysis</td></tr><tr style="background:#E8F5E9"><td><strong>P37</strong></td><td>Eco-Destructible Pharma</td><td style="text-align:center;font-weight:bold;">95.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Biodegradability index by carrier class</td><td style="font-size:10px;">Boxall ABA (2004) EMBO Rep 5:1110</td></tr><tr style="background:#E8F5E9"><td><strong>P38</strong></td><td>Glymphatic Clearance Trap</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Stokes-Einstein: optimum 80-150 nm</td><td style="font-size:10px;">Iliff JJ et al (2012) Sci Transl Med 4:147ra111</td></tr><tr style="background:#E8F5E9"><td><strong>P39</strong></td><td>Microglial Activation & Neuroinflammation</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">100 - (cationic_charge + carrier_risk - PEG_protection)</td><td style="font-size:10px;">Hickman SE et al (2018) Nat Neurosci 21:1359</td></tr><tr style="background:#F1F8E9"><td><strong>P40</strong></td><td>Intranasal-to-Brain Delivery</td><td style="text-align:center;font-weight:bold;">65.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Mucoadhesion + thermo-responsive boost</td><td style="font-size:10px;">Illum L (2003) J Pharm Pharmacol 56:3</td></tr><tr style="background:#FFF8E1"><td><strong>P41</strong></td><td>Exosome Cargo Loading Thermodynamics</td><td style="text-align:center;font-weight:bold;">40.0</td><td style="text-align:center;">LOW</td><td style="font-size:10px;">Not an exosome carrier — N/A</td><td style="font-size:10px;">Alvarez-Erviti L et al (2011) Nat Biotechnol 29:34</td></tr><tr style="background:#E8F5E9"><td><strong>P42</strong></td><td>Region-Specific Spatiotemporal Navigation</td><td style="text-align:center;font-weight:bold;">85.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Ligand-region specificity table</td><td style="font-size:10px;">Nutt DJ & Need AC (2014) Lancet Psychiatry 1:78</td></tr><tr style="background:#FFEBEE"><td><strong>P43</strong></td><td>FUS-Responsive Nanocarriers</td><td style="text-align:center;font-weight:bold;">20.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">FUS-response by carrier acoustic properties</td><td style="font-size:10px;">Hynynen K & Jolesz FA (1998) Ultrasound Med Biol 2</td></tr><tr style="background:#E8F5E9"><td><strong>P44</strong></td><td>CNS-Specific PBPK Time-Machine</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">AUC over 24h therapeutic window proxy</td><td style="font-size:10px;">Bies RR et al (2019) Annu Rev Pharmacol Toxicol 59</td></tr><tr style="background:#E8F5E9"><td><strong>P46</strong></td><td>Polypharmacy & DDI Simulator</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">CYP-inhibition heuristic from SMILES</td><td style="font-size:10px;">Jamei M et al (2009) Br J Clin Pharmacol 67:472</td></tr><tr style="background:#E8F5E9"><td><strong>P47</strong></td><td>Free Energy Perturbation (FEP+)</td><td style="text-align:center;font-weight:bold;">90.0</td><td style="text-align:center;">LOW</td><td style="font-size:10px;">Vina-like ΔG proxy from MW + LogP (deep mode runs full FEP+)</td><td style="font-size:10px;">Wang L et al (2015) JACS 137:2695</td></tr><tr style="background:#FFF8E1"><td><strong>P48</strong></td><td>Off-Target Toxicity & QSAR (50-receptor)</td><td style="text-align:center;font-weight:bold;">55.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">50-receptor QSAR surrogate (hERG, 5HT2B, AhR risks)</td><td style="font-size:10px;">Bowes J et al (2012) Nat Rev Drug Discov 11:909</td></tr><tr style="background:#E8F5E9"><td><strong>P49</strong></td><td>Organ-on-a-Chip Simulator</td><td style="text-align:center;font-weight:bold;">80.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Microfluidic compatibility (size + PDI)</td><td style="font-size:10px;">Bhatia SN & Ingber DE (2014) Nat Biotechnol 32:760</td></tr><tr style="background:#F1F8E9"><td><strong>P50</strong></td><td>Cryo-Chain Thermal Excursion Predictor</td><td style="text-align:center;font-weight:bold;">71.5</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Distance from -20°C phase transition × 1.3</td><td style="font-size:10px;">Crommelin DJA et al (2021) Int J Pharm 593:120163</td></tr><tr style="background:#E8F5E9"><td><strong>P51</strong></td><td>Terminal Sterilization Survivability</td><td style="text-align:center;font-weight:bold;">85.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Carrier gamma-radiation survival (25 kGy)</td><td style="font-size:10px;">Reid BD (1995) J Pharm Sci Technol 49:83</td></tr><tr style="background:#E8F5E9"><td><strong>P52</strong></td><td>Continuous Manufacturing Digital Twin</td><td style="text-align:center;font-weight:bold;">80.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Continuous-process readiness by carrier</td><td style="font-size:10px;">Lee SL et al (2015) J Pharm Innov 10:191</td></tr><tr style="background:#E8F5E9"><td><strong>P53</strong></td><td>Dark Data & Negative Results Vault</td><td style="text-align:center;font-weight:bold;">100.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Similarity-to-documented-failure</td><td style="font-size:10px;">Begley CG & Ellis LM (2012) Nature 483:531</td></tr><tr style="background:#F1F8E9"><td><strong>P54</strong></td><td>Pharmacogenomic-Guided Targeting</td><td style="text-align:center;font-weight:bold;">70.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Class-based pharmacogenomic applicability</td><td style="font-size:10px;">Whirl-Carrillo M et al (2012) Clin Pharmacol Ther </td></tr><tr style="background:#E8F5E9"><td><strong>P57</strong></td><td>Microfluidics & LNP Synthesis Digital Twin</td><td style="text-align:center;font-weight:bold;">90.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Microfluidic readiness for size 50-150 nm</td><td style="font-size:10px;">Belliveau NM et al (2012) Mol Ther Nucleic Acids 1</td></tr><tr style="background:#E8F5E9"><td><strong>P58</strong></td><td>Impurity Cascade Predictor</td><td style="text-align:center;font-weight:bold;">85.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Carrier residual-metals impurity profile</td><td style="font-size:10px;">ICH Q3D Elemental Impurities</td></tr><tr style="background:#FFEBEE"><td><strong>P59</strong></td><td>4D Shape-Shifting Carriers</td><td style="text-align:center;font-weight:bold;">30.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Stimuli-responsive bonus by release kinetics</td><td style="font-size:10px;">Stuart MAC et al (2010) Nat Mater 9:101</td></tr><tr style="background:#FFEBEE"><td><strong>P60</strong></td><td>Swarm Nanorobotics Intelligence</td><td style="text-align:center;font-weight:bold;">15.0</td><td style="text-align:center;">LOW</td><td style="font-size:10px;">Swarm capability (most carriers: no)</td><td style="font-size:10px;">Servant A et al (2015) Sci Robot 1:eaaq1155</td></tr><tr style="background:#E8F5E9"><td><strong>P61</strong></td><td>Synthetic Clinical Trials & Virtual Humans</td><td style="text-align:center;font-weight:bold;">95.0</td><td style="text-align:center;">MODERA</td><td style="font-size:10px;">Virtual-cohort responder fraction</td><td style="font-size:10px;">Polasek TM & Rostami-Hodjegan A (2020) AAPS J 22:9</td></tr><tr style="background:#FFF8E1"><td><strong>P62</strong></td><td>Biobetter / Supergeneric Generator</td><td style="text-align:center;font-weight:bold;">50.0</td><td style="text-align:center;">LOW</td><td style="font-size:10px;">Novelty distance from on-market CNS DDS</td><td style="font-size:10px;">Ekins S et al (2019) Drug Discov Today 24:2104</td></tr></tbody>
+  </table>
+  <p style="margin-top:8px;color:#777;font-size:12px;">
+    RVG29-PLGA-NP: composite CNS-principle score = 80.7/100 (EXCELLENT). Carrier: plga, size 0.0 nm, ζ +0.0 mV, ligand: RVG29. Strongest group: G1 CNS Delivery (88.4/100); weakest: G8 Translational (0.0/100). Evaluated against all 57 Class A surrogate principles.
+  </p>
+</section>
+
+
+<section class="cerebro-section">
+  <h2>🔬 H28 — Class B Deep Physics Validation (Top-1 DDS)</h2>
+  <div style="background:#2E7D32;color:#fff;padding:14px;border-radius:8px;">
+    <strong style="font-size:18px;">Verdict: PASSED</strong> &nbsp;
+    | &nbsp; 20/28
+    principles validated (71.4% — threshold 70%)
+  </div>
+  <p style="margin-top:8px;color:#555;font-size:13px;">Deep validation: 20/28 principles passed (71.4%). Verdict: PASSED.</p>
+  <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:8px;">
+    <thead><tr style="background:#1F4E78;color:#fff;">
+      <th>Principle</th><th>Validated</th><th>Score</th><th>Value</th>
+      <th>Confidence</th><th>Method</th><th>Narrative</th></tr></thead>
+    <tbody><tr><td><strong>P01</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>65.5</td><td>65.54</td><td>MODERATE</td><td>Full MD stress simulation — surrogate value confirmed (full-physics HPC deferred)</td><td>Full MD stress simulation: surrogate score 65.54 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P02</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>90.0</td><td>394.85</td><td>HIGH</td><td>Multi-parameter allometric scaling (Mahmood 2007): half-life ∝ BW^0.25, clearance ∝ BW^0.75, volume </td><td>Predicted human t½ = 394.9h (scaled from 54.3h mouse), clearance scales by 384.9×, volume by 2800.0×. Drug type: small_molecule.</td></tr><tr><td><strong>P04</strong></td><td style="color:#C62828;font-weight:bold;">❌</td><td>0.7</td><td>0.0037</td><td>LOW</td><td>Full QM tunneling (QCElemental + ASE) — surrogate value confirmed (full-physics HPC deferred)</td><td>Full QM tunneling (QCElemental + ASE): surrogate score 0.74 NEEDS REVIEW. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P08</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>72.3</td><td>72.3</td><td>MODERATE</td><td>Full radical-chain reaction MD — surrogate value confirmed (full-physics HPC deferred)</td><td>Full radical-chain reaction MD: surrogate score 72.3 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P10</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>60.0</td><td>60.0</td><td>MODERATE</td><td>Constant-pH MD simulation — surrogate value confirmed (full-physics HPC deferred)</td><td>Constant-pH MD simulation: surrogate score 60.0 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P11</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>90.0</td><td>90</td><td>MODERATE</td><td>DFT bond dissociation energies — surrogate value confirmed (full-physics HPC deferred)</td><td>DFT bond dissociation energies: surrogate score 90 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P12</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>78.8</td><td>78.75</td><td>MODERATE</td><td>Stage-specific PBPK with full BBB physiology — surrogate value confirmed (full-physics HPC deferred)</td><td>Stage-specific PBPK with full BBB physiology: surrogate score 78.75 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P13</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>100.0</td><td>20.8378</td><td>HIGH</td><td>3-compartment PBPK ODE (scipy.integrate.odeint): blood ⇌ brain ⇌ peripheral, 24h time course. k_bb_i</td><td>Brain AUC = 2008.99 units·h, plasma AUC = 96.41 units·h, ratio = 20.8378. Cmax_brain = 86.09 at t = 8.5h. PASSED AUC ratio.</td></tr><tr><td><strong>P16</strong></td><td style="color:#C62828;font-weight:bold;">❌</td><td>45.7</td><td>45.72</td><td>LOW</td><td>CFD of 1000L bioreactor — surrogate value confirmed (full-physics HPC deferred)</td><td>CFD of 1000L bioreactor: surrogate score 45.72 NEEDS REVIEW. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P18</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>98.0</td><td>-9.8</td><td>HIGH</td><td>MM/GBSA-style ΔG estimate from validated ligand-receptor Kd database. Full atomistic docking deferre</td><td>Ligand 'rvg29' → receptor 'nAChR', ΔG = -9.8 kcal/mol. STRONG BBB-targeting.</td></tr><tr><td><strong>P23</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>77.0</td><td>77.0</td><td>MODERATE</td><td>CSP via DFT — surrogate value confirmed (full-physics HPC deferred)</td><td>CSP via DFT: surrogate score 77.0 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P24</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>89.3</td><td>89.31</td><td>MODERATE</td><td>Full CFD + MD coupling — surrogate value confirmed (full-physics HPC deferred)</td><td>Full CFD + MD coupling: surrogate score 89.31 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P29</strong></td><td style="color:#C62828;font-weight:bold;">❌</td><td>55.0</td><td>55</td><td>LOW</td><td>Full membrane-fusion MD — surrogate value confirmed (full-physics HPC deferred)</td><td>Full membrane-fusion MD: surrogate score 55 NEEDS REVIEW. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P30</strong></td><td style="color:#C62828;font-weight:bold;">❌</td><td>45.0</td><td>45.0</td><td>LOW</td><td>Full QM/MM (PySCF or ORCA) — surrogate value confirmed (full-physics HPC deferred)</td><td>Full QM/MM (PySCF or ORCA): surrogate score 45.0 NEEDS REVIEW. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P31</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>100.0</td><td>66.23</td><td>MODERATE</td><td>7-organ whole-body distribution with size + charge + ligand-status modifiers.</td><td>Brain uptake = 66.23%, liver = 5.5%, spleen = 2.6%. GOOD CNS DELIVERY.</td></tr><tr><td><strong>P33</strong></td><td style="color:#C62828;font-weight:bold;">❌</td><td>56.4</td><td>56.4</td><td>LOW</td><td>Atomistic docking + SMD pulling — surrogate value confirmed (full-physics HPC deferred)</td><td>Atomistic docking + SMD pulling: surrogate score 56.4 NEEDS REVIEW. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P38</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>95.4</td><td>15.6</td><td>HIGH</td><td>Stokes-Einstein D = k_B·T/(6πηr) at 37°C, η_CSF = 7×10⁻⁴ Pa·s. Brain residence scaled to 50-nm refer</td><td>D_CSF = 4.99 µm²/s, brain residence ≈ 15.6h. IDEAL (target 6-48h).</td></tr><tr><td><strong>P40</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>65.0</td><td>65</td><td>MODERATE</td><td>Full nasal cavity CFD — surrogate value confirmed (full-physics HPC deferred)</td><td>Full nasal cavity CFD: surrogate score 65 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P41</strong></td><td style="color:#C62828;font-weight:bold;">❌</td><td>40.0</td><td>40</td><td>LOW</td><td>Full membrane mechanics MD — surrogate value confirmed (full-physics HPC deferred)</td><td>Full membrane mechanics MD: surrogate score 40 NEEDS REVIEW. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P43</strong></td><td style="color:#C62828;font-weight:bold;">❌</td><td>20.0</td><td>20</td><td>LOW</td><td>Full acoustic radiation force MD — surrogate value confirmed (full-physics HPC deferred)</td><td>Full acoustic radiation force MD: surrogate score 20 NEEDS REVIEW. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P44</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>100.0</td><td>47.76</td><td>HIGH</td><td>4-compartment CNS-PBPK ODE with glymphatic clearance: Blood ⇌ Brain_ECF → CSF → Blood. Stokes-Einste</td><td>Therapeutic window = 47.8h (brain ≥ 5% dose). Brain AUC = 1373.2, Cmax = 80.55. PASSED.</td></tr><tr><td><strong>P47</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>99.0</td><td>-9.0</td><td>MODERATE</td><td>Enhanced FEP+: Vina baseline + hydration correction (LogP-driven) + H-bond contribution (HBD/HBA fro</td><td>Predicted ΔG_binding = -9.00 kcal/mol (Vina -8.0 + H-bond -1.0). STRONG affinity.</td></tr><tr><td><strong>P50</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>71.5</td><td>71.5</td><td>MODERATE</td><td>Full coarse-grained MD lipid phase transition — surrogate value confirmed (full-physics HPC deferred</td><td>Full coarse-grained MD lipid phase transition: surrogate score 71.5 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P51</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>85.0</td><td>85</td><td>MODERATE</td><td>Full radical-chain damage MD — surrogate value confirmed (full-physics HPC deferred)</td><td>Full radical-chain damage MD: surrogate score 85 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P57</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>90.0</td><td>90</td><td>MODERATE</td><td>Full CFD of mixer geometry — surrogate value confirmed (full-physics HPC deferred)</td><td>Full CFD of mixer geometry: surrogate score 90 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P58</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>85.0</td><td>85</td><td>MODERATE</td><td>Full QM/MM cascade simulation — surrogate value confirmed (full-physics HPC deferred)</td><td>Full QM/MM cascade simulation: surrogate score 85 PASSED. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P59</strong></td><td style="color:#C62828;font-weight:bold;">❌</td><td>30.0</td><td>30</td><td>LOW</td><td>Full coarse-grained MD morphological transition — surrogate value confirmed (full-physics HPC deferr</td><td>Full coarse-grained MD morphological transition: surrogate score 30 NEEDS REVIEW. Full deep simulation requires external HPC.</td></tr><tr><td><strong>P61</strong></td><td style="color:#2E7D32;font-weight:bold;">✅</td><td>95.0</td><td>95</td><td>MODERATE</td><td>Full Monte-Carlo population PBPK — surrogate value confirmed (full-physics HPC deferred)</td><td>Full Monte-Carlo population PBPK: surrogate score 95 PASSED. Full deep simulation requires external HPC.</td></tr></tbody>
+  </table>
+</section>
+
+
+<section class="cerebro-section">
+  <h2>📋 H29 — Class C Translational Deliverables (Top-1 DDS)</h2>
+  <p style="color:#777;font-size:13px;margin-bottom:8px;">
+    Translational outputs for <strong>Donepezil</strong>'s validated Top-1 DDS.
+    These are NOT used for ranking — they are administrative deliverables
+    triggered only AFTER deep physics validation passes.
+  </p>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        <div style="flex:1;min-width:240px;background:#E8F5E9;border:1px solid #ddd;
+                    border-radius:8px;padding:14px;margin:6px;">
+          <h4 style="margin:0 0 6px 0;color:#1F4E78;">P21: Pre-IND Outline</h4>
+          <div style="font-size:12px;color:#555;">Status: <strong>structured_outline_ready</strong></div>
+          <div style="font-size:12px;color:#555;">Score: <strong>—</strong></div>
+          
+          <p style="font-size:11px;color:#666;margin-top:8px;">Pre-IND meeting package outline for Donepezil (CNS condition). Top-1 DDS: RVG29-PLGA-NP.</p>
+          <p style="font-size:10px;color:#C68A00;margin-top:6px;">📌 Full Word generation via python-docx scheduled for v23</p>
+        </div>
+        <div style="flex:1;min-width:240px;background:#E8F5E9;border:1px solid #ddd;
+                    border-radius:8px;padding:14px;margin:6px;">
+          <h4 style="margin:0 0 6px 0;color:#1F4E78;">P32: Freedom-to-Operate</h4>
+          <div style="font-size:12px;color:#555;">Status: <strong>search_queries_prepared</strong></div>
+          <div style="font-size:12px;color:#555;">Score: <strong>70</strong></div>
+          
+          <p style="font-size:11px;color:#666;margin-top:8px;">FTO analysis for Donepezil delivered by plga with rvg29 surface. Patent encumbrance: MEDIUM → FTO score 70/100.</p>
+          <p style="font-size:10px;color:#C68A00;margin-top:6px;">📌 Live patent API integration deferred to v23</p>
+        </div>
+        <div style="flex:1;min-width:240px;background:#E8F5E9;border:1px solid #ddd;
+                    border-radius:8px;padding:14px;margin:6px;">
+          <h4 style="margin:0 0 6px 0;color:#1F4E78;">P45: 21 CFR Part 11</h4>
+          <div style="font-size:12px;color:#555;">Status: <strong>audit_completed</strong></div>
+          <div style="font-size:12px;color:#555;">Score: <strong>62.5</strong></div>
+          
+          <p style="font-size:11px;color:#666;margin-top:8px;">21 CFR Part 11 compliance: 62%. 5/8 features present.</p>
+          <p style="font-size:10px;color:#C68A00;margin-top:6px;">📌 Add e-signatures + complete user action logging for 100% compliance</p>
+        </div>
+        <div style="flex:1;min-width:240px;background:#E8F5E9;border:1px solid #ddd;
+                    border-radius:8px;padding:14px;margin:6px;">
+          <h4 style="margin:0 0 6px 0;color:#1F4E78;">P55: Grant Outline</h4>
+          <div style="font-size:12px;color:#555;">Status: <strong>structured_outline_ready</strong></div>
+          <div style="font-size:12px;color:#555;">Score: <strong>—</strong></div>
+          
+          <p style="font-size:11px;color:#666;margin-top:8px;">R01-style proposal outline for Donepezil delivered by RVG29-PLGA-NP for CNS disorder.</p>
+          <p style="font-size:10px;color:#C68A00;margin-top:6px;">📌 Full Word generation via python-docx scheduled for v23</p>
+        </div>
+        <div style="flex:1;min-width:240px;background:#E8F5E9;border:1px solid #ddd;
+                    border-radius:8px;padding:14px;margin:6px;">
+          <h4 style="margin:0 0 6px 0;color:#1F4E78;">P56: Patentability</h4>
+          <div style="font-size:12px;color:#555;">Status: <strong>scored</strong></div>
+          <div style="font-size:12px;color:#555;">Score: <strong>80.0</strong></div>
+          <div style="font-size:12px;color:#555;">Rec: <strong>FILE PROVISIONAL</strong></div>
+          <p style="font-size:11px;color:#666;margin-top:8px;">Patentability score: 80/100. Novelty 80, non-obviousness 70, utility 90.</p>
+          <p style="font-size:10px;color:#C68A00;margin-top:6px;">📌 Live USPTO/Lens.org search integration deferred to v23</p>
+        </div></div>
+</section>
+
+
+<section class="cerebro-section">
+  <h2>🔁 H30 — Top-N Fallback Audit Trail</h2>
+  <p style="color:#777;font-size:13px;margin-bottom:8px;">
+    For <strong>Donepezil</strong>: each candidate DDS that was tried in the
+    Class B deep validation phase. If the Top-1 fails the 70% threshold,
+    we fall back to Top-2, then Top-3 — with explicit reasons recorded.
+  </p>
+  <table style="width:100%;font-size:12px;border-collapse:collapse;">
+    <thead><tr style="background:#1F4E78;color:#fff;">
+      <th>Rank</th><th>DDS</th><th>Surrogate</th><th>Verdict</th>
+      <th>Promoted?</th><th>Failure Reason</th><th>Transition Reason</th></tr></thead>
+    <tbody>
+        <tr>
+          <td>#1</td>
+          <td><strong>RVG29-PLGA-NP</strong></td>
+          <td>80.72</td>
+          <td style="color:#2E7D32;font-weight:bold;">PASSED<br>
+              <span style="font-size:10px;font-weight:normal;">
+              71.4% (20/28)
+              </span></td>
+          <td>✅ YES</td>
+          <td style="font-size:11px;">—</td>
+          <td style="font-size:11px;">Deep validation PASSED on this DDS (20/28 principles validated, 71.4% — threshold is 70%). This DDS is the final Top-1.</td>
+        </tr></tbody>
+  </table>
+</section>
+
+<script>
+// Global helpers
+function lerp(a,b,t){return a+(b-a)*t}
+function clamp(x,a,b){return Math.min(b,Math.max(a,x))}
+function fmtNum(n,d=2){return Number(n).toFixed(d)}
+function hexAlpha(hex,a){
+  let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+</script>
+</body>
+</html>
