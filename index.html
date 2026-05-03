@@ -29,7 +29,6 @@
             line-height: 1.6;
         }
 
-        /* Hero Section */
         .hero {
             background: linear-gradient(135deg, var(--navy) 0%, #0f2040 100%);
             color: var(--white);
@@ -82,7 +81,6 @@
             color: var(--white);
         }
 
-        /* Sections General */
         .section {
             padding: 80px 20px;
             max-width: 1200px;
@@ -96,7 +94,6 @@
             margin-bottom: 50px;
         }
 
-        /* The Problem & How it Works */
         .grid-3 {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -127,7 +124,6 @@
             font-size: 1.2rem;
         }
 
-        /* Case Study */
         .case-study {
             background: var(--white);
             padding: 40px;
@@ -164,7 +160,6 @@
             font-style: italic;
         }
 
-        /* Principles Grid */
         .principles-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -184,7 +179,6 @@
             margin-bottom: 10px;
         }
 
-        /* Pricing */
         .pricing-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -217,7 +211,6 @@
             margin: 20px 0;
         }
 
-        /* Form Section */
         .form-container {
             max-width: 700px;
             margin: 0 auto;
@@ -261,14 +254,67 @@
             font-size: 0.9rem;
         }
 
-        /* Footer */
         footer a:hover {
             opacity: 0.8;
+        }
+
+        /* ---- New dynamic scenes section ---- */
+        .scene-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .scene-card {
+            background: var(--white);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            border-left: 5px solid var(--teal);
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+
+        .scene-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .scene-header {
+            background: var(--navy);
+            color: var(--white);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .scene-header h3 {
+            color: var(--gold);
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .scene-header span {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+
+        .scene-frame {
+            width: 100%;
+            height: 500px;
+            border: none;
+            background: #020817; /* match canvas background */
         }
 
         @media (max-width: 768px) {
             .hero h1 { font-size: 2.2rem; }
             .hero p { font-size: 1.2rem; }
+            .scene-frame {
+                height: 350px;
+            }
         }
     </style>
 </head>
@@ -313,6 +359,52 @@
                     <h3>Decision Report</h3>
                     <p>Receive a comprehensive, publication-ready report ranking your optimal carriers.</p>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== NEW: Live In-Silico Pipeline Section ========== -->
+    <section class="section" style="background: #f1f5f9;">
+        <h2 class="section-title">Live In-Silico Pipeline: Donepezil + RVG29-PLGA-NP</h2>
+        <p style="text-align: center; max-width: 800px; margin: -30px auto 40px auto; font-size: 1.1rem; color: #334155;">
+            Watch the complete preclinical simulation unfold — from drug identity to therapeutic effect. These are the actual dynamic outputs, not static screenshots.
+        </p>
+
+        <div class="scene-grid">
+            <div class="scene-card" data-scene>
+                <div class="scene-header">
+                    <h3>C01 · Identity</h3>
+                    <span>Drug + Carrier Molecular Visualization</span>
+                </div>
+                <iframe class="scene-frame" data-src="C01_Identity_Donepezil_RVG29-PLGA-NP.html" sandbox="allow-scripts allow-same-origin" loading="lazy"></iframe>
+            </div>
+            <div class="scene-card" data-scene>
+                <div class="scene-header">
+                    <h3>C02 · BBB Crossing</h3>
+                    <span>Blood-Brain Barrier Transport Simulation</span>
+                </div>
+                <iframe class="scene-frame" data-src="C02_BBB_Donepezil_RVG29-PLGA-NP.html" sandbox="allow-scripts allow-same-origin" loading="lazy"></iframe>
+            </div>
+            <div class="scene-card" data-scene>
+                <div class="scene-header">
+                    <h3>C03 · Pharmacokinetics</h3>
+                    <span>Plasma & Brain Concentration-Time Curves</span>
+                </div>
+                <iframe class="scene-frame" data-src="C03_PK_Donepezil_RVG29-PLGA-NP.html" sandbox="allow-scripts allow-same-origin" loading="lazy"></iframe>
+            </div>
+            <div class="scene-card" data-scene>
+                <div class="scene-header">
+                    <h3>C04 · Release Mechanics</h3>
+                    <span>PLGA Matrix Degradation & Drug Release</span>
+                </div>
+                <iframe class="scene-frame" data-src="C04_Release_Donepezil_RVG29-PLGA-NP.html" sandbox="allow-scripts allow-same-origin" loading="lazy"></iframe>
+            </div>
+            <div class="scene-card" data-scene>
+                <div class="scene-header">
+                    <h3>C05 · Therapeutic Effect</h3>
+                    <span>Target Engagement Score: 80.7/100</span>
+                </div>
+                <iframe class="scene-frame" data-src="C05_Therapeutic_Donepezil_RVG29-PLGA-NP.html" sandbox="allow-scripts allow-same-origin" loading="lazy"></iframe>
             </div>
         </div>
     </section>
@@ -560,7 +652,7 @@
     </footer>
 
     <script>
-        // Smooth scrolling for the CTA button
+        // Smooth scrolling
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -569,6 +661,25 @@
                 });
             });
         });
+
+        // Intersection Observer for dynamic scene iframes
+        const sceneCards = document.querySelectorAll('[data-scene]');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const card = entry.target;
+                    const iframe = card.querySelector('iframe');
+                    if (iframe && iframe.dataset.src) {
+                        iframe.src = iframe.dataset.src;
+                        iframe.removeAttribute('data-src');
+                    }
+                    card.classList.add('visible');
+                    observer.unobserve(card); // only animate once
+                }
+            });
+        }, { threshold: 0.15 });
+
+        sceneCards.forEach(card => observer.observe(card));
     </script>
 </body>
 </html>
