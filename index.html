@@ -82,7 +82,6 @@
             }
         }
 
-        /* ════════ FROSTED NAVIGATION ════════ */
         #cerebro-nav {
             position: fixed;
             top: 0;
@@ -203,7 +202,6 @@
             }
         }
 
-        /* ════════ HERO ════════ */
         .hero {
             position: relative;
             min-height: 100vh;
@@ -212,7 +210,7 @@
             justify-content: center;
             text-align: center;
             overflow: hidden;
-            padding: 100px 24px 80px;
+            padding: 100px 12px 80px;
             background: radial-gradient(ellipse at 50% 38%, rgba(18, 30, 58, 0.35) 0%, rgba(4, 4, 14, 0.78) 100%);
         }
         .hero-content {
@@ -221,7 +219,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            max-width: 95%;
+            max-width: 98%;
         }
         .hero-logo-reveal {
             perspective: 1200px;
@@ -231,7 +229,7 @@
             margin-bottom: 10px;
         }
         #hero-logo-3d-container {
-            width: clamp(380px, 96vw, 1300px);
+            width: min(98vw, 1400px);
             aspect-ratio: 4 / 1;
             display: block;
             opacity: 0;
@@ -346,7 +344,6 @@
             }
         }
 
-        /* sections, cards, pricing, form etc. unchanged */
         .section {
             padding: 90px 24px;
             max-width: 1180px;
@@ -878,7 +875,7 @@
         }
         @media (max-width: 768px) {
             #hero-logo-3d-container {
-                width: 96vw;
+                width: 98vw;
             }
             .section {
                 padding: 50px 16px;
@@ -937,7 +934,7 @@
     <section class="section" id="problem">
         <h2 class="section-title">The <span class="gold-accent">$1.9B</span> BBB Drug Delivery Problem</h2>
         <div style="text-align:center;max-width:680px;margin:0 auto;font-size:1.05rem;color:var(--text-muted);">
-            <p>Over <strong style="color:#fff;">98%</strong> of small molecules and <strong style="color:#fff;">~100%</strong> of large biologics fail to cross the Blood-Brain Barrier. Researchers spend months and millions in wet‑lab trial and error. <strong style="color:var(--gold);">CEREBRO‑X</strong> eliminates the guesswork through purely physics‑informed computational engineering.</p>
+            <p>Over <strong style="color:#fff;">98%</strong> of small molecules and <strong style="color:#fff;">~100%</strong> of large biologics fail to cross the Blood-Brain Barrier. Researchers spend months and millions in wet-lab trial and error. <strong style="color:var(--gold);">CEREBRO-X</strong> eliminates the guesswork through purely physics-informed computational engineering.</p>
         </div>
     </section>
 
@@ -946,8 +943,8 @@
             <h2 class="section-title">How It Works</h2>
             <div class="grid-3">
                 <div class="glass-card tilt-card"><div class="step-number">1</div><h3 style="color:#fff;">Fill the Form</h3><p style="color:var(--text-muted);">Enter your drug's SMILES/FASTA and DDS formulations.</p><a href="CEREBRO_Input_Template.xlsx" download class="btn btn-outline btn-sm" style="margin-top:auto;"><i class="fas fa-file-excel"></i> Download Template</a></div>
-                <div class="glass-card tilt-card"><div class="step-number">2</div><h3 style="color:#fff;">62‑Principle Analysis</h3><p style="color:var(--text-muted);">Our Molecule‑Aware Engine calculates PK, BBB permeability, and Carrier‑API interactions.</p></div>
-                <div class="glass-card tilt-card"><div class="step-number">3</div><h3 style="color:#fff;">Decision Report</h3><p style="color:var(--text-muted);">Receive a comprehensive, publication‑ready report ranking your optimal carriers.</p></div>
+                <div class="glass-card tilt-card"><div class="step-number">2</div><h3 style="color:#fff;">62-Principle Analysis</h3><p style="color:var(--text-muted);">Our Molecule-Aware Engine calculates PK, BBB permeability, and Carrier-API interactions.</p></div>
+                <div class="glass-card tilt-card"><div class="step-number">3</div><h3 style="color:#fff;">Decision Report</h3><p style="color:var(--text-muted);">Receive a comprehensive, publication-ready report ranking your optimal carriers.</p></div>
             </div>
         </div>
     </section>
@@ -955,24 +952,24 @@
     <section class="section" id="case-study">
         <h2 class="section-title">Live Case Study: <span class="gold-accent">Donepezil</span> vs <span class="orange-accent">Rivastigmine</span></h2>
         <div class="case-study">
-            <p style="color:var(--text-muted);">CEREBRO‑X successfully differentiates between APIs with the same indication based purely on their structural properties.</p>
+            <p style="color:var(--text-muted);">CEREBRO-X successfully differentiates between APIs with the same indication based purely on their structural properties.</p>
             <div class="table-responsive">
                 <table>
-                    <thead><tr><th>Drug</th><th>Properties</th><th>Top‑1 DDS Winner</th><th>BBB Score</th><th>Key Differentiator</th></tr></thead>
+                    <thead><tr><th>Drug</th><th>Properties</th><th>Top-1 DDS Winner</th><th>BBB Score</th><th>Key Differentiator</th></tr></thead>
                     <tbody>
-                        <tr><td><strong style="color:#fff;">Donepezil</strong></td><td>LogP = 4.36, MW = 379.49</td><td>Solid Lipid Nanoparticle (SLN)</td><td style="color:var(--teal);font-weight:700;">High</td><td>High lipophilicity perfectly fits lipid‑based matrices.</td></tr>
+                        <tr><td><strong style="color:#fff;">Donepezil</strong></td><td>LogP = 4.36, MW = 379.49</td><td>Solid Lipid Nanoparticle (SLN)</td><td style="color:var(--teal);font-weight:700;">High</td><td>High lipophilicity perfectly fits lipid-based matrices.</td></tr>
                         <tr><td><strong style="color:#fff;">Rivastigmine</strong></td><td>LogP = 2.76, MW = 250.34</td><td>PLGA Nanoparticle</td><td style="color:var(--teal);font-weight:700;">High</td><td>Moderate lipophilicity requires polymeric encapsulation for controlled release.</td></tr>
                     </tbody>
                 </table>
             </div>
-            <div class="case-study-note"><strong style="color:var(--teal);">Insight:</strong> The platform correctly identifies that lipophilic Donepezil benefits from lipid‑based carriers while Rivastigmine performs better with polymeric carriers. No more one‑size‑fits‑all guesswork.</div>
+            <div class="case-study-note"><strong style="color:var(--teal);">Insight:</strong> The platform correctly identifies that lipophilic Donepezil benefits from lipid-based carriers while Rivastigmine performs better with polymeric carriers. No more one-size-fits-all guesswork.</div>
         </div>
     </section>
 
     <section class="section-dark" id="sample-outputs">
         <div class="section" style="overflow:hidden;">
             <h2 class="section-title">Explore Sample Outputs</h2>
-            <p class="section-subtitle">Experience the dynamic output generated by CEREBRO‑X. View the live in‑silico interactive dashboard, or download the comprehensive publication‑ready PDF report for different molecule classes.</p>
+            <p class="section-subtitle">Experience the dynamic output generated by CEREBRO-X. View the live in-silico interactive dashboard, or download the comprehensive publication-ready PDF report for different molecule classes.</p>
             <div class="scroller-wrapper" id="sampleScroller">
                 <div class="scroller-card tilt-card"><div class="card-top-border border-teal-top"></div><h3>Donepezil</h3><span class="molecule-tag tag-orange">Small Molecule · BCS I</span><div style="display:flex;flex-direction:column;gap:7px;margin-top:auto;"><a href="CEREBRO_X_Interactive_Donepezil.html" target="_blank" class="btn btn-outline btn-sm" style="width:100%;"><i class="fas fa-chart-line"></i> View Dashboard</a><a href="CEREBRO_X_Final_Report_Donepezil.pdf" target="_blank" class="btn btn-gold btn-sm" style="width:100%;"><i class="fas fa-file-pdf"></i> Download PDF</a></div></div>
                 <div class="scroller-card tilt-card"><div class="card-top-border border-teal-top"></div><h3>Rivastigmine</h3><span class="molecule-tag tag-orange">Small Molecule · BCS I</span><div style="display:flex;flex-direction:column;gap:7px;margin-top:auto;"><a href="CEREBRO_X_Interactive_Rivastigmine.html" target="_blank" class="btn btn-outline btn-sm" style="width:100%;"><i class="fas fa-chart-line"></i> View Dashboard</a><a href="CEREBRO_X_Final_Report_Rivastigmine.pdf" target="_blank" class="btn btn-gold btn-sm" style="width:100%;"><i class="fas fa-file-pdf"></i> Download PDF</a></div></div>
@@ -990,7 +987,7 @@
             <div class="principle-item"><h4 style="color:var(--gold);">CNS Delivery</h4><p>Transcytosis pathways, Tight Junction dynamics, and Efflux pump interactions.</p></div>
             <div class="principle-item border-orange"><h4 style="color:var(--orange);">Release Kinetics</h4><p>Mathematical modeling of API burst release vs sustained diffusion.</p></div>
             <div class="principle-item border-teal"><h4 style="color:var(--teal);">Stability & Safety</h4><p>Protein corona formation, endosomal escape, and cytotoxicity checks.</p></div>
-            <div class="principle-item border-red"><h4 style="color:var(--red);">Drug‑DDS Fit</h4><p>LogP/TPSA matching to carrier matrices to ensure optimal encapsulation efficiency.</p></div>
+            <div class="principle-item border-red"><h4 style="color:var(--red);">Drug-DDS Fit</h4><p>LogP/TPSA matching to carrier matrices to ensure optimal encapsulation efficiency.</p></div>
         </div>
     </section>
 
@@ -998,9 +995,9 @@
         <div class="section">
             <h2 class="section-title">Select Your Analysis Tier</h2>
             <div class="pricing-grid">
-                <div class="price-card"><h3>Academic</h3><div class="price">Free</div><p style="color:var(--text-muted);margin-bottom:20px;">For independent academic researchers.</p><ul><li>1 Drug Molecule</li><li>Up to 3 DDS formulations</li><li>Full HTML/PDF Report</li><li><strong>Required:</strong> Co‑authorship</li></ul></div>
-                <div class="price-card featured"><h3>Professional</h3><div class="price">$75</div><p style="color:var(--text-muted);margin-bottom:20px;">For complex formulations and comparative studies.</p><ul><li>1 Drug Molecule</li><li><strong>4+ DDS formulations</strong></li><li>Full HTML/PDF Report</li><li>Priority Processing</li><li><strong>Required:</strong> Co‑authorship</li></ul></div>
-                <div class="price-card"><h3>Enterprise</h3><div class="price">Custom</div><p style="color:var(--text-muted);margin-bottom:20px;">For Pharma and large research labs.</p><ul><li>Multi‑drug comparison</li><li>Custom DDS libraries</li><li>White‑labeled reports</li><li>Strict NDA included</li></ul></div>
+                <div class="price-card"><h3>Academic</h3><div class="price">Free</div><p style="color:var(--text-muted);margin-bottom:20px;">For independent academic researchers.</p><ul><li>1 Drug Molecule</li><li>Up to 3 DDS formulations</li><li>Full HTML/PDF Report</li><li><strong>Required:</strong> Co-authorship</li></ul></div>
+                <div class="price-card featured"><h3>Professional</h3><div class="price">$75</div><p style="color:var(--text-muted);margin-bottom:20px;">For complex formulations and comparative studies.</p><ul><li>1 Drug Molecule</li><li><strong>4+ DDS formulations</strong></li><li>Full HTML/PDF Report</li><li>Priority Processing</li><li><strong>Required:</strong> Co-authorship</li></ul></div>
+                <div class="price-card"><h3>Enterprise</h3><div class="price">Custom</div><p style="color:var(--text-muted);margin-bottom:20px;">For Pharma and large research labs.</p><ul><li>Multi-drug comparison</li><li>Custom DDS libraries</li><li>White-labeled reports</li><li>Strict NDA included</li></ul></div>
             </div>
         </div>
     </section>
@@ -1021,7 +1018,7 @@
                     <div class="form-group"><label>Full Name *</label><input type="text" name="Name" required placeholder="Dr. Jane Doe"></div>
                     <div class="form-group"><label>Institutional Email *</label><input type="email" name="Email" required placeholder="jane.doe@university.edu"></div>
                     <div class="form-group"><label>Institution / University *</label><input type="text" name="Institution" required placeholder="e.g., Ain Shams University"></div>
-                    <div class="checkbox-group"><input type="checkbox" id="consent-author" name="Consent_CoAuthor" required value="Agreed"><label for="consent-author">I agree that Muhammad Talaat (ORCID: 0000‑0002‑9171‑437X) will be included as a co‑author on any publication resulting from this analysis.</label></div>
+                    <div class="checkbox-group"><input type="checkbox" id="consent-author" name="Consent_CoAuthor" required value="Agreed"><label for="consent-author">I agree that Muhammad Talaat (ORCID: 0000-0002-9171-437X) will be included as a co-author on any publication resulting from this analysis.</label></div>
                     <div class="checkbox-group"><input type="checkbox" id="consent-payment" name="Consent_Payment" required value="Agreed"><label for="consent-payment">I understand that analyses with 4+ DDS formulations require a $75 fee payable before results are delivered.</label></div>
                     <div class="wizard-buttons"><div></div><button type="button" class="btn btn-gold wizard-next" data-next="2">Next →</button></div>
                 </div>
@@ -1051,17 +1048,16 @@
             <a href="https://shorturl.at/AVLpj" target="_blank" title="ORCiD Profile"><i class="fab fa-orcid"></i></a>
             <a href="mailto:mohamed.talaat@pharma.asu.edu.eg" title="Send Email directly"><i class="fas fa-envelope"></i></a>
         </div>
-        <p class="footer-credit">Built by Muhammad Talaat, BPharm | CEREBRO‑X &copy; 2026</p>
+        <p class="footer-credit">Built by Muhammad Talaat, BPharm | CEREBRO-X &copy; 2026</p>
     </footer>
     <script>
-        // ═══════════ 3D LOGO – HIGH QUALITY, SUBTLE MOVEMENT ═══════════
         (function initThreeLogo() {
             const container = document.getElementById('hero-logo-3d-container');
             if (!container || typeof THREE === 'undefined') return;
 
             const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(46, container.clientWidth / Math.max(container.clientHeight, 1), 0.1, 80);
-            camera.position.z = 8.2;
+            const camera = new THREE.PerspectiveCamera(42, container.clientWidth / Math.max(container.clientHeight, 1), 0.1, 80);
+            camera.position.z = 8.5;
 
             const renderer = new THREE.WebGLRenderer({
                 alpha: true,
@@ -1070,11 +1066,11 @@
                 powerPreference: "high-performance"
             });
             renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.5));
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 4));
             renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 1.25);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
             scene.add(ambientLight);
 
             const logoUrl = 'https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png';
@@ -1090,9 +1086,9 @@
                 texture.magFilter = THREE.LinearFilter;
                 texture.colorSpace = THREE.SRGBColorSpace;
                 const aspect = texture.image.width / texture.image.height;
-                const visibleHalfHeight = 8.2 * Math.tan((46 * Math.PI) / 360);
-                const visibleHeight = visibleHalfHeight * 2;
-                const targetHeight = visibleHeight * 0.92;
+                const vFov = (42 * Math.PI) / 180;
+                const visibleHeight = 2 * 8.5 * Math.tan(vFov / 2);
+                const targetHeight = visibleHeight * 0.95;
                 const targetWidth = targetHeight * aspect;
                 logoPlane.scale.set(targetWidth, targetHeight, 1);
                 logoPlane.material.map = texture;
@@ -1102,51 +1098,51 @@
             const particlesGroup = new THREE.Group();
             scene.add(particlesGroup);
             const particlesGeom = new THREE.BufferGeometry();
-            const particlesCount = 260;
-            const positions = new Float32Array(particlesCount * 3);
-            for (let i = 0; i < particlesCount; i++) {
-                positions[i * 3] = (Math.random() - 0.5) * 9;
-                positions[i * 3 + 1] = (Math.random() - 0.5) * 4.5;
-                positions[i * 3 + 2] = (Math.random() - 0.5) * 6;
+            const particleCount = 300;
+            const pos = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount; i++) {
+                pos[i * 3] = (Math.random() - 0.5) * 10;
+                pos[i * 3 + 1] = (Math.random() - 0.5) * 5;
+                pos[i * 3 + 2] = (Math.random() - 0.5) * 7;
             }
-            particlesGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particlesGeom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
             const particlesMat = new THREE.PointsMaterial({
-                color: 0xC9A84C, size: 0.03, transparent: true, opacity: 0.68,
+                color: 0xC9A84C, size: 0.032, transparent: true, opacity: 0.72,
                 blending: THREE.AdditiveBlending, depthWrite: false
             });
             particlesGroup.add(new THREE.Points(particlesGeom, particlesMat));
 
-            const ringGeom = new THREE.TorusGeometry(3.2, 0.009, 16, 110);
-            const ring = new THREE.Mesh(ringGeom, new THREE.MeshBasicMaterial({ color: 0xC9A84C, transparent: true, opacity: 0.33 }));
+            const ringGeom = new THREE.TorusGeometry(3.5, 0.01, 16, 120);
+            const ring = new THREE.Mesh(ringGeom, new THREE.MeshBasicMaterial({ color: 0xC9A84C, transparent: true, opacity: 0.35 }));
             ring.rotation.x = Math.PI / 2;
             scene.add(ring);
 
             const mouse = { x: 0, y: 0 };
-            const targetRotation = { x: 0, y: 0 };
-            const currentRotation = { x: 0, y: 0 };
+            const targetRot = { x: 0, y: 0 };
+            const currentRot = { x: 0, y: 0 };
 
             document.addEventListener('mousemove', (e) => {
                 mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
                 mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-                targetRotation.y = mouse.x * 0.16;
-                targetRotation.x = mouse.y * 0.08;
+                targetRot.y = mouse.x * 0.16;
+                targetRot.x = mouse.y * 0.08;
             });
             document.addEventListener('touchmove', (e) => {
                 const touch = e.touches[0];
                 mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
                 mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
-                targetRotation.y = mouse.x * 0.12;
-                targetRotation.x = mouse.y * 0.05;
+                targetRot.y = mouse.x * 0.12;
+                targetRot.x = mouse.y * 0.05;
             }, { passive: true });
 
             function animate() {
                 requestAnimationFrame(animate);
                 const t = performance.now() * 0.0005;
-                currentRotation.y += (targetRotation.y - currentRotation.y) * 0.04;
-                currentRotation.x += (targetRotation.x - currentRotation.x) * 0.04;
-                logoPlane.rotation.y = currentRotation.y + Math.sin(t * 0.7) * 0.03;
-                logoPlane.rotation.x = currentRotation.x + Math.cos(t * 0.6) * 0.02;
-                logoPlane.position.y = Math.sin(t * 0.8) * 0.04; // subtle vertical movement
+                currentRot.y += (targetRot.y - currentRot.y) * 0.04;
+                currentRot.x += (targetRot.x - currentRot.x) * 0.04;
+                logoPlane.rotation.y = currentRot.y + Math.sin(t * 0.7) * 0.03;
+                logoPlane.rotation.x = currentRot.x + Math.cos(t * 0.6) * 0.02;
+                logoPlane.position.y = Math.sin(t * 0.8) * 0.06;
                 particlesGroup.rotation.y -= 0.002;
                 particlesGroup.rotation.x += 0.001;
                 ring.rotation.z += 0.002;
@@ -1164,7 +1160,6 @@
             });
         })();
 
-        // GSAP + other scripts
         (function(){if(typeof gsap==='undefined'||typeof ScrollTrigger==='undefined')return;gsap.registerPlugin(ScrollTrigger);document.querySelectorAll('.section:not(#hero):not(.section-dark),.section-dark').forEach(s=>{const k=s.querySelectorAll('.glass-card,.case-study,.principle-item,.price-card,.scroller-card,.section-title,.section-subtitle,.grid-3>*,.pricing-grid>*,.principles-grid>*');if(k.length)gsap.fromTo(k,{opacity:0,y:42,scale:0.96},{opacity:1,y:0,scale:1,duration:0.68,stagger:0.08,ease:'power3.out',scrollTrigger:{trigger:s,start:'top 78%',toggleActions:'play none none none'}});});document.querySelectorAll('tbody tr').forEach((r,i)=>gsap.fromTo(r,{opacity:0,x:-28},{opacity:1,x:0,duration:0.48,delay:i*0.11,ease:'power3.out',scrollTrigger:{trigger:'table',start:'top 80%',toggleActions:'play none none none'}}));document.querySelectorAll('.principle-item').forEach((item,i)=>gsap.fromTo(item,{opacity:0,x:-45},{opacity:1,x:0,duration:0.52,delay:i*0.09,ease:'power3.out',scrollTrigger:{trigger:item,start:'top 82%',toggleActions:'play none none none'}}));})();
         (function(){const n=document.getElementById('cerebro-nav'),h=document.getElementById('hero');if(h)new IntersectionObserver(e=>n.classList.toggle('scrolled',!e[0].isIntersecting),{threshold:0.08}).observe(h);window.addEventListener('scroll',()=>n.classList.toggle('scrolled',window.scrollY>60),{passive:true});const hb=document.getElementById('navHamburger'),nl=document.getElementById('navLinks');if(hb&&nl){hb.addEventListener('click',()=>nl.classList.toggle('open'));nl.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>nl.classList.remove('open')));}})();
         document.querySelectorAll('.tilt-card').forEach(card=>{card.addEventListener('mousemove',e=>{const r=card.getBoundingClientRect();const rx=((r.height/2-(e.clientY-r.top))/(r.height/2))*5;const ry=(((e.clientX-r.left)-r.width/2)/(r.width/2))*5;card.style.transform=`perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(6px)`;card.style.transition='transform 0.1s ease-out';});card.addEventListener('mouseleave',()=>{card.style.transform='perspective(1000px) rotateX(0) rotateY(0) translateZ(0)';card.style.transition='transform 0.5s cubic-bezier(0.22,0.61,0.36,1)';});});
