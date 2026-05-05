@@ -11,7 +11,7 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js">
     </script>
-    <!-- Three.js CDN for hero 3D molecule -->
+    <!-- Three.js CDN for hero 3D brain & DDS field -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js">
     </script>
 
@@ -61,10 +61,9 @@
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            /* Subtle cosmic grid on body */
             background-image:
-                linear-gradient(rgba(201, 168, 76, 0.025) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(201, 168, 76, 0.025) 1px, transparent 1px);
+                linear-gradient(rgba(201, 168, 76, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(201, 168, 76, 0.02) 1px, transparent 1px);
             background-size: 80px 80px;
             background-attachment: fixed;
         }
@@ -78,7 +77,7 @@
             left: 0;
             width: 100%;
             z-index: 1000;
-            padding: 16px 32px;
+            padding: 14px 32px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -90,21 +89,39 @@
             will-change: transform;
         }
         #cerebro-nav.scrolled {
-            padding: 8px 32px;
-            background: rgba(10, 10, 26, 0.92);
-            border-bottom: 1px solid rgba(201, 168, 76, 0.2);
+            padding: 7px 32px;
+            background: rgba(10, 10, 26, 0.94);
+            border-bottom: 1px solid rgba(201, 168, 76, 0.25);
         }
-        #cerebro-nav .nav-logo {
-            font-weight: 800;
-            font-size: 1.3rem;
-            letter-spacing: 2px;
-            color: var(--gold);
+        #cerebro-nav .nav-logo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             text-decoration: none;
             white-space: nowrap;
         }
+        #cerebro-nav .nav-brain-svg {
+            width: 30px;
+            height: 30px;
+            flex-shrink: 0;
+        }
+        #cerebro-nav .nav-brain-svg .brain-path {
+            fill: none;
+            stroke: var(--gold);
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            filter: drop-shadow(0 0 6px var(--gold-glow));
+        }
+        #cerebro-nav .nav-logo-text {
+            font-weight: 800;
+            font-size: 1.25rem;
+            letter-spacing: 1.5px;
+            color: var(--gold);
+        }
         #cerebro-nav .nav-links {
             display: flex;
-            gap: 24px;
+            gap: 22px;
             list-style: none;
             align-items: center;
             flex-wrap: wrap;
@@ -112,9 +129,9 @@
         #cerebro-nav .nav-links a {
             color: var(--text-sub);
             text-decoration: none;
-            font-size: 0.85rem;
+            font-size: 0.84rem;
             font-weight: 500;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.4px;
             transition: color 0.3s;
             white-space: nowrap;
         }
@@ -127,14 +144,14 @@
             padding: 8px 18px;
             border-radius: 20px;
             font-weight: 600;
-            font-size: 0.82rem;
+            font-size: 0.8rem;
             text-decoration: none;
             transition: all 0.3s var(--transition-snap);
             letter-spacing: 0.5px;
         }
         #cerebro-nav .nav-cta:hover {
             background: #0a5252;
-            box-shadow: 0 0 20px var(--teal-glow);
+            box-shadow: 0 0 22px var(--teal-glow);
             transform: translateY(-1px);
         }
         .nav-hamburger {
@@ -142,7 +159,7 @@
             background: none;
             border: none;
             color: var(--text-heading);
-            font-size: 1.6rem;
+            font-size: 1.5rem;
             cursor: pointer;
             padding: 4px 8px;
         }
@@ -154,11 +171,11 @@
                 top: 100%;
                 left: 0;
                 width: 100%;
-                background: rgba(10, 10, 26, 0.96);
+                background: rgba(10, 10, 26, 0.97);
                 backdrop-filter: blur(20px);
                 -webkit-backdrop-filter: blur(20px);
                 padding: 20px 32px;
-                gap: 16px;
+                gap: 14px;
                 border-bottom: 1px solid var(--glass-border);
             }
             #cerebro-nav .nav-links.open {
@@ -166,6 +183,13 @@
             }
             .nav-hamburger {
                 display: block;
+            }
+            #cerebro-nav .nav-brain-svg {
+                width: 24px;
+                height: 24px;
+            }
+            #cerebro-nav .nav-logo-text {
+                font-size: 1.05rem;
             }
         }
 
@@ -180,7 +204,7 @@
             justify-content: center;
             text-align: center;
             overflow: hidden;
-            background: linear-gradient(180deg, #0a0a1a 0%, #0f2040 50%, #0d1b3e 100%);
+            background: linear-gradient(180deg, #060612 0%, #0a0a1a 20%, #0f2040 55%, #0d1b3e 100%);
             padding: 100px 20px 80px;
         }
         #hero-canvas-container {
@@ -199,36 +223,66 @@
             margin: 0 auto;
         }
         .hero-title {
-            font-size: clamp(3rem, 8vw, 6rem);
+            font-size: clamp(3.2rem, 8vw, 6.5rem);
             font-weight: 900;
-            letter-spacing: 4px;
-            color: var(--text-heading);
-            margin-bottom: 10px;
-            line-height: 1.05;
-        }
-        .hero-title .gold-letter {
+            letter-spacing: 5px;
             color: var(--gold);
+            margin-bottom: 0;
+            line-height: 1.0;
+            animation: heroShimmer 4s ease-in-out infinite;
+            text-shadow: 0 0 40px rgba(201, 168, 76, 0.35), 0 0 80px rgba(201, 168, 76, 0.12);
+        }
+        @keyframes heroShimmer {
+            0%,
+            100% {
+                text-shadow: 0 0 30px rgba(201, 168, 76, 0.3), 0 0 60px rgba(201, 168, 76, 0.08);
+            }
+            50% {
+                text-shadow: 0 0 55px rgba(201, 168, 76, 0.7), 0 0 110px rgba(201, 168, 76, 0.25), 0 0 160px rgba(201, 168, 76, 0.08);
+            }
         }
         .hero-title .char {
             display: inline-block;
             opacity: 0;
             will-change: transform, opacity;
         }
+        .hero-x {
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: 900;
+            letter-spacing: 3px;
+            color: var(--gold);
+            margin-bottom: 8px;
+            animation: xPulse 2.5s ease-in-out infinite;
+            text-shadow: 0 0 35px rgba(201, 168, 76, 0.6);
+            opacity: 0;
+            will-change: opacity;
+        }
+        @keyframes xPulse {
+            0%,
+            100% {
+                text-shadow: 0 0 30px rgba(201, 168, 76, 0.45);
+                transform: scale(1);
+            }
+            50% {
+                text-shadow: 0 0 65px rgba(201, 168, 76, 0.9), 0 0 100px rgba(201, 168, 76, 0.35);
+                transform: scale(1.06);
+            }
+        }
         .hero-tagline {
-            font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+            font-size: clamp(1rem, 2.3vw, 1.5rem);
             color: var(--text-sub);
             font-weight: 400;
             margin-bottom: 40px;
             opacity: 0;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.4px;
         }
         .hero-cta {
             display: inline-block;
             background: transparent;
             border: 2px solid var(--gold);
             color: var(--gold);
-            padding: 16px 42px;
-            font-size: 1.1rem;
+            padding: 15px 44px;
+            font-size: 1.05rem;
             font-weight: 700;
             letter-spacing: 1px;
             border-radius: 50px;
@@ -240,12 +294,12 @@
             opacity: 0;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 0 30px var(--gold-glow), inset 0 0 30px rgba(201, 168, 76, 0.05);
+            box-shadow: 0 0 35px var(--gold-glow), inset 0 0 30px rgba(201, 168, 76, 0.04);
         }
         .hero-cta:hover {
             background: var(--gold);
-            color: #0a0a1a;
-            box-shadow: 0 0 60px var(--gold-glow), 0 8px 30px rgba(201, 168, 76, 0.35);
+            color: #060612;
+            box-shadow: 0 0 70px var(--gold-glow), 0 8px 35px rgba(201, 168, 76, 0.4);
             transform: translateY(-3px) scale(1.03);
         }
         .hero-cta:active {
@@ -258,11 +312,11 @@
             transform: translateX(-50%);
             z-index: 2;
             color: var(--text-sub);
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             letter-spacing: 2px;
             text-transform: uppercase;
             animation: bounceDown 2s infinite;
-            opacity: 0.7;
+            opacity: 0.65;
             cursor: pointer;
         }
         @keyframes bounceDown {
@@ -340,7 +394,7 @@
             overflow: hidden;
         }
         .glass-card:hover {
-            border-color: rgba(255, 255, 255, 0.18);
+            border-color: rgba(255, 255, 255, 0.16);
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
         }
         .glass-card.tilt-card {
@@ -367,7 +421,6 @@
             gap: 28px;
         }
 
-        /* Step number circles */
         .step-number {
             background: var(--space-navy);
             color: var(--gold);
@@ -870,7 +923,7 @@
         .site-footer {
             text-align: center;
             padding: 40px 20px;
-            background: #0a0a1a;
+            background: #060612;
             color: #fff;
             border-top: 1px solid var(--glass-border);
         }
@@ -895,11 +948,14 @@
            ──────────────────────────── */
         @media (max-width: 768px) {
             .hero-title {
-                font-size: 2.4rem;
-                letter-spacing: 2px;
+                font-size: 2.5rem;
+                letter-spacing: 3px;
+            }
+            .hero-x {
+                font-size: 1.6rem;
             }
             .hero-tagline {
-                font-size: 1rem;
+                font-size: 0.95rem;
             }
             .section {
                 padding: 50px 16px;
@@ -924,10 +980,10 @@
                 width: 28px;
             }
             #cerebro-nav {
-                padding: 12px 16px;
+                padding: 10px 16px;
             }
             #cerebro-nav.scrolled {
-                padding: 8px 16px;
+                padding: 6px 16px;
             }
         }
     </style>
@@ -936,7 +992,18 @@
 
     <!-- ═══════════════ NAVIGATION ═══════════════ -->
     <nav id="cerebro-nav">
-        <a href="#hero" class="nav-logo">CEREBRO-X</a>
+        <a href="#hero" class="nav-logo-wrap">
+            <!-- SVG Brain Icon – minimalist side-view anatomical brain for logo use -->
+            <svg class="nav-brain-svg" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                <path class="brain-path"
+                d="M20 2 C12 2 6 8 6 16 C6 22 9 26 13 28 C11 30 10 33 12 36 C13 37 15 37 16 36 C17 34 18 32 20 30 C22 32 23 34 24 36 C25 37 27 37 28 36 C30 33 29 30 27 28 C31 26 34 22 34 16 C34 8 28 2 20 2Z"
+                />
+                <path class="brain-path" d="M14 14 C16 11 24 11 26 14" />
+                <path class="brain-path" d="M13 19 C15 17 25 17 27 19" />
+                <path class="brain-path" d="M15 24 C17 22 23 22 25 24" />
+            </svg>
+            <span class="nav-logo-text">CEREBRO-X</span>
+        </a>
         <button class="nav-hamburger" id="navHamburger" aria-label="Menu">
             <i class="fas fa-bars"></i>
         </button>
@@ -954,10 +1021,8 @@
     <section class="hero" id="hero">
         <div id="hero-canvas-container"></div>
         <div class="hero-content">
-            <h1 class="hero-title" id="heroTitle">
-                <!-- Letters injected by JS for animation -->
-                CEREBRO-X
-            </h1>
+            <h1 class="hero-title" id="heroTitle">CEREBRO</h1>
+            <div class="hero-x" id="heroX">[ X ]</div>
             <p class="hero-tagline" id="heroTagline">AI-native, Molecule-Aware Drug-Delivery Design Engine</p>
             <a href="#request-form" class="hero-cta" id="heroCta">Request Analysis</a>
         </div>
@@ -1043,9 +1108,7 @@
             <p class="section-subtitle">
                 Experience the dynamic output generated by CEREBRO-X. View the live in-silico interactive dashboard, or download the comprehensive publication-ready PDF report.
             </p>
-            <!-- Horizontal scroller -->
             <div class="scroller-wrapper" id="sampleScroller">
-                <!-- Donepezil -->
                 <div class="scroller-card tilt-card">
                     <div class="card-top-border border-teal-top"></div>
                     <h3>Donepezil</h3>
@@ -1055,7 +1118,6 @@
                         <a href="CEREBRO_X_Final_Report_Donepezil.pdf" target="_blank" class="btn btn-gold btn-sm" style="width:100%;"><i class="fas fa-file-pdf"></i> Download PDF</a>
                     </div>
                 </div>
-                <!-- Rivastigmine -->
                 <div class="scroller-card tilt-card">
                     <div class="card-top-border border-teal-top"></div>
                     <h3>Rivastigmine</h3>
@@ -1065,7 +1127,6 @@
                         <a href="CEREBRO_X_Final_Report_Rivastigmine.pdf" target="_blank" class="btn btn-gold btn-sm" style="width:100%;"><i class="fas fa-file-pdf"></i> Download PDF</a>
                     </div>
                 </div>
-                <!-- Galantamine -->
                 <div class="scroller-card tilt-card">
                     <div class="card-top-border border-teal-top"></div>
                     <h3>Galantamine</h3>
@@ -1075,7 +1136,6 @@
                         <a href="CEREBRO_X_Final_Report_Galantamine.pdf" target="_blank" class="btn btn-gold btn-sm" style="width:100%;"><i class="fas fa-file-pdf"></i> Download PDF</a>
                     </div>
                 </div>
-                <!-- Temozolomide -->
                 <div class="scroller-card tilt-card">
                     <div class="card-top-border border-orange-top"></div>
                     <h3>Temozolomide</h3>
@@ -1085,7 +1145,6 @@
                         <a href="CEREBRO_X_Final_Report_Temozolomide.pdf" target="_blank" class="btn btn-gold btn-sm" style="width:100%;"><i class="fas fa-file-pdf"></i> Download PDF</a>
                     </div>
                 </div>
-                <!-- Lecanemab -->
                 <div class="scroller-card tilt-card">
                     <div class="card-top-border border-red-top"></div>
                     <h3>Lecanemab</h3>
@@ -1095,7 +1154,6 @@
                         <a href="CEREBRO_X_Final_Report_Lecanemab.pdf" target="_blank" class="btn btn-gold btn-sm" style="width:100%;"><i class="fas fa-file-pdf"></i> Download PDF</a>
                     </div>
                 </div>
-                <!-- Nusinersen -->
                 <div class="scroller-card tilt-card">
                     <div class="card-top-border border-red-top"></div>
                     <h3>Nusinersen</h3>
@@ -1179,7 +1237,6 @@
     <section class="section" id="request-form">
         <h2 class="section-title">Request Your Analysis</h2>
         <div class="form-wizard-container" id="formWizard">
-            <!-- Progress bar -->
             <div class="wizard-progress" id="wizardProgress">
                 <span class="step-dot active" data-step="1">1</span>
                 <span class="step-line" data-line="1"></span>
@@ -1189,11 +1246,10 @@
             </div>
 
             <form action="https://formsubmit.co/mohamed.talaat@pharma.asu.edu.eg" method="POST" id="cerebroForm">
-                <!-- Hidden fields preserved exactly from original -->
                 <input type="hidden" name="_subject" value="CEREBRO-X: New Analysis Request!">
                 <input type="hidden" name="_captcha" value="false">
 
-                <!-- STEP 1: Personal & Consent -->
+                <!-- STEP 1 -->
                 <div class="wizard-step active" data-step="1">
                     <h3 style="color:var(--gold);margin-bottom:20px;letter-spacing:0.5px;">Step 1: Your Details & Agreements</h3>
                     <div class="form-group"><label>Full Name *</label><input type="text" name="Name" required placeholder="Dr. Jane Doe"></div>
@@ -1213,7 +1269,7 @@
                     </div>
                 </div>
 
-                <!-- STEP 2: Drug Details -->
+                <!-- STEP 2 -->
                 <div class="wizard-step" data-step="2">
                     <h3 style="color:var(--gold);margin-bottom:20px;letter-spacing:0.5px;">Step 2: Drug Details</h3>
                     <div class="form-group"><label>Drug Name *</label><input type="text" name="Drug_Name" required placeholder="e.g., Donepezil"></div>
@@ -1238,7 +1294,7 @@
                     </div>
                 </div>
 
-                <!-- STEP 3: DDS Formulations -->
+                <!-- STEP 3 -->
                 <div class="wizard-step" data-step="3">
                     <h3 style="color:var(--gold);margin-bottom:20px;letter-spacing:0.5px;">Step 3: DDS Formulations</h3>
                     <div class="form-group">
@@ -1279,16 +1335,19 @@
     <!-- ═══════════════ SCRIPTS ═══════════════ -->
     <script>
         // ────────────────────────────
-        // THREE.JS HERO - Rotating Wireframe Molecule
+        // THREE.JS HERO – Anatomical Brain + DDS Particle Field
+        // Replaces the old icosahedron/meteor scene with a dynamic,
+        // anatomical wireframe brain and drug-delivery-system elements.
         // ────────────────────────────
         (function initThreeHero() {
             const container = document.getElementById('hero-canvas-container');
             if (!container || typeof THREE === 'undefined') return;
 
             const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(55, container.clientWidth / Math.max(container.clientHeight, 1),
-                0.1, 100);
-            camera.position.z = 5.5;
+            const camera = new THREE.PerspectiveCamera(50, container.clientWidth / Math.max(container.clientHeight,
+                1), 0.1, 120);
+            camera.position.z = 6.8;
+            camera.position.y = 0.2;
 
             const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             renderer.setSize(container.clientWidth, container.clientHeight);
@@ -1296,78 +1355,244 @@
             renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
 
-            // Main wireframe icosahedron
-            const geom = new THREE.IcosahedronGeometry(1.6, 1);
-            const mat = new THREE.MeshBasicMaterial({
+            // ── Lighting ──
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const pointLight = new THREE.PointLight(0xC9A84C, 1.2, 20);
+            pointLight.position.set(0, 0.5, 3);
+            scene.add(pointLight);
+
+            // ── BRAIN GROUP ──
+            const brainGroup = new THREE.Group();
+            scene.add(brainGroup);
+
+            const goldWireMat = new THREE.MeshBasicMaterial({
                 color: 0xC9A84C,
                 wireframe: true,
                 transparent: true,
-                opacity: 0.55,
+                opacity: 0.5,
             });
-            const ico = new THREE.Mesh(geom, mat);
-            scene.add(ico);
-
-            // Outer wireframe ring
-            const ringGeom = new THREE.TorusGeometry(2.1, 0.03, 16, 80);
-            const ringMat = new THREE.MeshBasicMaterial({
+            const goldWireMatBright = new THREE.MeshBasicMaterial({
+                color: 0xC9A84C,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.7,
+            });
+            const tealWireMat = new THREE.MeshBasicMaterial({
                 color: 0x0D6E6E,
                 wireframe: true,
                 transparent: true,
                 opacity: 0.35,
             });
-            const ring = new THREE.Mesh(ringGeom, ringMat);
-            ring.rotation.x = Math.PI / 2.5;
-            scene.add(ring);
-
-            // Second ring
-            const ring2 = new THREE.Mesh(
-                new THREE.TorusGeometry(2.4, 0.025, 12, 60),
-                new THREE.MeshBasicMaterial({ color: 0xF57C00, wireframe: true, transparent: true, opacity: 0.25 })
-            );
-            ring2.rotation.y = Math.PI / 3;
-            ring2.rotation.x = Math.PI / 1.8;
-            scene.add(ring2);
-
-            // Floating particles
-            const particlesGeom = new THREE.BufferGeometry();
-            const particleCount = 200;
-            const positions = new Float32Array(particleCount * 3);
-            for (let i = 0; i < particleCount; i++) {
-                positions[i * 3] = (Math.random() - 0.5) * 8;
-                positions[i * 3 + 1] = (Math.random() - 0.5) * 8;
-                positions[i * 3 + 2] = (Math.random() - 0.5) * 5;
-            }
-            particlesGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const particlesMat = new THREE.PointsMaterial({
-                color: 0xC9A84C,
-                size: 0.025,
+            const orangeWireMat = new THREE.MeshBasicMaterial({
+                color: 0xF57C00,
+                wireframe: true,
                 transparent: true,
-                opacity: 0.7,
+                opacity: 0.3,
+            });
+
+            // Left cerebral hemisphere
+            const leftHemiGeom = new THREE.SphereGeometry(1.05, 36, 28);
+            const leftHemi = new THREE.Mesh(leftHemiGeom, goldWireMat);
+            leftHemi.scale.set(0.82, 0.68, 0.9);
+            leftHemi.position.set(-0.48, 0.08, 0);
+            brainGroup.add(leftHemi);
+
+            // Right cerebral hemisphere
+            const rightHemiGeom = new THREE.SphereGeometry(1.05, 36, 28);
+            const rightHemi = new THREE.Mesh(rightHemiGeom, goldWireMat);
+            rightHemi.scale.set(0.82, 0.68, 0.9);
+            rightHemi.position.set(0.48, 0.08, 0);
+            brainGroup.add(rightHemi);
+
+            // Medial surface detail – inner wireframe arcs
+            const innerArcGeom = new THREE.TorusGeometry(0.55, 0.015, 8, 32);
+            const innerArcL = new THREE.Mesh(innerArcGeom, goldWireMatBright);
+            innerArcL.rotation.y = Math.PI / 2;
+            innerArcL.position.set(-0.06, 0.06, 0);
+            brainGroup.add(innerArcL);
+            const innerArcR = new THREE.Mesh(innerArcGeom, goldWireMatBright);
+            innerArcR.rotation.y = Math.PI / 2;
+            innerArcR.position.set(0.06, 0.06, 0);
+            brainGroup.add(innerArcR);
+
+            // Cerebellum
+            const cerebellumGeom = new THREE.SphereGeometry(0.55, 24, 18);
+            const cerebellum = new THREE.Mesh(cerebellumGeom, tealWireMat);
+            cerebellum.scale.set(0.6, 0.38, 0.35);
+            cerebellum.position.set(0, -0.52, 0.55);
+            brainGroup.add(cerebellum);
+
+            // Brainstem
+            const brainstemGeom = new THREE.CylinderGeometry(0.1, 0.18, 0.75, 16, 12);
+            const brainstem = new THREE.Mesh(brainstemGeom, orangeWireMat);
+            brainstem.position.set(0, -0.95, 0.1);
+            brainGroup.add(brainstem);
+
+            // Neural bridge (corpus callosum suggestion)
+            const bridgeGeom = new THREE.TorusGeometry(0.35, 0.02, 8, 24);
+            const bridge = new THREE.Mesh(bridgeGeom, goldWireMatBright);
+            bridge.rotation.x = Math.PI / 2.2;
+            bridge.rotation.z = Math.PI / 2;
+            bridge.position.set(0, 0.22, 0);
+            brainGroup.add(bridge);
+
+            // ── SYNAPTIC SURFACE PARTICLES ──
+            const synapseGroup = new THREE.Group();
+            brainGroup.add(synapseGroup);
+            const synapseCount = 140;
+            const synapseGeom = new THREE.BufferGeometry();
+            const synapsePositions = new Float32Array(synapseCount * 3);
+            for (let i = 0; i < synapseCount; i++) {
+                // Sample points on the surface of a unit sphere, then offset to hemispheres
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const r = 0.88 + Math.random() * 0.14;
+                const sx = Math.sin(phi) * Math.cos(theta) * r;
+                const sy = Math.sin(phi) * Math.sin(theta) * r * 0.7;
+                const sz = Math.cos(phi) * r * 0.85;
+                const side = Math.random() > 0.5 ? -0.48 : 0.48;
+                synapsePositions[i * 3] = sx * 0.82 + side;
+                synapsePositions[i * 3 + 1] = sy + 0.06;
+                synapsePositions[i * 3 + 2] = sz;
+            }
+            synapseGeom.setAttribute('position', new THREE.BufferAttribute(synapsePositions, 3));
+            const synapseMat = new THREE.PointsMaterial({
+                color: 0xC9A84C,
+                size: 0.028,
+                transparent: true,
+                opacity: 0.75,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
             });
-            const particles = new THREE.Points(particlesGeom, particlesMat);
-            scene.add(particles);
+            const synapsePoints = new THREE.Points(synapseGeom, synapseMat);
+            synapseGroup.add(synapsePoints);
 
-            // Ambient light
-            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-            scene.add(ambient);
+            // ── DDS BACKGROUND FIELD ──
+            const ddsField = new THREE.Group();
+            scene.add(ddsField);
 
-            // Animation loop
+            // Nanoparticles – small glowing spheres
+            const npGroup = new THREE.Group();
+            ddsField.add(npGroup);
+            const npCount = 45;
+            for (let i = 0; i < npCount; i++) {
+                const size = 0.03 + Math.random() * 0.07;
+                const npGeom = new THREE.SphereGeometry(size, 8, 6);
+                const npMat = new THREE.MeshBasicMaterial({
+                    color: Math.random() > 0.6 ? 0xF57C00 : 0xC9A84C,
+                    transparent: true,
+                    opacity: 0.55 + Math.random() * 0.35,
+                });
+                const np = new THREE.Mesh(npGeom, npMat);
+                np.position.set(
+                    (Math.random() - 0.5) * 10,
+                    (Math.random() - 0.5) * 9,
+                    (Math.random() - 0.5) * 7 - 1.5
+                );
+                np.userData = {
+                    speedX: (Math.random() - 0.5) * 0.004,
+                    speedY: (Math.random() - 0.5) * 0.003,
+                    speedZ: (Math.random() - 0.5) * 0.003,
+                    amp: Math.random() * 0.6,
+                    phase: Math.random() * Math.PI * 2,
+                };
+                npGroup.add(np);
+            }
+
+            // Liposomes – small wireframe torus shapes
+            const lipoGroup = new THREE.Group();
+            ddsField.add(lipoGroup);
+            const lipoCount = 18;
+            for (let i = 0; i < lipoCount; i++) {
+                const lipoGeom = new THREE.TorusGeometry(0.08 + Math.random() * 0.09, 0.015, 6, 14);
+                const lipoMat = new THREE.MeshBasicMaterial({
+                    color: 0x0D6E6E,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.4 + Math.random() * 0.3,
+                });
+                const lipo = new THREE.Mesh(lipoGeom, lipoMat);
+                lipo.position.set(
+                    (Math.random() - 0.5) * 9,
+                    (Math.random() - 0.5) * 8,
+                    (Math.random() - 0.5) * 6 - 2
+                );
+                lipo.userData = {
+                    rotSpeedX: (Math.random() - 0.5) * 0.015,
+                    rotSpeedY: (Math.random() - 0.5) * 0.015,
+                    floatAmp: Math.random() * 0.4,
+                    floatPhase: Math.random() * Math.PI * 2,
+                };
+                lipoGroup.add(lipo);
+            }
+
+            // Free drug molecules – tiny bright dots
+            const molGroup = new THREE.Group();
+            ddsField.add(molGroup);
+            const molCount = 90;
+            const molGeom = new THREE.BufferGeometry();
+            const molPositions = new Float32Array(molCount * 3);
+            for (let i = 0; i < molCount; i++) {
+                molPositions[i * 3] = (Math.random() - 0.5) * 11;
+                molPositions[i * 3 + 1] = (Math.random() - 0.5) * 10;
+                molPositions[i * 3 + 2] = (Math.random() - 0.5) * 8 - 1;
+            }
+            molGeom.setAttribute('position', new THREE.BufferAttribute(molPositions, 3));
+            const molMat = new THREE.PointsMaterial({
+                color: 0xC9A84C,
+                size: 0.022,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+            });
+            const molPoints = new THREE.Points(molGeom, molMat);
+            molGroup.add(molPoints);
+
+            // ── ANIMATION LOOP ──
             function animate() {
                 requestAnimationFrame(animate);
-                const t = performance.now() * 0.0003;
-                ico.rotation.y += 0.005;
-                ico.rotation.x += 0.002;
-                ring.rotation.z += 0.003;
-                ring2.rotation.y += 0.004;
-                ring2.rotation.z -= 0.002;
-                particles.rotation.y += 0.001;
-                particles.rotation.x += 0.0005;
+                const t = performance.now() * 0.0004;
+
+                // Brain gentle rotation
+                brainGroup.rotation.y += 0.0025;
+                brainGroup.rotation.x += 0.0008;
+                brainGroup.rotation.z += 0.0004;
+
+                // Synapse pulse
+                synapseMat.opacity = 0.55 + Math.sin(t * 3.5) * 0.25;
+
+                // Nanoparticles drift
+                npGroup.children.forEach(np => {
+                    np.position.x += np.userData.speedX;
+                    np.position.y += np.userData.speedY;
+                    np.position.z += np.userData.speedZ;
+                    // Wrap around
+                    if (Math.abs(np.position.x) > 5.5) np.position.x *= -0.95;
+                    if (Math.abs(np.position.y) > 5) np.position.y *= -0.95;
+                    if (Math.abs(np.position.z) > 4) np.position.z *= -0.95;
+                });
+
+                // Liposomes rotate and float
+                lipoGroup.children.forEach(lipo => {
+                    lipo.rotation.x += lipo.userData.rotSpeedX;
+                    lipo.rotation.y += lipo.userData.rotSpeedY;
+                    lipo.position.y += Math.sin(t * 1.8 + lipo.userData.floatPhase) * 0.002;
+                });
+
+                // Molecular cloud rotation
+                molGroup.rotation.y += 0.0006;
+                molGroup.rotation.x += 0.0003;
+
                 // Subtle camera sway
-                camera.position.x = Math.sin(t) * 0.3;
-                camera.position.y = Math.cos(t * 0.7) * 0.2;
-                camera.lookAt(0, 0, 0);
+                camera.position.x = Math.sin(t * 0.7) * 0.35;
+                camera.position.y = 0.2 + Math.cos(t * 0.55) * 0.2;
+                camera.lookAt(0, -0.05, 0);
+
+                // Point light subtle movement
+                pointLight.intensity = 1.1 + Math.sin(t * 2.2) * 0.25;
+
                 renderer.render(scene, camera);
             }
             animate();
@@ -1381,10 +1606,11 @@
         })();
 
         // ────────────────────────────
-        // HERO TITLE LETTER-BY-LETTER ANIMATION
+        // HERO TITLE LETTER-BY-LETTER ANIMATION + [X] reveal
         // ────────────────────────────
         (function animateHeroTitle() {
             const titleEl = document.getElementById('heroTitle');
+            const xEl = document.getElementById('heroX');
             const taglineEl = document.getElementById('heroTagline');
             const ctaEl = document.getElementById('heroCta');
             if (!titleEl) return;
@@ -1396,48 +1622,47 @@
                 const span = document.createElement('span');
                 span.textContent = text[i];
                 span.className = 'char';
-                if (text[i] === 'C' && i === 0) span.classList.add('gold-letter');
-                if (text[i] === 'X') span.classList.add('gold-letter');
+                // All letters are gold – no special class needed
                 titleEl.appendChild(span);
                 chars.push(span);
             }
 
-            // Use GSAP if available, otherwise fallback
             if (typeof gsap !== 'undefined') {
                 const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
                 tl.to(chars, {
                     opacity: 1,
                     y: 0,
-                    stagger: 0.06,
-                    duration: 0.7,
-                    ease: 'back.out(1.7)',
+                    stagger: 0.055,
+                    duration: 0.65,
+                    ease: 'back.out(1.6)',
                 });
-                tl.to(taglineEl, { opacity: 1, y: 0, duration: 0.8 }, '-=0.2');
-                tl.to(ctaEl, { opacity: 1, y: 0, duration: 0.6 }, '-=0.3');
-                // Set initial states
-                gsap.set(chars, { opacity: 0, y: 40 });
-                gsap.set(taglineEl, { opacity: 0, y: 20 });
-                gsap.set(ctaEl, { opacity: 0, y: 15 });
+                tl.to(xEl, { opacity: 1, scale: 1, duration: 0.55, ease: 'back.out(1.8)' }, '-=0.15');
+                tl.to(taglineEl, { opacity: 1, y: 0, duration: 0.7 }, '-=0.2');
+                tl.to(ctaEl, { opacity: 1, y: 0, duration: 0.55 }, '-=0.25');
+                gsap.set(chars, { opacity: 0, y: 38 });
+                gsap.set(xEl, { opacity: 0, scale: 0.6 });
+                gsap.set(taglineEl, { opacity: 0, y: 18 });
+                gsap.set(ctaEl, { opacity: 0, y: 12 });
             } else {
-                // Fallback: simple fade
-                chars.forEach((c, i) => { c.style.opacity = '1';
-                    c.style.transitionDelay = i * 0.06 + 's';
-                    c.style.transition = 'opacity 0.5s'; });
+                chars.forEach((c, i) => {
+                    c.style.opacity = '1';
+                    c.style.transitionDelay = i * 0.055 + 's';
+                    c.style.transition = 'opacity 0.5s';
+                });
+                xEl.style.opacity = '1';
                 taglineEl.style.opacity = '1';
                 ctaEl.style.opacity = '1';
             }
         })();
 
         // ────────────────────────────
-        // GSAP SCROLLTRIGGER - Section reveals
+        // GSAP SCROLLTRIGGER – Section reveals
         // ────────────────────────────
         (function initScrollAnimations() {
             if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
             gsap.registerPlugin(ScrollTrigger);
 
-            // Animate sections on scroll
-            const fadeSections = document.querySelectorAll(
-                '.section:not(#hero):not(.section-dark), .section-dark');
+            const fadeSections = document.querySelectorAll('.section:not(#hero):not(.section-dark), .section-dark');
             fadeSections.forEach((sec) => {
                 const kids = sec.querySelectorAll(
                     '.glass-card, .case-study, .principle-item, .price-card, .scroller-card, .form-wizard-container, .section-title, .section-subtitle, .grid-3 > *, .pricing-grid > *, .principles-grid > *'
@@ -1464,7 +1689,6 @@
                 }
             });
 
-            // Case study table rows
             const tableRows = document.querySelectorAll('tbody tr');
             if (tableRows.length > 0) {
                 gsap.fromTo(tableRows, {
@@ -1484,7 +1708,6 @@
                 });
             }
 
-            // Principle items left-to-right sweep
             const principleItems = document.querySelectorAll('.principle-item');
             principleItems.forEach((item, i) => {
                 gsap.fromTo(item, {
@@ -1513,21 +1736,11 @@
             if (!nav) return;
             const hero = document.getElementById('hero');
             const observer = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting) {
-                    nav.classList.remove('scrolled');
-                } else {
-                    nav.classList.add('scrolled');
-                }
+                nav.classList.toggle('scrolled', !entries[0].isIntersecting);
             }, { threshold: 0.1 });
             if (hero) observer.observe(hero);
-
-            // Also use scroll event as backup
             window.addEventListener('scroll', () => {
-                if (window.scrollY > 80) {
-                    nav.classList.add('scrolled');
-                } else {
-                    nav.classList.remove('scrolled');
-                }
+                nav.classList.toggle('scrolled', window.scrollY > 80);
             }, { passive: true });
         })();
 
@@ -1538,23 +1751,17 @@
             const hamburger = document.getElementById('navHamburger');
             const navLinks = document.getElementById('navLinks');
             if (!hamburger || !navLinks) return;
-            hamburger.addEventListener('click', () => {
-                navLinks.classList.toggle('open');
-            });
-            // Close on link click
+            hamburger.addEventListener('click', () => navLinks.classList.toggle('open'));
             navLinks.querySelectorAll('a').forEach(link => {
-                link.addEventListener('click', () => {
-                    navLinks.classList.remove('open');
-                });
+                link.addEventListener('click', () => navLinks.classList.remove('open'));
             });
         })();
 
         // ────────────────────────────
-        // CARD TILT EFFECT (vanilla JS)
+        // CARD TILT EFFECT
         // ────────────────────────────
         (function initCardTilt() {
-            const cards = document.querySelectorAll('.tilt-card');
-            cards.forEach(card => {
+            document.querySelectorAll('.tilt-card').forEach(card => {
                 card.addEventListener('mousemove', (e) => {
                     const rect = card.getBoundingClientRect();
                     const x = e.clientX - rect.left;
@@ -1568,8 +1775,7 @@
                     card.style.transition = 'transform 0.1s ease-out';
                 });
                 card.addEventListener('mouseleave', () => {
-                    card.style.transform =
-                        'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)';
+                    card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)';
                     card.style.transition = 'transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1)';
                 });
             });
@@ -1587,8 +1793,8 @@
                     if (target) {
                         e.preventDefault();
                         const navHeight = document.getElementById('cerebro-nav')?.offsetHeight || 60;
-                        const top = target.getBoundingClientRect().top + window.pageYOffset -
-                            navHeight - 10;
+                        const top = target.getBoundingClientRect().top + window.pageYOffset - navHeight -
+                            10;
                         window.scrollTo({ top, behavior: 'smooth' });
                     }
                 });
@@ -1596,7 +1802,7 @@
         })();
 
         // ────────────────────────────
-        // HORIZONTAL SCROLLER - mouse drag
+        // HORIZONTAL SCROLLER DRAG
         // ────────────────────────────
         (function initScrollerDrag() {
             const scroller = document.getElementById('sampleScroller');
@@ -1617,10 +1823,8 @@
                 if (!isDown) return;
                 e.preventDefault();
                 const x = e.pageX - scroller.offsetLeft;
-                const walk = (x - startX) * 1.8;
-                scroller.scrollLeft = scrollLeft - walk;
+                scroller.scrollLeft = scrollLeft - (x - startX) * 1.8;
             });
-            // Touch events
             scroller.addEventListener('touchstart', (e) => {
                 startX = e.touches[0].pageX - scroller.offsetLeft;
                 scrollLeft = scroller.scrollLeft;
@@ -1642,7 +1846,6 @@
                 steps.forEach(s => s.classList.remove('active'));
                 const target = wizard.querySelector(`.wizard-step[data-step="${stepNum}"]`);
                 if (target) target.classList.add('active');
-                // Update progress dots
                 dots.forEach(d => {
                     const ds = parseInt(d.getAttribute('data-step'));
                     d.classList.remove('active', 'done');
@@ -1656,72 +1859,56 @@
                 currentStep = stepNum;
             }
 
-            // Next buttons
             wizard.querySelectorAll('.wizard-next').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const nextStep = parseInt(btn.getAttribute('data-next'));
-                    // Basic validation: check required fields in current step
                     const currentStepEl = wizard.querySelector(
                         `.wizard-step[data-step="${currentStep}"]`);
                     if (currentStepEl) {
-                        const requiredFields = currentStepEl.querySelectorAll(
-                            'input[required], select[required], textarea[required]');
                         let valid = true;
-                        requiredFields.forEach(f => {
+                        currentStepEl.querySelectorAll(
+                            'input[required], select[required], textarea[required]').forEach(f => {
                             if (!f.value.trim()) {
                                 valid = false;
                                 f.style.borderColor = '#C62828';
                                 f.style.boxShadow = '0 0 15px rgba(198,40,40,0.4)';
-                                setTimeout(() => {
-                                    f.style.borderColor = '';
-                                    f.style.boxShadow = '';
-                                }, 2000);
+                                setTimeout(() => { f.style.borderColor = '';
+                                    f.style.boxShadow = ''; }, 2000);
                             }
                         });
-                        // Check checkboxes
-                        const requiredChecks = currentStepEl.querySelectorAll(
-                            'input[type="checkbox"][required]');
-                        requiredChecks.forEach(c => {
-                            if (!c.checked) {
-                                valid = false;
-                                c.parentElement.style.outline =
-                                    '2px solid #C62828';
-                                setTimeout(() => {
-                                    c.parentElement.style.outline = '';
-                                }, 2000);
-                            }
-                        });
+                        currentStepEl.querySelectorAll('input[type="checkbox"][required]')
+                            .forEach(c => {
+                                if (!c.checked) {
+                                    valid = false;
+                                    c.parentElement.style.outline = '2px solid #C62828';
+                                    setTimeout(() => { c.parentElement.style.outline =
+                                        ''; }, 2000);
+                                }
+                            });
                         if (!valid) return;
                     }
                     showStep(nextStep);
-                    // Scroll to top of wizard
                     wizard.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             });
 
-            // Prev buttons
             wizard.querySelectorAll('.wizard-prev').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const prevStep = parseInt(btn.getAttribute('data-prev'));
-                    showStep(prevStep);
+                    showStep(parseInt(btn.getAttribute('data-prev')));
                     wizard.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             });
 
-            // Clickable dots
             dots.forEach(dot => {
                 dot.addEventListener('click', () => {
                     const ds = parseInt(dot.getAttribute('data-step'));
-                    // Only allow going back or to completed steps
-                    if (ds <= currentStep || dot.classList.contains('done')) {
-                        showStep(ds);
-                    }
+                    if (ds <= currentStep || dot.classList.contains('done')) showStep(ds);
                 });
             });
         })();
 
         // ────────────────────────────
-        // DDS BLOCK GENERATOR (preserved from original, targeting wizard container)
+        // DDS BLOCK GENERATOR
         // ────────────────────────────
         (function initDDSGenerator() {
             const ddsCountSelect = document.getElementById('ddsCount');
@@ -1753,18 +1940,14 @@
                     <div class="form-group"><label>Encapsulation Efficiency (%)</label><input type="number" name="DDS_${index}_EE" step="0.1" min="0" max="100" placeholder="82"></div>
                     <div class="form-group"><label>Drug Loading (%)</label><input type="number" name="DDS_${index}_Loading" step="0.1" min="0" max="100" placeholder="12"></div>
                     <div class="form-group"><label>Release Kinetics</label><input type="text" name="DDS_${index}_Kinetics" placeholder="sustained / immediate / pH-responsive"></div>
-                </div>
-                `;
+                </div>`;
             }
 
             function renderDDSBlocks(count) {
                 let html = '';
-                for (let i = 1; i <= count; i++) {
-                    html += createDDSBlock(i);
-                }
+                for (let i = 1; i <= count; i++) html += createDDSBlock(i);
                 ddsContainer.innerHTML = html;
             }
-
             renderDDSBlocks(parseInt(ddsCountSelect.value));
             ddsCountSelect.addEventListener('change', function() {
                 renderDDSBlocks(parseInt(this.value));
@@ -1781,20 +1964,15 @@
                 const problemSection = document.getElementById('problem');
                 if (problemSection) {
                     const navHeight = document.getElementById('cerebro-nav')?.offsetHeight || 60;
-                    const top = problemSection.getBoundingClientRect().top + window.pageYOffset -
-                        navHeight - 10;
+                    const top = problemSection.getBoundingClientRect().top + window.pageYOffset - navHeight -
+                        10;
                     window.scrollTo({ top, behavior: 'smooth' });
                 }
             });
         })();
 
-        // ────────────────────────────
-        // INITIALIZE: set hero chars for GSAP
-        // ────────────────────────────
         document.addEventListener('DOMContentLoaded', () => {
-            // Re-run tilt init for any dynamically added cards
-            // (DDS blocks are form elements, no tilt needed there)
-            console.log('CEREBRO-X v22.1 — Deep Space Dashboard initialized.');
+            console.log('CEREBRO-X v22.1 — Anatomical Brain + DDS Field initialized.');
         });
     </script>
 </body>
