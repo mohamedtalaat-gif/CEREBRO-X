@@ -56,9 +56,6 @@
             z-index: 0;
         }
 
-        /* ══════════════════════════════════════
-           UNIFIED SEAMLESS BACKGROUND (ONLY ONE)
-           ══════════════════════════════════════ */
         body::before {
             content: "";
             position: fixed;
@@ -77,9 +74,6 @@
             100% { background-position: 760px 760px; }
         }
 
-        /* ══════════════════════════════════════
-           FROSTED NAVIGATION
-           ══════════════════════════════════════ */
         #cerebro-nav {
             position: fixed;
             top: 0; left: 0; width: 100%;
@@ -132,9 +126,6 @@
             .nav-logo-img { width: 30px; height: 30px; }
         }
 
-        /* ══════════════════════════════════════
-           HERO – MAGICAL BOOK OPENING + 3D LOGO
-           ══════════════════════════════════════ */
         .hero {
             position: relative;
             min-height: 100vh;
@@ -146,7 +137,7 @@
             padding: 100px 24px 80px;
             background: radial-gradient(ellipse at 50% 38%, rgba(18, 30, 58, 0.35) 0%, rgba(4, 4, 14, 0.78) 100%);
         }
-        .hero-content { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; max-width: 900px; margin: 0 auto; }
+        .hero-content { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; max-width: 950px; margin: 0 auto; }
         .hero-logo-reveal { perspective: 1200px; margin-bottom: 0; position: relative; }
         .hero-logo-reveal::before {
             content: ''; position: absolute; inset: -35%;
@@ -157,9 +148,10 @@
             0% { opacity: 0; transform: scale(0.3); }
             100% { opacity: 1; transform: scale(1); }
         }
-        /* ⭐️ تكبير حجم حاوية اللوجو 3D */
+
+        /* ⭐️ تكبير حاوية اللوجو 3D بشكل كبير */
         #hero-logo-3d-container {
-            width: clamp(300px, 55vw, 700px);  /* زودنا الأبعاد */
+            width: clamp(300px, 60vw, 750px);  /* زودنا الأبعاد مقارنة بالأول */
             height: auto;
             aspect-ratio: 4 / 1;
             display: block;
@@ -217,7 +209,6 @@
             50% { opacity: 1; }
         }
 
-        /* ... rest of sections styles unchanged ... */
         .section { padding: 90px 24px; max-width: 1180px; margin: 0 auto; position: relative; z-index: 1; }
         .section-dark { background: rgba(14, 24, 48, 0.3); max-width: 100%; padding: 90px 24px; }
         .section-dark .section { max-width: 1180px; margin: 0 auto; padding: 0; }
@@ -322,7 +313,7 @@
         .site-footer .footer-credit { font-size: 0.76rem; color: var(--text-muted); opacity: 0.65; }
 
         @media (max-width: 768px) {
-            #hero-logo-3d-container { width: clamp(180px, 70vw, 350px); }
+            #hero-logo-3d-container { width: clamp(180px, 75vw, 360px); }
             .section { padding: 50px 16px; }
             .scroller-card { flex: 0 0 260px; min-height: 230px; }
             .form-wizard-container { padding: 18px 12px; border-radius: 14px; }
@@ -333,7 +324,6 @@
     </style>
 </head>
 <body>
-    <!-- ═══ FROSTED NAVIGATION ═══ -->
     <nav id="cerebro-nav">
         <a href="#hero" class="nav-logo-link">
             <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png"
@@ -350,7 +340,6 @@
         </ul>
     </nav>
 
-    <!-- ═══ HERO – MAGICAL BOOK OPENING + 3D LOGO ═══ -->
     <section class="hero" id="hero">
         <div class="hero-content">
             <div class="hero-logo-reveal">
@@ -365,9 +354,6 @@
             <span></span><span></span><span></span>
         </div>
     </section>
-
-    <!-- بقية الأقسام (المشكلة، كيف يعمل، دراسة الحالة، المخرجات، المبادئ، الأسعار، الفورم، الفوتر) كما هي بدون تغيير -->
-    <!-- ... -->
 
     <section class="section" id="problem">
         <h2 class="section-title">The <span class="gold-accent">$1.9B</span> BBB Drug Delivery Problem</h2>
@@ -501,15 +487,14 @@
 
     <script>
         // ══════════════════════════════════════════════
-        // THREE.JS – 3D LOGO (يدور بالكامل حول نفسه)
+        // THREE.JS – 3D LOGO (يلف 360° بألوان أصلية)
         // ══════════════════════════════════════════════
         (function initThreeLogo() {
             const container = document.getElementById('hero-logo-3d-container');
             if (!container || typeof THREE === 'undefined') return;
 
             const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(42, container.clientWidth / Math.max(container.clientHeight, 1),
-                0.1, 50);
+            const camera = new THREE.PerspectiveCamera(42, container.clientWidth / Math.max(container.clientHeight, 1), 0.1, 50);
             camera.position.z = 5.5;
 
             const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -518,99 +503,83 @@
             renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            // إضاءة محايدة تماماً للحفاظ على الألوان
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
             scene.add(ambientLight);
-            const pointLight1 = new THREE.PointLight(0xC9A84C, 2.2, 12);
-            pointLight1.position.set(2, 1, 3);
+            const pointLight1 = new THREE.PointLight(0xffffff, 0.6, 12);
+            pointLight1.position.set(0, 0.5, 3);
             scene.add(pointLight1);
-            const pointLight2 = new THREE.PointLight(0x0D6E6E, 1.5, 10);
-            pointLight2.position.set(-2, -0.5, 2);
-            scene.add(pointLight2);
 
-            const logoUrl =
-                'https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png';
+            const logoUrl = 'https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png';
             const textureLoader = new THREE.TextureLoader();
             const logoPlane = new THREE.Mesh(
                 new THREE.PlaneGeometry(1, 1),
-                new THREE.MeshStandardMaterial({
+                new THREE.MeshBasicMaterial({  // استخدام BasicMaterial لعدم التأثر بالأضواء
                     map: null,
                     transparent: true,
-                    alphaTest: 0.1,
                     side: THREE.DoubleSide,
-                    roughness: 0.3,
-                    metalness: 0.1,
-                    emissive: new THREE.Color(0xC9A84C),
-                    emissiveIntensity: 0.2
+                    depthWrite: false,
+                    color: 0xffffff  // يضمن أن النسيج يظهر بألوانه الصحيحة
                 })
             );
             scene.add(logoPlane);
 
             textureLoader.load(logoUrl, (texture) => {
                 const aspect = texture.image.width / texture.image.height;
-                const baseHeight = 2.2; // زودنا الحجم
+                const baseHeight = 3.2;  // حجم كبير جداً
                 logoPlane.scale.set(aspect * baseHeight, baseHeight, 1);
                 logoPlane.material.map = texture;
                 logoPlane.material.needsUpdate = true;
             });
 
-            // جسيمات ذهبية كثيرة وحيوية
+            // جسيمات ذهبية حول اللوجو
             const particlesGroup = new THREE.Group();
             scene.add(particlesGroup);
             const particlesGeom = new THREE.BufferGeometry();
-            const particlesCount = 180;
+            const particlesCount = 200;
             const positions = new Float32Array(particlesCount * 3);
             for (let i = 0; i < particlesCount; i++) {
-                positions[i * 3] = (Math.random() - 0.5) * 7;
-                positions[i * 3 + 1] = (Math.random() - 0.5) * 3.5;
-                positions[i * 3 + 2] = (Math.random() - 0.5) * 4;
+                positions[i * 3] = (Math.random() - 0.5) * 7.5;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 3.8;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 4.5;
             }
             particlesGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             const particlesMat = new THREE.PointsMaterial({
                 color: 0xC9A84C,
-                size: 0.025,
+                size: 0.028,
                 transparent: true,
-                opacity: 0.65,
+                opacity: 0.7,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
             });
             const particles = new THREE.Points(particlesGeom, particlesMat);
             particlesGroup.add(particles);
 
-            // حلقة ذهبية حول اللوجو
-            const ringGeom = new THREE.TorusGeometry(2.2, 0.008, 16, 100);
-            const ringMat = new THREE.MeshStandardMaterial({
+            // حلقة ذهبية رفيعة
+            const ringGeom = new THREE.TorusGeometry(2.4, 0.009, 16, 100);
+            const ringMat = new THREE.MeshBasicMaterial({
                 color: 0xC9A84C,
-                emissive: new THREE.Color(0xC9A84C),
-                emissiveIntensity: 0.5,
-                roughness: 0.4,
-                metalness: 0.8,
                 transparent: true,
-                opacity: 0.4,
+                opacity: 0.35,
             });
             const ring = new THREE.Mesh(ringGeom, ringMat);
             ring.rotation.x = Math.PI / 2;
             scene.add(ring);
 
-            // دوران مستمر وحقيقي للوجو
+            // دوران مستمر وحقيقي
             function animate() {
                 requestAnimationFrame(animate);
                 const t = performance.now() * 0.0005;
 
-                // ⭐️ الدوران الأساسي: يلف 360 درجة حول المحور الرأسي
-                logoPlane.rotation.y += 0.008;
-                // إضافة بعض الميلان الخفيف لإضفاء عمق
-                logoPlane.rotation.x = Math.sin(t * 0.8) * 0.08;
-                logoPlane.position.y = Math.sin(t * 1.0) * 0.1;
+                // ⭐️ اللوجو يلف 360 درجة حول نفسه
+                logoPlane.rotation.y += 0.01;
+                logoPlane.rotation.x = Math.sin(t * 0.8) * 0.06;
+                logoPlane.position.y = Math.sin(t * 1.0) * 0.12;
 
-                // دوران الجسيمات والحلقة
-                particlesGroup.rotation.y -= 0.002;
-                particlesGroup.rotation.x += 0.001;
+                particlesGroup.rotation.y -= 0.0025;
+                particlesGroup.rotation.x += 0.0012;
                 ring.rotation.z += 0.003;
-                ring.rotation.x = Math.PI / 2 + Math.sin(t * 0.7) * 0.1;
-
-                // نبض الإضاءة
-                pointLight1.intensity = 2.0 + Math.sin(t * 2.2) * 0.4;
-                pointLight2.intensity = 1.3 + Math.cos(t * 2.2) * 0.3;
+                ring.rotation.x = Math.PI / 2 + Math.sin(t * 0.7) * 0.08;
 
                 renderer.render(scene, camera);
             }
@@ -632,147 +601,49 @@
             if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
             gsap.registerPlugin(ScrollTrigger);
             document.querySelectorAll('.section:not(#hero):not(.section-dark), .section-dark').forEach(s => {
-                const k = s.querySelectorAll(
-                    '.glass-card,.case-study,.principle-item,.price-card,.scroller-card,.form-wizard-container,.section-title,.section-subtitle,.grid-3>*,.pricing-grid>*,.principles-grid>*'
-                    );
-                if (k.length) gsap.fromTo(k, { opacity: 0, y: 42, scale: 0.96 }, { opacity: 1, y: 0,
-                    scale: 1, duration: 0.68, stagger: 0.08, ease: 'power3.out', scrollTrigger: { trigger: s,
-                        start: 'top 78%', toggleActions: 'play none none none' } });
+                const k = s.querySelectorAll('.glass-card,.case-study,.principle-item,.price-card,.scroller-card,.form-wizard-container,.section-title,.section-subtitle,.grid-3>*,.pricing-grid>*,.principles-grid>*');
+                if (k.length) gsap.fromTo(k, { opacity: 0, y: 42, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.68, stagger: 0.08, ease: 'power3.out', scrollTrigger: { trigger: s, start: 'top 78%', toggleActions: 'play none none none' } });
             });
-            document.querySelectorAll('tbody tr').forEach((r, i) => gsap.fromTo(r, { opacity: 0, x: -28 }, {
-                opacity: 1,
-                x: 0,
-                duration: 0.48,
-                delay: i * 0.11,
-                ease: 'power3.out',
-                scrollTrigger: { trigger: 'table', start: 'top 80%', toggleActions: 'play none none none' }
-            }));
-            document.querySelectorAll('.principle-item').forEach((item, i) => gsap.fromTo(item, { opacity: 0, x: -
-                    45 }, { opacity: 1, x: 0, duration: 0.52, delay: i * 0.09, ease: 'power3.out',
-                scrollTrigger: { trigger: item, start: 'top 82%', toggleActions: 'play none none none' } }));
+            document.querySelectorAll('tbody tr').forEach((r, i) => gsap.fromTo(r, { opacity: 0, x: -28 }, { opacity: 1, x: 0, duration: 0.48, delay: i * 0.11, ease: 'power3.out', scrollTrigger: { trigger: 'table', start: 'top 80%', toggleActions: 'play none none none' } }));
+            document.querySelectorAll('.principle-item').forEach((item, i) => gsap.fromTo(item, { opacity: 0, x: -45 }, { opacity: 1, x: 0, duration: 0.52, delay: i * 0.09, ease: 'power3.out', scrollTrigger: { trigger: item, start: 'top 82%', toggleActions: 'play none none none' } }));
         })();
 
         // ══════════════════════════════════════════════
         // NAVIGATION
         // ══════════════════════════════════════════════
-        (function() { const n = document.getElementById('cerebro-nav'),
-                h = document.getElementById('hero'); if (h) new IntersectionObserver(e => n.classList.toggle('scrolled', !
-                    e[0].isIntersecting), { threshold: 0.08 }).observe(h);
-            window.addEventListener('scroll', () => n.classList.toggle('scrolled', window.scrollY > 60), { passive: true });
-            const hb = document.getElementById('navHamburger'),
-                nl = document.getElementById('navLinks'); if (hb && nl) { hb.addEventListener('click', () => nl.classList
-                    .toggle('open'));
-                nl.querySelectorAll('a').forEach(a => a.addEventListener('click', () => nl.classList.remove('open'))); } })();
+        (function() { const n = document.getElementById('cerebro-nav'), h = document.getElementById('hero'); if (h) new IntersectionObserver(e => n.classList.toggle('scrolled', !e[0].isIntersecting), { threshold: 0.08 }).observe(h); window.addEventListener('scroll', () => n.classList.toggle('scrolled', window.scrollY > 60), { passive: true }); const hb = document.getElementById('navHamburger'), nl = document.getElementById('navLinks'); if (hb && nl) { hb.addEventListener('click', () => nl.classList.toggle('open')); nl.querySelectorAll('a').forEach(a => a.addEventListener('click', () => nl.classList.remove('open'))); } })();
 
         // ══════════════════════════════════════════════
         // CARD TILT
         // ══════════════════════════════════════════════
-        document.querySelectorAll('.tilt-card').forEach(card => { card.addEventListener('mousemove', e => { const r = card
-                    .getBoundingClientRect(); const rx = ((r.height / 2 - (e.clientY - r.top)) / (r.height / 2)) * 5;
-                const ry = (((e.clientX - r.left) - r.width / 2) / (r.width / 2)) * 5;
-                card.style.transform =
-                    `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(6px)`;
-                card.style.transition = 'transform 0.1s ease-out'; });
-            card.addEventListener('mouseleave', () => { card.style.transform =
-                    'perspective(1000px) rotateX(0) rotateY(0) translateZ(0)';
-                card.style.transition = 'transform 0.5s cubic-bezier(0.22,0.61,0.36,1)'; }); });
+        document.querySelectorAll('.tilt-card').forEach(card => { card.addEventListener('mousemove', e => { const r = card.getBoundingClientRect(); const rx = ((r.height / 2 - (e.clientY - r.top)) / (r.height / 2)) * 5; const ry = (((e.clientX - r.left) - r.width / 2) / (r.width / 2)) * 5; card.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(6px)`; card.style.transition = 'transform 0.1s ease-out'; }); card.addEventListener('mouseleave', () => { card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateZ(0)'; card.style.transition = 'transform 0.5s cubic-bezier(0.22,0.61,0.36,1)'; }); });
 
         // ══════════════════════════════════════════════
         // SMOOTH SCROLL
         // ══════════════════════════════════════════════
-        document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', function(e) { const t =
-                document.querySelector(this.getAttribute('href')); if (t) { e.preventDefault();
-                window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - (document.getElementById(
-                        'cerebro-nav')?.offsetHeight || 52) - 6, behavior: 'smooth' }); } }));
+        document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', function(e) { const t = document.querySelector(this.getAttribute('href')); if (t) { e.preventDefault(); window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - (document.getElementById('cerebro-nav')?.offsetHeight || 52) - 6, behavior: 'smooth' }); } }));
 
         // ══════════════════════════════════════════════
         // SCROLLER DRAG
         // ══════════════════════════════════════════════
-        (function() { const s = document.getElementById('sampleScroller'); if (!s) return;
-            let down = false,
-                sx, sl;
-            s.addEventListener('mousedown', e => { down = true;
-                s.style.cursor = 'grabbing';
-                sx = e.pageX - s.offsetLeft;
-                sl = s.scrollLeft; });
-            s.addEventListener('mouseleave', () => { down = false;
-                s.style.cursor = 'grab'; });
-            s.addEventListener('mouseup', () => { down = false;
-                s.style.cursor = 'grab'; });
-            s.addEventListener('mousemove', e => { if (!down) return;
-                e.preventDefault();
-                s.scrollLeft = sl - (e.pageX - s.offsetLeft - sx) * 1.5; });
-            s.addEventListener('touchstart', e => { sx = e.touches[0].pageX - s.offsetLeft;
-                sl = s.scrollLeft; }, { passive: true }); })();
+        (function() { const s = document.getElementById('sampleScroller'); if (!s) return; let down = false, sx, sl; s.addEventListener('mousedown', e => { down = true; s.style.cursor = 'grabbing'; sx = e.pageX - s.offsetLeft; sl = s.scrollLeft; }); s.addEventListener('mouseleave', () => { down = false; s.style.cursor = 'grab'; }); s.addEventListener('mouseup', () => { down = false; s.style.cursor = 'grab'; }); s.addEventListener('mousemove', e => { if (!down) return; e.preventDefault(); s.scrollLeft = sl - (e.pageX - s.offsetLeft - sx) * 1.5; }); s.addEventListener('touchstart', e => { sx = e.touches[0].pageX - s.offsetLeft; sl = s.scrollLeft; }, { passive: true }); })();
 
         // ══════════════════════════════════════════════
         // FORM WIZARD
         // ══════════════════════════════════════════════
-        (function() { const wiz = document.getElementById('formWizard'); if (!wiz) return;
-            const steps = wiz.querySelectorAll('.wizard-step'),
-                dots = wiz.querySelectorAll('.step-dot'),
-                lines = wiz.querySelectorAll('.step-line');
-            let cs = 1;
-
-            function show(n) { steps.forEach(s => s.classList.remove('active'));
-                const t = wiz.querySelector(`.wizard-step[data-step="${n}"]`); if (t) t.classList.add('active');
-                dots.forEach(d => { const ds = +d.getAttribute('data-step');
-                    d.classList.toggle('active', ds === n);
-                    d.classList.toggle('done', ds < n); });
-                lines.forEach(l => l.classList.toggle('done', +l.getAttribute('data-line') < n));
-                cs = n; }
-            wiz.querySelectorAll('.wizard-next').forEach(b => b.addEventListener('click', () => { const nxt = +b
-                    .getAttribute('data-next');
-                const cur = wiz.querySelector(`.wizard-step[data-step="${cs}"]`); if (cur) { let ok = true;
-                    cur.querySelectorAll('input[required],select[required],textarea[required]').forEach(f => { if (
-                            !f.value.trim()) { ok = false;
-                            f.style.borderColor = '#C62828';
-                            f.style.boxShadow = '0 0 14px rgba(198,40,40,0.4)';
-                            setTimeout(() => { f.style.borderColor = '';
-                                f.style.boxShadow = ''; }, 2000); } });
-                    cur.querySelectorAll('input[type="checkbox"][required]').forEach(c => { if (!c.checked) { ok =
-                                false;
-                            c.parentElement.style.outline = '2px solid #C62828';
-                            setTimeout(() => c.parentElement.style.outline = '', 2000); } }); if (!ok)
-                    return; }
-                show(nxt);
-                wiz.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
-            wiz.querySelectorAll('.wizard-prev').forEach(b => b.addEventListener('click', () => { show(+b.getAttribute(
-                    'data-prev'));
-                wiz.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
-            dots.forEach(d => d.addEventListener('click', () => { const ds = +d.getAttribute('data-step'); if (ds <= cs ||
-                    d.classList.contains('done')) show(ds); })); })();
+        (function() { const wiz = document.getElementById('formWizard'); if (!wiz) return; const steps = wiz.querySelectorAll('.wizard-step'), dots = wiz.querySelectorAll('.step-dot'), lines = wiz.querySelectorAll('.step-line'); let cs = 1; function show(n) { steps.forEach(s => s.classList.remove('active')); const t = wiz.querySelector(`.wizard-step[data-step="${n}"]`); if (t) t.classList.add('active'); dots.forEach(d => { const ds = +d.getAttribute('data-step'); d.classList.toggle('active', ds === n); d.classList.toggle('done', ds < n); }); lines.forEach(l => l.classList.toggle('done', +l.getAttribute('data-line') < n)); cs = n; } wiz.querySelectorAll('.wizard-next').forEach(b => b.addEventListener('click', () => { const nxt = +b.getAttribute('data-next'); const cur = wiz.querySelector(`.wizard-step[data-step="${cs}"]`); if (cur) { let ok = true; cur.querySelectorAll('input[required],select[required],textarea[required]').forEach(f => { if (!f.value.trim()) { ok = false; f.style.borderColor = '#C62828'; f.style.boxShadow = '0 0 14px rgba(198,40,40,0.4)'; setTimeout(() => { f.style.borderColor = ''; f.style.boxShadow = ''; }, 2000); } }); cur.querySelectorAll('input[type="checkbox"][required]').forEach(c => { if (!c.checked) { ok = false; c.parentElement.style.outline = '2px solid #C62828'; setTimeout(() => c.parentElement.style.outline = '', 2000); } }); if (!ok) return; } show(nxt); wiz.scrollIntoView({ behavior: 'smooth', block: 'start' }); })); wiz.querySelectorAll('.wizard-prev').forEach(b => b.addEventListener('click', () => { show(+b.getAttribute('data-prev')); wiz.scrollIntoView({ behavior: 'smooth', block: 'start' }); })); dots.forEach(d => d.addEventListener('click', () => { const ds = +d.getAttribute('data-step'); if (ds <= cs || d.classList.contains('done')) show(ds); })); })();
 
         // ══════════════════════════════════════════════
         // DDS GENERATOR
         // ══════════════════════════════════════════════
-        (function() { const sel = document.getElementById('ddsCount'),
-                cont = document.getElementById('ddsContainer'); if (!sel || !cont) return;
-
-            function block(i) { return `<div class="dds-block"><h4>Formulation ${i} *</h4>
-            <div class="form-group"><label>Formulation Name *</label><input type="text" name="DDS_${i}_Name" required placeholder="e.g., Tf-Liposome"></div>
-            <div class="form-group"><label>Carrier Type *</label><select name="DDS_${i}_Carrier" required><option value="">-- Select --</option><option value="liposome">Liposome</option><option value="PLGA-NP">PLGA Nanoparticle</option><option value="SLN">Solid Lipid Nanoparticle</option><option value="dendrimer">Dendrimer (PAMAM)</option><option value="polymeric_micelle">Polymeric Micelle</option><option value="exosome">Exosome</option><option value="other">Other</option></select></div>
-            <div class="form-group"><label>Surface Ligand</label><input type="text" name="DDS_${i}_Ligand" placeholder="e.g., Transferrin, RVG29"></div>
-            <div class="form-group"><label>Size (nm)</label><input type="number" name="DDS_${i}_Size" step="0.1" min="1" placeholder="100"></div>
-            <div class="form-group"><label>Zeta Potential (mV)</label><input type="number" name="DDS_${i}_Zeta" step="0.1" placeholder="-10.5"></div>
-            <div class="form-group"><label>PDI</label><input type="number" name="DDS_${i}_PDI" step="0.01" min="0" max="1" placeholder="0.18"></div>
-            <div class="form-group"><label>Encapsulation Efficiency (%)</label><input type="number" name="DDS_${i}_EE" step="0.1" min="0" max="100" placeholder="82"></div>
-            <div class="form-group"><label>Drug Loading (%)</label><input type="number" name="DDS_${i}_Loading" step="0.1" min="0" max="100" placeholder="12"></div>
-            <div class="form-group"><label>Release Kinetics</label><input type="text" name="DDS_${i}_Kinetics" placeholder="sustained / immediate / pH-responsive"></div></div>`; }
-
-            function render(n) { let h = ''; for (let i = 1; i <= n; i++) h += block(i);
-                cont.innerHTML = h; }
-            render(+sel.value);
-            sel.addEventListener('change', () => render(+sel.value)); })();
+        (function() { const sel = document.getElementById('ddsCount'), cont = document.getElementById('ddsContainer'); if (!sel || !cont) return; function block(i) { return `<div class="dds-block"><h4>Formulation ${i} *</h4><div class="form-group"><label>Formulation Name *</label><input type="text" name="DDS_${i}_Name" required placeholder="e.g., Tf-Liposome"></div><div class="form-group"><label>Carrier Type *</label><select name="DDS_${i}_Carrier" required><option value="">-- Select --</option><option value="liposome">Liposome</option><option value="PLGA-NP">PLGA Nanoparticle</option><option value="SLN">Solid Lipid Nanoparticle</option><option value="dendrimer">Dendrimer (PAMAM)</option><option value="polymeric_micelle">Polymeric Micelle</option><option value="exosome">Exosome</option><option value="other">Other</option></select></div><div class="form-group"><label>Surface Ligand</label><input type="text" name="DDS_${i}_Ligand" placeholder="e.g., Transferrin, RVG29"></div><div class="form-group"><label>Size (nm)</label><input type="number" name="DDS_${i}_Size" step="0.1" min="1" placeholder="100"></div><div class="form-group"><label>Zeta Potential (mV)</label><input type="number" name="DDS_${i}_Zeta" step="0.1" placeholder="-10.5"></div><div class="form-group"><label>PDI</label><input type="number" name="DDS_${i}_PDI" step="0.01" min="0" max="1" placeholder="0.18"></div><div class="form-group"><label>Encapsulation Efficiency (%)</label><input type="number" name="DDS_${i}_EE" step="0.1" min="0" max="100" placeholder="82"></div><div class="form-group"><label>Drug Loading (%)</label><input type="number" name="DDS_${i}_Loading" step="0.1" min="0" max="100" placeholder="12"></div><div class="form-group"><label>Release Kinetics</label><input type="text" name="DDS_${i}_Kinetics" placeholder="sustained / immediate / pH-responsive"></div></div>`; } function render(n) { let h = ''; for (let i = 1; i <= n; i++) h += block(i); cont.innerHTML = h; } render(+sel.value); sel.addEventListener('change', () => render(+sel.value)); })();
 
         // ══════════════════════════════════════════════
         // SCROLL INDICATOR
         // ══════════════════════════════════════════════
-        document.getElementById('heroScrollIndicator')?.addEventListener('click', () => { const t = document.getElementById(
-                'problem'); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - (document
-                    .getElementById('cerebro-nav')?.offsetHeight || 52) - 6, behavior: 'smooth' }); });
+        document.getElementById('heroScrollIndicator')?.addEventListener('click', () => { const t = document.getElementById('problem'); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - (document.getElementById('cerebro-nav')?.offsetHeight || 52) - 6, behavior: 'smooth' }); });
 
-        console.log('CEREBRO-X — 3D Spinning Logo Ready.');
+        console.log('CEREBRO-X — 3D Logo fix completed.');
     </script>
 </body>
 </html>
