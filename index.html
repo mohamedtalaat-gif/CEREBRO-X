@@ -6,9 +6,12 @@
     <title>CEREBRO-X | AI-Native Drug-Delivery Design Engine</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js">
+    </script>
 
     <style>
         :root {
@@ -97,18 +100,14 @@
             background: rgba(6, 6, 16, 0.93);
             border-bottom: 1px solid rgba(201, 168, 76, 0.18);
         }
-        #cerebro-nav .nav-logo-link {
-            display: flex; align-items: center; text-decoration: none; flex-shrink: 0;
-        }
+        #cerebro-nav .nav-logo-link { display: flex; align-items: center; text-decoration: none; flex-shrink: 0; }
         .nav-logo-img {
             width: 38px; height: 38px; object-fit: contain;
             filter: drop-shadow(0 0 14px rgba(201, 168, 76, 0.5));
             transition: transform 0.35s var(--ease-out);
         }
         .nav-logo-img:hover { transform: scale(1.1); }
-        #cerebro-nav .nav-links {
-            display: flex; gap: 26px; list-style: none; align-items: center; flex-wrap: wrap;
-        }
+        #cerebro-nav .nav-links { display: flex; gap: 26px; list-style: none; align-items: center; flex-wrap: wrap; }
         #cerebro-nav .nav-links a {
             color: var(--text-muted); text-decoration: none; font-size: 0.78rem; font-weight: 500;
             letter-spacing: 0.5px; transition: color 0.3s; white-space: nowrap; position: relative;
@@ -124,9 +123,7 @@
             font-weight: 600; font-size: 0.76rem; text-decoration: none; letter-spacing: 0.5px;
             transition: all 0.3s var(--ease-out);
         }
-        #cerebro-nav .nav-cta:hover {
-            background: #0a5858; box-shadow: 0 0 22px var(--teal-glow); transform: translateY(-1px);
-        }
+        #cerebro-nav .nav-cta:hover { background: #0a5858; box-shadow: 0 0 22px var(--teal-glow); transform: translateY(-1px); }
         .nav-hamburger { display: none; background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; }
         @media (max-width: 900px) {
             #cerebro-nav .nav-links { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; width: 100%; background: rgba(6,6,16,0.96); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); padding: 20px 36px; gap: 14px; border-bottom: 1px solid var(--glass-border); }
@@ -149,23 +146,26 @@
             padding: 100px 24px 80px;
             background: radial-gradient(ellipse at 50% 38%, rgba(18, 30, 58, 0.35) 0%, rgba(4, 4, 14, 0.78) 100%);
         }
-        .hero-content {
-            position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center;
-            max-width: 850px; margin: 0 auto;
-        }
+        .hero-content { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; max-width: 900px; margin: 0 auto; }
         .hero-logo-reveal { perspective: 1200px; margin-bottom: 0; position: relative; }
         .hero-logo-reveal::before {
             content: ''; position: absolute; inset: -35%;
-            background: radial-gradient(circle, rgba(201, 168, 76, 0.18) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(201,168,76,0.18) 0%, transparent 70%);
             border-radius: 50%; z-index: -1; opacity: 0; animation: auraPulse 3s ease-in-out 0.6s forwards;
         }
         @keyframes auraPulse {
             0% { opacity: 0; transform: scale(0.3); }
             100% { opacity: 1; transform: scale(1); }
         }
+        /* ⭐️ تكبير حجم حاوية اللوجو 3D */
         #hero-logo-3d-container {
-            width: clamp(200px, 34vw, 480px); height: auto; aspect-ratio: 4 / 1; display: block;
-            opacity: 0; transform: rotateX(75deg) scale(0.4); will-change: transform, opacity;
+            width: clamp(300px, 55vw, 700px);  /* زودنا الأبعاد */
+            height: auto;
+            aspect-ratio: 4 / 1;
+            display: block;
+            opacity: 0;
+            transform: rotateX(75deg) scale(0.4);
+            will-change: transform, opacity;
             animation: spellbookOpen 2s var(--ease-spring) 0.3s forwards;
         }
         @keyframes spellbookOpen {
@@ -176,6 +176,7 @@
             100% { opacity: 1; transform: rotateX(0deg) scale(1); }
         }
         #hero-logo-3d-container canvas { display: block; width: 100% !important; height: 100% !important; }
+
         .hero-tagline {
             font-size: clamp(0.95rem, 2vw, 1.25rem); font-weight: 300; color: var(--text-muted);
             margin-top: 18px; margin-bottom: 36px; letter-spacing: 0.3px; opacity: 0;
@@ -216,150 +217,69 @@
             50% { opacity: 1; }
         }
 
-        /* ══════════════════════════════════════
-           SECTIONS
-           ══════════════════════════════════════ */
+        /* ... rest of sections styles unchanged ... */
         .section { padding: 90px 24px; max-width: 1180px; margin: 0 auto; position: relative; z-index: 1; }
         .section-dark { background: rgba(14, 24, 48, 0.3); max-width: 100%; padding: 90px 24px; }
         .section-dark .section { max-width: 1180px; margin: 0 auto; padding: 0; }
-        .section-title {
-            text-align: center; font-size: clamp(1.7rem, 3.2vw, 2.5rem); font-weight: 800;
-            color: #fff; margin-bottom: 12px; letter-spacing: -0.3px;
-        }
-        .section-subtitle {
-            text-align: center; color: var(--text-muted); max-width: 620px; margin: 0 auto 48px;
-            font-size: 0.95rem; line-height: 1.7; font-weight: 300;
-        }
+        .section-title { text-align: center; font-size: clamp(1.7rem, 3.2vw, 2.5rem); font-weight: 800; color: #fff; margin-bottom: 12px; letter-spacing: -0.3px; }
+        .section-subtitle { text-align: center; color: var(--text-muted); max-width: 620px; margin: 0 auto 48px; font-size: 0.95rem; line-height: 1.7; font-weight: 300; }
         .gold-accent { color: var(--gold); }
         .orange-accent { color: var(--orange); }
         .red-accent { color: var(--red); }
         .teal-accent { color: var(--teal); }
 
-        /* ══════════════════════════════════════
-           GLASS CARDS
-           ══════════════════════════════════════ */
-        .glass-card {
-            background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px;
-            padding: 30px 26px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-            transition: all 0.45s var(--ease-out); will-change: transform; position: relative; overflow: hidden;
-        }
+        .glass-card { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px; padding: 30px 26px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); transition: all 0.45s var(--ease-out); will-change: transform; position: relative; overflow: hidden; }
         .glass-card:hover { border-color: rgba(255,255,255,0.12); box-shadow: 0 20px 50px rgba(0,0,0,0.45); }
         .glass-card.tilt-card { transform-style: preserve-3d; perspective: 1000px; }
         .glass-card.tilt-card>* { position: relative; z-index: 2; }
         .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 26px; text-align: center; }
-        .step-number {
-            background: var(--deep-navy); color: var(--gold); width: 44px; height: 44px;
-            line-height: 44px; border-radius: 50%; margin: 0 auto 18px; font-weight: 800;
-            font-size: 1.15rem; border: 2px solid var(--gold); box-shadow: 0 0 18px var(--gold-glow);
-            transition: all 0.4s;
-        }
+        .step-number { background: var(--deep-navy); color: var(--gold); width: 44px; height: 44px; line-height: 44px; border-radius: 50%; margin: 0 auto 18px; font-weight: 800; font-size: 1.15rem; border: 2px solid var(--gold); box-shadow: 0 0 18px var(--gold-glow); transition: all 0.4s; }
         .glass-card:hover .step-number { box-shadow: 0 0 30px var(--gold-glow); transform: scale(1.06); }
 
-        /* ══════════════════════════════════════
-           TABLE
-           ══════════════════════════════════════ */
-        .case-study {
-            background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px;
-            padding: 34px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-        }
+        .case-study { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px; padding: 34px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
         .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; margin-top: 16px; min-width: 600px; }
-        th, td {
-            padding: 15px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.04);
-            color: var(--text); font-size: 0.88rem;
-        }
-        th {
-            background: var(--deep-navy); color: var(--gold); font-weight: 700; letter-spacing: 0.6px;
-            font-size: 0.76rem; text-transform: uppercase; border-bottom: 2px solid var(--gold);
-        }
+        th, td { padding: 15px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); font-size: 0.88rem; }
+        th { background: var(--deep-navy); color: var(--gold); font-weight: 700; letter-spacing: 0.6px; font-size: 0.76rem; text-transform: uppercase; border-bottom: 2px solid var(--gold); }
         tbody tr:hover { background: rgba(201,168,76,0.025); }
-        .case-study-note {
-            background: rgba(13,110,110,0.08); border-left: 4px solid var(--teal); padding: 14px 18px;
-            margin-top: 18px; font-style: italic; border-radius: 0 8px 8px 0; color: var(--text-muted);
-        }
+        .case-study-note { background: rgba(13,110,110,0.08); border-left: 4px solid var(--teal); padding: 14px 18px; margin-top: 18px; font-style: italic; border-radius: 0 8px 8px 0; color: var(--text-muted); }
 
-        /* ══════════════════════════════════════
-           PRINCIPLES
-           ══════════════════════════════════════ */
         .principles-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-        .principle-item {
-            background: var(--glass); border: 1px solid var(--glass-border); border-radius: 14px;
-            padding: 22px 20px; border-left: 4px solid var(--gold); transition: all 0.4s var(--ease-out);
-            will-change: transform; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-        }
+        .principle-item { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 14px; padding: 22px 20px; border-left: 4px solid var(--gold); transition: all 0.4s var(--ease-out); will-change: transform; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
         .principle-item.border-orange { border-left-color: var(--orange); }
         .principle-item.border-teal { border-left-color: var(--teal); }
         .principle-item.border-red { border-left-color: var(--red); }
         .principle-item h4 { color: #fff; margin-bottom: 6px; font-size: 0.9rem; letter-spacing: 0.2px; }
         .principle-item:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.38); transform: translateY(-3px); }
 
-        /* ══════════════════════════════════════
-           SCROLLER
-           ══════════════════════════════════════ */
-        .scroller-wrapper {
-            position: relative; overflow-x: auto; overflow-y: visible; display: flex; gap: 18px;
-            padding: 8px 0 28px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
-            cursor: grab; scrollbar-width: thin; scrollbar-color: var(--gold) transparent;
-        }
+        .scroller-wrapper { position: relative; overflow-x: auto; overflow-y: visible; display: flex; gap: 18px; padding: 8px 0 28px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; cursor: grab; scrollbar-width: thin; scrollbar-color: var(--gold) transparent; }
         .scroller-wrapper::-webkit-scrollbar { height: 3px; }
         .scroller-wrapper::-webkit-scrollbar-track { background: transparent; }
         .scroller-wrapper::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 3px; }
         .scroller-wrapper:active { cursor: grabbing; }
-        .scroller-card {
-            flex: 0 0 300px; scroll-snap-align: start; background: var(--glass);
-            border: 1px solid var(--glass-border); border-radius: 18px; padding: 24px 20px;
-            text-align: center; transition: all 0.4s; will-change: transform; backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px); display: flex; flex-direction: column;
-            justify-content: space-between; min-height: 255px;
-        }
+        .scroller-card { flex: 0 0 300px; scroll-snap-align: start; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 18px; padding: 24px 20px; text-align: center; transition: all 0.4s; will-change: transform; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); display: flex; flex-direction: column; justify-content: space-between; min-height: 255px; }
         .scroller-card:hover { border-color: rgba(255,255,255,0.14); box-shadow: 0 16px 40px rgba(0,0,0,0.5); transform: translateY(-5px); }
         .card-top-border { position: absolute; top: 0; left: 18px; right: 18px; height: 4px; border-radius: 0 0 4px 4px; }
         .border-orange-top { background: var(--orange); box-shadow: 0 0 14px var(--orange-glow); }
         .border-red-top { background: var(--red); box-shadow: 0 0 14px var(--red-glow); }
         .border-teal-top { background: var(--teal); box-shadow: 0 0 14px var(--teal-glow); }
         .scroller-card h3 { color: var(--gold); margin-bottom: 3px; font-size: 1.05rem; }
-        .molecule-tag {
-            display: inline-block; font-size: 0.66rem; font-weight: 600; padding: 3px 10px;
-            border-radius: 11px; margin-bottom: 14px; letter-spacing: 0.3px;
-        }
+        .molecule-tag { display: inline-block; font-size: 0.66rem; font-weight: 600; padding: 3px 10px; border-radius: 11px; margin-bottom: 14px; letter-spacing: 0.3px; }
         .tag-orange { background: rgba(245,124,0,0.15); color: var(--orange); }
         .tag-red { background: rgba(198,40,40,0.15); color: var(--red); }
 
-        /* ══════════════════════════════════════
-           PRICING
-           ══════════════════════════════════════ */
         .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 24px; }
-        .price-card {
-            background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px;
-            padding: 36px 28px; text-align: center; backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px); transition: all 0.45s var(--ease-spring); will-change: transform;
-        }
+        .price-card { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px; padding: 36px 28px; text-align: center; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: all 0.45s var(--ease-spring); will-change: transform; }
         .price-card:hover { transform: translateY(-8px) scale(1.02); border-color: rgba(255,255,255,0.14); box-shadow: 0 22px 50px rgba(0,0,0,0.45); }
-        .price-card.featured {
-            border: 2px solid var(--gold); box-shadow: 0 0 38px var(--gold-glow), 0 8px 32px rgba(0,0,0,0.45);
-            transform: translateY(-6px); animation: featuredPulse 3.5s ease-in-out infinite;
-        }
-        @keyframes featuredPulse {
-            0%,100% { box-shadow: 0 0 38px var(--gold-glow), 0 8px 32px rgba(0,0,0,0.45); }
-            50% { box-shadow: 0 0 60px var(--gold-glow), 0 12px 40px rgba(201,168,76,0.28); }
-        }
+        .price-card.featured { border: 2px solid var(--gold); box-shadow: 0 0 38px var(--gold-glow), 0 8px 32px rgba(0,0,0,0.45); transform: translateY(-6px); animation: featuredPulse 3.5s ease-in-out infinite; }
+        @keyframes featuredPulse { 0%,100% { box-shadow: 0 0 38px var(--gold-glow), 0 8px 32px rgba(0,0,0,0.45); } 50% { box-shadow: 0 0 60px var(--gold-glow), 0 12px 40px rgba(201,168,76,0.28); } }
         .price-card.featured:hover { transform: translateY(-14px) scale(1.03); }
         .price-card h3 { color: #fff; font-size: 1.15rem; letter-spacing: 0.4px; }
         .price { font-size: 2.5rem; color: var(--gold); font-weight: 900; margin: 12px 0; }
-        .price-card ul {
-            text-align: left; margin-bottom: 20px; padding-left: 16px; list-style: none;
-            color: var(--text-muted); font-size: 0.82rem; line-height: 2;
-        }
+        .price-card ul { text-align: left; margin-bottom: 20px; padding-left: 16px; list-style: none; color: var(--text-muted); font-size: 0.82rem; line-height: 2; }
         .price-card ul li::before { content: '▸ '; color: var(--gold); }
 
-        /* ══════════════════════════════════════
-           BUTTONS
-           ══════════════════════════════════════ */
-        .btn {
-            display: inline-block; padding: 11px 28px; font-weight: 700; letter-spacing: 0.5px;
-            border-radius: 50px; text-decoration: none; cursor: pointer; border: none;
-            transition: all 0.3s var(--ease-out); font-size: 0.86rem; text-align: center; will-change: transform;
-        }
+        .btn { display: inline-block; padding: 11px 28px; font-weight: 700; letter-spacing: 0.5px; border-radius: 50px; text-decoration: none; cursor: pointer; border: none; transition: all 0.3s var(--ease-out); font-size: 0.86rem; text-align: center; will-change: transform; }
         .btn-gold { background: var(--gold); color: #0a0a1a; box-shadow: 0 0 20px var(--gold-glow); }
         .btn-gold:hover { box-shadow: 0 0 42px var(--gold-glow); transform: translateY(-2px) scale(1.03); }
         .btn-gold:active { transform: scale(0.97); }
@@ -368,21 +288,9 @@
         .btn-outline:active { transform: scale(0.97); }
         .btn-sm { padding: 7px 16px; font-size: 0.74rem; }
 
-        /* ══════════════════════════════════════
-           FORM WIZARD
-           ══════════════════════════════════════ */
-        .form-wizard-container {
-            max-width: 760px; margin: 0 auto; background: var(--glass); border: 1px solid var(--glass-border);
-            border-radius: 22px; padding: 34px 30px; backdrop-filter: blur(22px);
-            -webkit-backdrop-filter: blur(22px); box-shadow: 0 28px 65px rgba(0,0,0,0.55);
-        }
+        .form-wizard-container { max-width: 760px; margin: 0 auto; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 22px; padding: 34px 30px; backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); box-shadow: 0 28px 65px rgba(0,0,0,0.55); }
         .wizard-progress { display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 30px; flex-wrap: wrap; }
-        .wizard-progress .step-dot {
-            width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.04);
-            border: 2px solid rgba(255,255,255,0.14); color: var(--text-muted); display: flex;
-            align-items: center; justify-content: center; font-weight: 700; font-size: 0.76rem;
-            transition: all 0.4s var(--ease-out); cursor: pointer;
-        }
+        .wizard-progress .step-dot { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.04); border: 2px solid rgba(255,255,255,0.14); color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.76rem; transition: all 0.4s var(--ease-out); cursor: pointer; }
         .wizard-progress .step-dot.active { background: var(--gold); border-color: var(--gold); color: #0a0a1a; box-shadow: 0 0 20px var(--gold-glow); }
         .wizard-progress .step-dot.done { background: var(--teal); border-color: var(--teal); color: #fff; box-shadow: 0 0 14px var(--teal-glow); }
         .wizard-progress .step-line { width: 40px; height: 2px; background: rgba(255,255,255,0.1); border-radius: 2px; transition: background 0.4s; }
@@ -392,14 +300,8 @@
         @keyframes fadeSlide { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: translateX(0); } }
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; margin-bottom: 4px; font-weight: 600; color: #fff; font-size: 0.82rem; }
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%; padding: 12px 15px; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px;
-            font-size: 0.88rem; background: rgba(8,14,30,0.55); color: #fff; font-family: var(--font);
-            transition: all 0.3s; resize: vertical;
-        }
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-            outline: none; border-color: var(--gold); box-shadow: 0 0 18px var(--gold-glow); background: rgba(12,20,38,0.75);
-        }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 15px; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; font-size: 0.88rem; background: rgba(8,14,30,0.55); color: #fff; font-family: var(--font); transition: all 0.3s; resize: vertical; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 18px var(--gold-glow); background: rgba(12,20,38,0.75); }
         .form-group input::placeholder, .form-group textarea::placeholder { color: rgba(255,255,255,0.24); }
         .form-group select option { background: #101830; color: #fff; }
         .checkbox-group { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 12px; }
@@ -407,21 +309,12 @@
         .checkbox-group label { font-weight: 400; font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
         .wizard-buttons { display: flex; justify-content: space-between; margin-top: 26px; gap: 12px; }
         .wizard-buttons button { flex: 1; min-width: 85px; }
-        .dds-block {
-            border: 1px solid rgba(255,255,255,0.08); padding: 18px; margin-bottom: 14px; border-radius: 12px;
-            background: rgba(14,24,48,0.4); transition: all 0.3s;
-        }
+        .dds-block { border: 1px solid rgba(255,255,255,0.08); padding: 18px; margin-bottom: 14px; border-radius: 12px; background: rgba(14,24,48,0.4); transition: all 0.3s; }
         .dds-block h4 { color: var(--gold); margin-bottom: 12px; font-size: 0.85rem; letter-spacing: 0.3px; }
         .dds-block:hover { border-color: rgba(201,168,76,0.3); box-shadow: 0 0 16px rgba(201,168,76,0.04); }
         .text-muted { color: var(--text-muted); font-size: 0.72rem; }
 
-        /* ══════════════════════════════════════
-           FOOTER
-           ══════════════════════════════════════ */
-        .site-footer {
-            text-align: center; padding: 44px 20px; background: #04040e; color: #fff;
-            border-top: 1px solid var(--glass-border); position: relative; z-index: 1;
-        }
+        .site-footer { text-align: center; padding: 44px 20px; background: #04040e; color: #fff; border-top: 1px solid var(--glass-border); position: relative; z-index: 1; }
         .site-footer .footer-tagline { font-size: 0.85rem; font-weight: 500; letter-spacing: 1px; color: var(--gold); margin-bottom: 8px; text-transform: uppercase; }
         .site-footer .footer-social { font-size: 23px; display: flex; justify-content: center; gap: 20px; margin-top: 10px; margin-bottom: 14px; }
         .site-footer .footer-social a { transition: 0.3s; opacity: 0.7; color: var(--text-muted); }
@@ -429,7 +322,7 @@
         .site-footer .footer-credit { font-size: 0.76rem; color: var(--text-muted); opacity: 0.65; }
 
         @media (max-width: 768px) {
-            #hero-logo-3d-container { width: clamp(140px, 55vw, 300px); }
+            #hero-logo-3d-container { width: clamp(180px, 70vw, 350px); }
             .section { padding: 50px 16px; }
             .scroller-card { flex: 0 0 260px; min-height: 230px; }
             .form-wizard-container { padding: 18px 12px; border-radius: 14px; }
@@ -440,11 +333,11 @@
     </style>
 </head>
 <body>
-
     <!-- ═══ FROSTED NAVIGATION ═══ -->
     <nav id="cerebro-nav">
         <a href="#hero" class="nav-logo-link">
-            <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png" alt="CEREBRO-X" class="nav-logo-img">
+            <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png"
+            alt="CEREBRO-X" class="nav-logo-img">
         </a>
         <button class="nav-hamburger" id="navHamburger" aria-label="Menu"><i class="fas fa-bars"></i></button>
         <ul class="nav-links" id="navLinks">
@@ -473,7 +366,9 @@
         </div>
     </section>
 
-    <!-- ═══ THE PROBLEM ═══ -->
+    <!-- بقية الأقسام (المشكلة، كيف يعمل، دراسة الحالة، المخرجات، المبادئ، الأسعار، الفورم، الفوتر) كما هي بدون تغيير -->
+    <!-- ... -->
+
     <section class="section" id="problem">
         <h2 class="section-title">The <span class="gold-accent">$1.9B</span> BBB Drug Delivery Problem</h2>
         <div style="text-align:center;max-width:680px;margin:0 auto;font-size:1.05rem;color:var(--text-muted);line-height:1.8;">
@@ -481,7 +376,6 @@
         </div>
     </section>
 
-    <!-- ═══ HOW IT WORKS ═══ -->
     <section class="section-dark" id="how-it-works">
         <div class="section">
             <h2 class="section-title">How It Works</h2>
@@ -492,18 +386,17 @@
                     <a href="CEREBRO_Input_Template.xlsx" download class="btn btn-outline btn-sm" style="margin-top:auto;"><i class="fas fa-file-excel"></i> Download Template</a>
                 </div>
                 <div class="glass-card tilt-card">
-                    <div class="step-number">2</div><h3 style="color:#fff;">AI Analysis</h3>
-                    <p style="color:var(--text-muted);">62-principle Engine simulates BBB crossing, PK/PD dynamics, and carrier-API interactions.</p>
+                    <div class="step-number">2</div><h3 style="color:#fff;">62-Principle Analysis</h3>
+                    <p style="color:var(--text-muted);">Our Molecule-Aware Engine calculates PK, BBB permeability, and Carrier-API interactions.</p>
                 </div>
                 <div class="glass-card tilt-card">
                     <div class="step-number">3</div><h3 style="color:#fff;">Decision Report</h3>
-                    <p style="color:var(--text-muted);">Publication-ready report ranking optimal carriers with structural modification recommendations.</p>
+                    <p style="color:var(--text-muted);">Receive a comprehensive, publication-ready report ranking your optimal carriers.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ═══ CASE STUDY ═══ -->
     <section class="section" id="case-study">
         <h2 class="section-title">Live Case Study: <span class="gold-accent">Donepezil</span> vs <span class="orange-accent">Rivastigmine</span></h2>
         <div class="case-study">
@@ -521,7 +414,6 @@
         </div>
     </section>
 
-    <!-- ═══ SAMPLE OUTPUTS ═══ -->
     <section class="section-dark" id="sample-outputs">
         <div class="section" style="overflow:hidden;">
             <h2 class="section-title">Explore Sample Outputs</h2>
@@ -537,7 +429,6 @@
         </div>
     </section>
 
-    <!-- ═══ 62 PRINCIPLES ═══ -->
     <section class="section" id="principles">
         <h2 class="section-title">Powered by <span class="gold-accent">62</span> Validation Principles</h2>
         <div class="principles-grid">
@@ -548,7 +439,6 @@
         </div>
     </section>
 
-    <!-- ═══ PRICING ═══ -->
     <section class="section-dark" id="pricing">
         <div class="section">
             <h2 class="section-title">Select Your Analysis Tier</h2>
@@ -560,7 +450,6 @@
         </div>
     </section>
 
-    <!-- ═══ REQUEST FORM WIZARD ═══ -->
     <section class="section" id="request-form">
         <h2 class="section-title">Request Your Analysis</h2>
         <div class="form-wizard-container" id="formWizard">
@@ -600,7 +489,6 @@
         </div>
     </section>
 
-    <!-- ═══ FOOTER ═══ -->
     <footer class="site-footer">
         <p class="footer-tagline">Computational Drug Delivery System Engineering</p>
         <div class="footer-social">
@@ -613,14 +501,15 @@
 
     <script>
         // ══════════════════════════════════════════════
-        // THREE.JS – 3D LOGO (بدون أشكال برتقالية أو مخ)
+        // THREE.JS – 3D LOGO (يدور بالكامل حول نفسه)
         // ══════════════════════════════════════════════
         (function initThreeLogo() {
             const container = document.getElementById('hero-logo-3d-container');
             if (!container || typeof THREE === 'undefined') return;
 
             const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(42, container.clientWidth / Math.max(container.clientHeight, 1), 0.1, 50);
+            const camera = new THREE.PerspectiveCamera(42, container.clientWidth / Math.max(container.clientHeight, 1),
+                0.1, 50);
             camera.position.z = 5.5;
 
             const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -629,56 +518,100 @@
             renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
             scene.add(ambientLight);
-            const pointLight = new THREE.PointLight(0xC9A84C, 1.8, 15);
-            pointLight.position.set(0, 0.3, 3);
-            scene.add(pointLight);
+            const pointLight1 = new THREE.PointLight(0xC9A84C, 2.2, 12);
+            pointLight1.position.set(2, 1, 3);
+            scene.add(pointLight1);
+            const pointLight2 = new THREE.PointLight(0x0D6E6E, 1.5, 10);
+            pointLight2.position.set(-2, -0.5, 2);
+            scene.add(pointLight2);
 
-            const logoUrl = 'https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png';
+            const logoUrl =
+                'https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png';
             const textureLoader = new THREE.TextureLoader();
             const logoPlane = new THREE.Mesh(
                 new THREE.PlaneGeometry(1, 1),
-                new THREE.MeshBasicMaterial({ map: null, transparent: true, alphaTest: 0.05, side: THREE.DoubleSide, depthWrite: false })
+                new THREE.MeshStandardMaterial({
+                    map: null,
+                    transparent: true,
+                    alphaTest: 0.1,
+                    side: THREE.DoubleSide,
+                    roughness: 0.3,
+                    metalness: 0.1,
+                    emissive: new THREE.Color(0xC9A84C),
+                    emissiveIntensity: 0.2
+                })
             );
             scene.add(logoPlane);
 
             textureLoader.load(logoUrl, (texture) => {
                 const aspect = texture.image.width / texture.image.height;
-                const baseHeight = 1.8;
+                const baseHeight = 2.2; // زودنا الحجم
                 logoPlane.scale.set(aspect * baseHeight, baseHeight, 1);
                 logoPlane.material.map = texture;
                 logoPlane.material.needsUpdate = true;
             });
 
+            // جسيمات ذهبية كثيرة وحيوية
             const particlesGroup = new THREE.Group();
             scene.add(particlesGroup);
             const particlesGeom = new THREE.BufferGeometry();
-            const particlesCount = 50;
+            const particlesCount = 180;
             const positions = new Float32Array(particlesCount * 3);
             for (let i = 0; i < particlesCount; i++) {
-                positions[i * 3] = (Math.random() - 0.5) * 6;
-                positions[i * 3 + 1] = (Math.random() - 0.5) * 2.5;
-                positions[i * 3 + 2] = (Math.random() - 0.5) * 3;
+                positions[i * 3] = (Math.random() - 0.5) * 7;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 3.5;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 4;
             }
             particlesGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             const particlesMat = new THREE.PointsMaterial({
-                color: 0xC9A84C, size: 0.025, transparent: true, opacity: 0.55,
-                blending: THREE.AdditiveBlending, depthWrite: false
+                color: 0xC9A84C,
+                size: 0.025,
+                transparent: true,
+                opacity: 0.65,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
             });
             const particles = new THREE.Points(particlesGeom, particlesMat);
             particlesGroup.add(particles);
 
+            // حلقة ذهبية حول اللوجو
+            const ringGeom = new THREE.TorusGeometry(2.2, 0.008, 16, 100);
+            const ringMat = new THREE.MeshStandardMaterial({
+                color: 0xC9A84C,
+                emissive: new THREE.Color(0xC9A84C),
+                emissiveIntensity: 0.5,
+                roughness: 0.4,
+                metalness: 0.8,
+                transparent: true,
+                opacity: 0.4,
+            });
+            const ring = new THREE.Mesh(ringGeom, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            scene.add(ring);
+
+            // دوران مستمر وحقيقي للوجو
             function animate() {
                 requestAnimationFrame(animate);
                 const t = performance.now() * 0.0005;
-                logoPlane.rotation.y = Math.sin(t * 0.6) * 0.12;
-                logoPlane.rotation.x = Math.cos(t * 0.45) * 0.05;
-                logoPlane.position.y = Math.sin(t * 0.7) * 0.08;
-                particlesGroup.rotation.y += 0.003;
+
+                // ⭐️ الدوران الأساسي: يلف 360 درجة حول المحور الرأسي
+                logoPlane.rotation.y += 0.008;
+                // إضافة بعض الميلان الخفيف لإضفاء عمق
+                logoPlane.rotation.x = Math.sin(t * 0.8) * 0.08;
+                logoPlane.position.y = Math.sin(t * 1.0) * 0.1;
+
+                // دوران الجسيمات والحلقة
+                particlesGroup.rotation.y -= 0.002;
                 particlesGroup.rotation.x += 0.001;
-                particlesMat.opacity = 0.4 + Math.sin(t * 2.5) * 0.2;
-                pointLight.intensity = 1.6 + Math.sin(t * 1.8) * 0.3;
+                ring.rotation.z += 0.003;
+                ring.rotation.x = Math.PI / 2 + Math.sin(t * 0.7) * 0.1;
+
+                // نبض الإضاءة
+                pointLight1.intensity = 2.0 + Math.sin(t * 2.2) * 0.4;
+                pointLight2.intensity = 1.3 + Math.cos(t * 2.2) * 0.3;
+
                 renderer.render(scene, camera);
             }
             animate();
@@ -693,142 +626,153 @@
         })();
 
         // ══════════════════════════════════════════════
-        // GSAP SCROLL ANIMATIONS
+        // GSAP SCROLL ANIMATIONS (بدون تغيير)
         // ══════════════════════════════════════════════
         (function() {
             if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
             gsap.registerPlugin(ScrollTrigger);
             document.querySelectorAll('.section:not(#hero):not(.section-dark), .section-dark').forEach(s => {
-                const k = s.querySelectorAll('.glass-card,.case-study,.principle-item,.price-card,.scroller-card,.form-wizard-container,.section-title,.section-subtitle,.grid-3>*,.pricing-grid>*,.principles-grid>*');
-                if (k.length) gsap.fromTo(k, { opacity: 0, y: 42, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.68, stagger: 0.08, ease: 'power3.out', scrollTrigger: { trigger: s, start: 'top 78%', toggleActions: 'play none none none' } });
+                const k = s.querySelectorAll(
+                    '.glass-card,.case-study,.principle-item,.price-card,.scroller-card,.form-wizard-container,.section-title,.section-subtitle,.grid-3>*,.pricing-grid>*,.principles-grid>*'
+                    );
+                if (k.length) gsap.fromTo(k, { opacity: 0, y: 42, scale: 0.96 }, { opacity: 1, y: 0,
+                    scale: 1, duration: 0.68, stagger: 0.08, ease: 'power3.out', scrollTrigger: { trigger: s,
+                        start: 'top 78%', toggleActions: 'play none none none' } });
             });
-            document.querySelectorAll('tbody tr').forEach((r, i) => gsap.fromTo(r, { opacity: 0, x: -28 }, { opacity: 1, x: 0, duration: 0.48, delay: i * 0.11, ease: 'power3.out', scrollTrigger: { trigger: 'table', start: 'top 80%', toggleActions: 'play none none none' } }));
-            document.querySelectorAll('.principle-item').forEach((item, i) => gsap.fromTo(item, { opacity: 0, x: -45 }, { opacity: 1, x: 0, duration: 0.52, delay: i * 0.09, ease: 'power3.out', scrollTrigger: { trigger: item, start: 'top 82%', toggleActions: 'play none none none' } }));
+            document.querySelectorAll('tbody tr').forEach((r, i) => gsap.fromTo(r, { opacity: 0, x: -28 }, {
+                opacity: 1,
+                x: 0,
+                duration: 0.48,
+                delay: i * 0.11,
+                ease: 'power3.out',
+                scrollTrigger: { trigger: 'table', start: 'top 80%', toggleActions: 'play none none none' }
+            }));
+            document.querySelectorAll('.principle-item').forEach((item, i) => gsap.fromTo(item, { opacity: 0, x: -
+                    45 }, { opacity: 1, x: 0, duration: 0.52, delay: i * 0.09, ease: 'power3.out',
+                scrollTrigger: { trigger: item, start: 'top 82%', toggleActions: 'play none none none' } }));
         })();
 
         // ══════════════════════════════════════════════
         // NAVIGATION
         // ══════════════════════════════════════════════
-        (function() {
-            const n = document.getElementById('cerebro-nav');
-            const h = document.getElementById('hero');
-            if (h) new IntersectionObserver(e => n.classList.toggle('scrolled', !e[0].isIntersecting), { threshold: 0.08 }).observe(h);
+        (function() { const n = document.getElementById('cerebro-nav'),
+                h = document.getElementById('hero'); if (h) new IntersectionObserver(e => n.classList.toggle('scrolled', !
+                    e[0].isIntersecting), { threshold: 0.08 }).observe(h);
             window.addEventListener('scroll', () => n.classList.toggle('scrolled', window.scrollY > 60), { passive: true });
-            const hb = document.getElementById('navHamburger');
-            const nl = document.getElementById('navLinks');
-            if (hb && nl) {
-                hb.addEventListener('click', () => nl.classList.toggle('open'));
-                nl.querySelectorAll('a').forEach(a => a.addEventListener('click', () => nl.classList.remove('open')));
-            }
-        })();
+            const hb = document.getElementById('navHamburger'),
+                nl = document.getElementById('navLinks'); if (hb && nl) { hb.addEventListener('click', () => nl.classList
+                    .toggle('open'));
+                nl.querySelectorAll('a').forEach(a => a.addEventListener('click', () => nl.classList.remove('open'))); } })();
 
         // ══════════════════════════════════════════════
         // CARD TILT
         // ══════════════════════════════════════════════
-        document.querySelectorAll('.tilt-card').forEach(card => {
-            card.addEventListener('mousemove', e => {
-                const r = card.getBoundingClientRect();
-                const rx = ((r.height / 2 - (e.clientY - r.top)) / (r.height / 2)) * 5;
+        document.querySelectorAll('.tilt-card').forEach(card => { card.addEventListener('mousemove', e => { const r = card
+                    .getBoundingClientRect(); const rx = ((r.height / 2 - (e.clientY - r.top)) / (r.height / 2)) * 5;
                 const ry = (((e.clientX - r.left) - r.width / 2) / (r.width / 2)) * 5;
-                card.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(6px)`;
-                card.style.transition = 'transform 0.1s ease-out';
-            });
-            card.addEventListener('mouseleave', () => {
-                card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateZ(0)';
-                card.style.transition = 'transform 0.5s cubic-bezier(0.22,0.61,0.36,1)';
-            });
-        });
+                card.style.transform =
+                    `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(6px)`;
+                card.style.transition = 'transform 0.1s ease-out'; });
+            card.addEventListener('mouseleave', () => { card.style.transform =
+                    'perspective(1000px) rotateX(0) rotateY(0) translateZ(0)';
+                card.style.transition = 'transform 0.5s cubic-bezier(0.22,0.61,0.36,1)'; }); });
 
         // ══════════════════════════════════════════════
         // SMOOTH SCROLL
         // ══════════════════════════════════════════════
-        document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', function(e) {
-            const t = document.querySelector(this.getAttribute('href'));
-            if (t) {
-                e.preventDefault();
-                window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - (document.getElementById('cerebro-nav')?.offsetHeight || 52) - 6, behavior: 'smooth' });
-            }
-        }));
+        document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', function(e) { const t =
+                document.querySelector(this.getAttribute('href')); if (t) { e.preventDefault();
+                window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - (document.getElementById(
+                        'cerebro-nav')?.offsetHeight || 52) - 6, behavior: 'smooth' }); } }));
 
         // ══════════════════════════════════════════════
         // SCROLLER DRAG
         // ══════════════════════════════════════════════
-        (function() {
-            const s = document.getElementById('sampleScroller');
-            if (!s) return;
-            let down = false, sx, sl;
-            s.addEventListener('mousedown', e => { down = true; s.style.cursor = 'grabbing'; sx = e.pageX - s.offsetLeft; sl = s.scrollLeft; });
-            s.addEventListener('mouseleave', () => { down = false; s.style.cursor = 'grab'; });
-            s.addEventListener('mouseup', () => { down = false; s.style.cursor = 'grab'; });
-            s.addEventListener('mousemove', e => { if (!down) return; e.preventDefault(); s.scrollLeft = sl - (e.pageX - s.offsetLeft - sx) * 1.5; });
-            s.addEventListener('touchstart', e => { sx = e.touches[0].pageX - s.offsetLeft; sl = s.scrollLeft; }, { passive: true });
-        })();
+        (function() { const s = document.getElementById('sampleScroller'); if (!s) return;
+            let down = false,
+                sx, sl;
+            s.addEventListener('mousedown', e => { down = true;
+                s.style.cursor = 'grabbing';
+                sx = e.pageX - s.offsetLeft;
+                sl = s.scrollLeft; });
+            s.addEventListener('mouseleave', () => { down = false;
+                s.style.cursor = 'grab'; });
+            s.addEventListener('mouseup', () => { down = false;
+                s.style.cursor = 'grab'; });
+            s.addEventListener('mousemove', e => { if (!down) return;
+                e.preventDefault();
+                s.scrollLeft = sl - (e.pageX - s.offsetLeft - sx) * 1.5; });
+            s.addEventListener('touchstart', e => { sx = e.touches[0].pageX - s.offsetLeft;
+                sl = s.scrollLeft; }, { passive: true }); })();
 
         // ══════════════════════════════════════════════
         // FORM WIZARD
         // ══════════════════════════════════════════════
-        (function() {
-            const wiz = document.getElementById('formWizard');
-            if (!wiz) return;
-            const steps = wiz.querySelectorAll('.wizard-step'), dots = wiz.querySelectorAll('.step-dot'), lines = wiz.querySelectorAll('.step-line');
+        (function() { const wiz = document.getElementById('formWizard'); if (!wiz) return;
+            const steps = wiz.querySelectorAll('.wizard-step'),
+                dots = wiz.querySelectorAll('.step-dot'),
+                lines = wiz.querySelectorAll('.step-line');
             let cs = 1;
-            function show(n) {
-                steps.forEach(s => s.classList.remove('active'));
-                const t = wiz.querySelector(`.wizard-step[data-step="${n}"]`);
-                if (t) t.classList.add('active');
-                dots.forEach(d => { const ds = +d.getAttribute('data-step'); d.classList.toggle('active', ds === n); d.classList.toggle('done', ds < n); });
+
+            function show(n) { steps.forEach(s => s.classList.remove('active'));
+                const t = wiz.querySelector(`.wizard-step[data-step="${n}"]`); if (t) t.classList.add('active');
+                dots.forEach(d => { const ds = +d.getAttribute('data-step');
+                    d.classList.toggle('active', ds === n);
+                    d.classList.toggle('done', ds < n); });
                 lines.forEach(l => l.classList.toggle('done', +l.getAttribute('data-line') < n));
-                cs = n;
-            }
-            wiz.querySelectorAll('.wizard-next').forEach(b => b.addEventListener('click', () => {
-                const nxt = +b.getAttribute('data-next');
-                const cur = wiz.querySelector(`.wizard-step[data-step="${cs}"]`);
-                if (cur) {
-                    let ok = true;
-                    cur.querySelectorAll('input[required],select[required],textarea[required]').forEach(f => { if (!f.value.trim()) { ok = false; f.style.borderColor = '#C62828'; f.style.boxShadow = '0 0 14px rgba(198,40,40,0.4)'; setTimeout(() => { f.style.borderColor = ''; f.style.boxShadow = ''; }, 2000); } });
-                    cur.querySelectorAll('input[type="checkbox"][required]').forEach(c => { if (!c.checked) { ok = false; c.parentElement.style.outline = '2px solid #C62828'; setTimeout(() => c.parentElement.style.outline = '', 2000); } });
-                    if (!ok) return;
-                }
+                cs = n; }
+            wiz.querySelectorAll('.wizard-next').forEach(b => b.addEventListener('click', () => { const nxt = +b
+                    .getAttribute('data-next');
+                const cur = wiz.querySelector(`.wizard-step[data-step="${cs}"]`); if (cur) { let ok = true;
+                    cur.querySelectorAll('input[required],select[required],textarea[required]').forEach(f => { if (
+                            !f.value.trim()) { ok = false;
+                            f.style.borderColor = '#C62828';
+                            f.style.boxShadow = '0 0 14px rgba(198,40,40,0.4)';
+                            setTimeout(() => { f.style.borderColor = '';
+                                f.style.boxShadow = ''; }, 2000); } });
+                    cur.querySelectorAll('input[type="checkbox"][required]').forEach(c => { if (!c.checked) { ok =
+                                false;
+                            c.parentElement.style.outline = '2px solid #C62828';
+                            setTimeout(() => c.parentElement.style.outline = '', 2000); } }); if (!ok)
+                    return; }
                 show(nxt);
-                wiz.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }));
-            wiz.querySelectorAll('.wizard-prev').forEach(b => b.addEventListener('click', () => { show(+b.getAttribute('data-prev')); wiz.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
-            dots.forEach(d => d.addEventListener('click', () => { const ds = +d.getAttribute('data-step'); if (ds <= cs || d.classList.contains('done')) show(ds); }));
-        })();
+                wiz.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
+            wiz.querySelectorAll('.wizard-prev').forEach(b => b.addEventListener('click', () => { show(+b.getAttribute(
+                    'data-prev'));
+                wiz.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
+            dots.forEach(d => d.addEventListener('click', () => { const ds = +d.getAttribute('data-step'); if (ds <= cs ||
+                    d.classList.contains('done')) show(ds); })); })();
 
         // ══════════════════════════════════════════════
         // DDS GENERATOR
         // ══════════════════════════════════════════════
-        (function() {
-            const sel = document.getElementById('ddsCount');
-            const cont = document.getElementById('ddsContainer');
-            if (!sel || !cont) return;
-            function block(i) {
-                return `<div class="dds-block"><h4>Formulation ${i} *</h4>
-                <div class="form-group"><label>Formulation Name *</label><input type="text" name="DDS_${i}_Name" required placeholder="e.g., Tf-Liposome"></div>
-                <div class="form-group"><label>Carrier Type *</label><select name="DDS_${i}_Carrier" required><option value="">-- Select --</option><option value="liposome">Liposome</option><option value="PLGA-NP">PLGA Nanoparticle</option><option value="SLN">Solid Lipid Nanoparticle</option><option value="dendrimer">Dendrimer (PAMAM)</option><option value="polymeric_micelle">Polymeric Micelle</option><option value="exosome">Exosome</option><option value="other">Other</option></select></div>
-                <div class="form-group"><label>Surface Ligand</label><input type="text" name="DDS_${i}_Ligand" placeholder="e.g., Transferrin, RVG29"></div>
-                <div class="form-group"><label>Size (nm)</label><input type="number" name="DDS_${i}_Size" step="0.1" min="1" placeholder="100"></div>
-                <div class="form-group"><label>Zeta Potential (mV)</label><input type="number" name="DDS_${i}_Zeta" step="0.1" placeholder="-10.5"></div>
-                <div class="form-group"><label>PDI</label><input type="number" name="DDS_${i}_PDI" step="0.01" min="0" max="1" placeholder="0.18"></div>
-                <div class="form-group"><label>Encapsulation Efficiency (%)</label><input type="number" name="DDS_${i}_EE" step="0.1" min="0" max="100" placeholder="82"></div>
-                <div class="form-group"><label>Drug Loading (%)</label><input type="number" name="DDS_${i}_Loading" step="0.1" min="0" max="100" placeholder="12"></div>
-                <div class="form-group"><label>Release Kinetics</label><input type="text" name="DDS_${i}_Kinetics" placeholder="sustained / immediate / pH-responsive"></div></div>`;
-            }
-            function render(n) { let h = ''; for (let i = 1; i <= n; i++) h += block(i); cont.innerHTML = h; }
+        (function() { const sel = document.getElementById('ddsCount'),
+                cont = document.getElementById('ddsContainer'); if (!sel || !cont) return;
+
+            function block(i) { return `<div class="dds-block"><h4>Formulation ${i} *</h4>
+            <div class="form-group"><label>Formulation Name *</label><input type="text" name="DDS_${i}_Name" required placeholder="e.g., Tf-Liposome"></div>
+            <div class="form-group"><label>Carrier Type *</label><select name="DDS_${i}_Carrier" required><option value="">-- Select --</option><option value="liposome">Liposome</option><option value="PLGA-NP">PLGA Nanoparticle</option><option value="SLN">Solid Lipid Nanoparticle</option><option value="dendrimer">Dendrimer (PAMAM)</option><option value="polymeric_micelle">Polymeric Micelle</option><option value="exosome">Exosome</option><option value="other">Other</option></select></div>
+            <div class="form-group"><label>Surface Ligand</label><input type="text" name="DDS_${i}_Ligand" placeholder="e.g., Transferrin, RVG29"></div>
+            <div class="form-group"><label>Size (nm)</label><input type="number" name="DDS_${i}_Size" step="0.1" min="1" placeholder="100"></div>
+            <div class="form-group"><label>Zeta Potential (mV)</label><input type="number" name="DDS_${i}_Zeta" step="0.1" placeholder="-10.5"></div>
+            <div class="form-group"><label>PDI</label><input type="number" name="DDS_${i}_PDI" step="0.01" min="0" max="1" placeholder="0.18"></div>
+            <div class="form-group"><label>Encapsulation Efficiency (%)</label><input type="number" name="DDS_${i}_EE" step="0.1" min="0" max="100" placeholder="82"></div>
+            <div class="form-group"><label>Drug Loading (%)</label><input type="number" name="DDS_${i}_Loading" step="0.1" min="0" max="100" placeholder="12"></div>
+            <div class="form-group"><label>Release Kinetics</label><input type="text" name="DDS_${i}_Kinetics" placeholder="sustained / immediate / pH-responsive"></div></div>`; }
+
+            function render(n) { let h = ''; for (let i = 1; i <= n; i++) h += block(i);
+                cont.innerHTML = h; }
             render(+sel.value);
-            sel.addEventListener('change', () => render(+sel.value));
-        })();
+            sel.addEventListener('change', () => render(+sel.value)); })();
 
         // ══════════════════════════════════════════════
         // SCROLL INDICATOR
         // ══════════════════════════════════════════════
-        document.getElementById('heroScrollIndicator')?.addEventListener('click', () => {
-            const t = document.getElementById('problem');
-            if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - (document.getElementById('cerebro-nav')?.offsetHeight || 52) - 6, behavior: 'smooth' });
-        });
+        document.getElementById('heroScrollIndicator')?.addEventListener('click', () => { const t = document.getElementById(
+                'problem'); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - (document
+                    .getElementById('cerebro-nav')?.offsetHeight || 52) - 6, behavior: 'smooth' }); });
 
-        console.log('CEREBRO-X — Deployment Ready.');
+        console.log('CEREBRO-X — 3D Spinning Logo Ready.');
     </script>
 </body>
 </html>
