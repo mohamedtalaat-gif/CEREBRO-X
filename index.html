@@ -64,7 +64,7 @@
         }
 
         /* ══════════════════════════════════════
-           MAGICAL SEAMLESS BACKGROUND
+           UNIFIED SEAMLESS BACKGROUND (ONLY ONE)
            ══════════════════════════════════════ */
         body::before {
             content: "";
@@ -72,11 +72,11 @@
             inset: -40px;
             background-image: var(--bg-url);
             background-repeat: repeat;
-            background-size: 360px;
-            opacity: 0.09;
+            background-size: 380px;
+            opacity: 0.10;
             z-index: -2;
             pointer-events: none;
-            animation: driftBg 80s linear infinite;
+            animation: driftBg 70s linear infinite;
             will-change: background-position;
         }
         @keyframes driftBg {
@@ -84,28 +84,7 @@
                 background-position: 0 0;
             }
             100% {
-                background-position: 720px 720px;
-            }
-        }
-        body::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            background: radial-gradient(ellipse at 25% 45%, rgba(201, 168, 76, 0.06) 0%, transparent 55%),
-                radial-gradient(ellipse at 75% 75%, rgba(245, 124, 0, 0.03) 0%, transparent 55%);
-            z-index: -1;
-            pointer-events: none;
-            animation: ambientGlow 10s ease-in-out infinite;
-        }
-        @keyframes ambientGlow {
-            0%,
-            100% {
-                background: radial-gradient(ellipse at 25% 45%, rgba(201, 168, 76, 0.06) 0%, transparent 55%),
-                    radial-gradient(ellipse at 75% 75%, rgba(245, 124, 0, 0.03) 0%, transparent 55%);
-            }
-            50% {
-                background: radial-gradient(ellipse at 70% 40%, rgba(201, 168, 76, 0.09) 0%, transparent 55%),
-                    radial-gradient(ellipse at 30% 70%, rgba(245, 124, 0, 0.05) 0%, transparent 55%);
+                background-position: 760px 760px;
             }
         }
 
@@ -235,7 +214,7 @@
         }
 
         /* ══════════════════════════════════════
-           HERO – MAGICAL BOOK OPENING
+           HERO – MAGICAL BOOK OPENING + 3D LOGO
            ══════════════════════════════════════ */
         .hero {
             position: relative;
@@ -246,17 +225,7 @@
             text-align: center;
             overflow: hidden;
             padding: 100px 24px 80px;
-            background: radial-gradient(ellipse at 50% 38%, rgba(18, 30, 58, 0.5) 0%, rgba(4, 4, 14, 0.9) 100%);
-            perspective: 1400px;
-        }
-        #hero-canvas-container {
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            pointer-events: none;
-        }
-        #hero-canvas-container canvas {
-            display: block;
+            background: radial-gradient(ellipse at 50% 38%, rgba(18, 30, 58, 0.35) 0%, rgba(4, 4, 14, 0.78) 100%);
         }
         .hero-content {
             position: relative;
@@ -267,52 +236,17 @@
             max-width: 850px;
             margin: 0 auto;
         }
-        /* Logo reveal container */
+        /* 3D logo reveal container */
         .hero-logo-reveal {
             perspective: 1200px;
             margin-bottom: 0;
+            position: relative;
         }
-        .hero-logo-img {
-            width: clamp(180px, 32vw, 460px);
-            height: auto;
-            display: block;
-            filter: drop-shadow(0 0 60px rgba(201, 168, 76, 0.45));
-            opacity: 0;
-            transform: rotateX(75deg) scale(0.4);
-            will-change: transform, opacity;
-            animation: spellbookOpen 2s var(--ease-spring) 0.3s forwards;
-        }
-        @keyframes spellbookOpen {
-            0% {
-                opacity: 0;
-                transform: rotateX(75deg) scale(0.4);
-                filter: drop-shadow(0 0 0px rgba(201, 168, 76, 0));
-            }
-            40% {
-                opacity: 0.7;
-                transform: rotateX(20deg) scale(0.75);
-                filter: drop-shadow(0 0 30px rgba(201, 168, 76, 0.3));
-            }
-            70% {
-                opacity: 1;
-                transform: rotateX(-4deg) scale(1.04);
-                filter: drop-shadow(0 0 55px rgba(201, 168, 76, 0.55));
-            }
-            85% {
-                transform: rotateX(1deg) scale(0.98);
-            }
-            100% {
-                opacity: 1;
-                transform: rotateX(0deg) scale(1);
-                filter: drop-shadow(0 0 50px rgba(201, 168, 76, 0.5));
-            }
-        }
-        /* Glow aura around logo */
         .hero-logo-reveal::before {
             content: '';
             position: absolute;
-            inset: -30%;
-            background: radial-gradient(circle, rgba(201, 168, 76, 0.2) 0%, transparent 70%);
+            inset: -35%;
+            background: radial-gradient(circle, rgba(201, 168, 76, 0.18) 0%, transparent 70%);
             border-radius: 50%;
             z-index: -1;
             opacity: 0;
@@ -327,6 +261,43 @@
                 opacity: 1;
                 transform: scale(1);
             }
+        }
+        /* The 3D canvas container */
+        #hero-logo-3d-container {
+            width: clamp(200px, 34vw, 480px);
+            height: auto;
+            aspect-ratio: 4 / 1;
+            display: block;
+            opacity: 0;
+            transform: rotateX(75deg) scale(0.4);
+            will-change: transform, opacity;
+            animation: spellbookOpen 2s var(--ease-spring) 0.3s forwards;
+        }
+        @keyframes spellbookOpen {
+            0% {
+                opacity: 0;
+                transform: rotateX(75deg) scale(0.4);
+            }
+            40% {
+                opacity: 0.7;
+                transform: rotateX(20deg) scale(0.75);
+            }
+            70% {
+                opacity: 1;
+                transform: rotateX(-4deg) scale(1.04);
+            }
+            85% {
+                transform: rotateX(1deg) scale(0.98);
+            }
+            100% {
+                opacity: 1;
+                transform: rotateX(0deg) scale(1);
+            }
+        }
+        #hero-logo-3d-container canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
         }
         .hero-tagline {
             font-size: clamp(0.95rem, 2vw, 1.25rem);
@@ -1031,8 +1002,8 @@
         }
 
         @media (max-width: 768px) {
-            .hero-logo-img {
-                width: clamp(130px, 50vw, 280px);
+            #hero-logo-3d-container {
+                width: clamp(140px, 55vw, 300px);
             }
             .section {
                 padding: 50px 16px;
@@ -1063,8 +1034,7 @@
     <!-- ═══ FROSTED NAVIGATION ═══ -->
     <nav id="cerebro-nav">
         <a href="#hero" class="nav-logo-link">
-            <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png"
-            alt="CEREBRO-X" class="nav-logo-img">
+            <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png" alt="CEREBRO-X" class="nav-logo-img">
         </a>
         <button class="nav-hamburger" id="navHamburger" aria-label="Menu"><i class="fas fa-bars"></i></button>
         <ul class="nav-links" id="navLinks">
@@ -1077,13 +1047,11 @@
         </ul>
     </nav>
 
-    <!-- ═══ HERO – MAGICAL BOOK OPENING ═══ -->
+    <!-- ═══ HERO – MAGICAL BOOK OPENING + 3D LOGO ═══ -->
     <section class="hero" id="hero">
-        <div id="hero-canvas-container"></div>
         <div class="hero-content">
             <div class="hero-logo-reveal">
-                <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png"
-                alt="CEREBRO-X" class="hero-logo-img">
+                <div id="hero-logo-3d-container"></div>
             </div>
             <p class="hero-tagline">AI-native, Molecule-Aware Drug-Delivery Design Engine</p>
             <div class="hero-cta">
@@ -1197,7 +1165,6 @@
             <form action="https://formsubmit.co/mohamed.talaat@pharma.asu.edu.eg" method="POST" id="cerebroForm">
                 <input type="hidden" name="_subject" value="CEREBRO-X: New Analysis Request!">
                 <input type="hidden" name="_captcha" value="false">
-                <!-- Step 1 -->
                 <div class="wizard-step active" data-step="1">
                     <h3 style="color:var(--gold);margin-bottom:16px;">Step 1: Your Details & Agreements</h3>
                     <div class="form-group"><label>Full Name *</label><input type="text" name="Name" required placeholder="Dr. Jane Doe"></div>
@@ -1207,7 +1174,6 @@
                     <div class="checkbox-group"><input type="checkbox" id="consent-payment" name="Consent_Payment" required value="Agreed"><label for="consent-payment">I understand that analyses with 4+ DDS formulations require a $75 fee payable before results are delivered.</label></div>
                     <div class="wizard-buttons"><div></div><button type="button" class="btn btn-gold wizard-next" data-next="2">Next →</button></div>
                 </div>
-                <!-- Step 2 -->
                 <div class="wizard-step" data-step="2">
                     <h3 style="color:var(--gold);margin-bottom:16px;">Step 2: Drug Details</h3>
                     <div class="form-group"><label>Drug Name *</label><input type="text" name="Drug_Name" required placeholder="e.g., Donepezil"></div>
@@ -1216,7 +1182,6 @@
                     <div class="form-group"><label>Target Indication</label><input type="text" name="Indication" placeholder="e.g., Alzheimer's Disease"></div>
                     <div class="wizard-buttons"><button type="button" class="btn btn-outline wizard-prev" data-prev="1">← Back</button><button type="button" class="btn btn-gold wizard-next" data-next="3">Next →</button></div>
                 </div>
-                <!-- Step 3 -->
                 <div class="wizard-step" data-step="3">
                     <h3 style="color:var(--gold);margin-bottom:16px;">Step 3: DDS Formulations</h3>
                     <div class="form-group"><label>Number of Formulations *</label><select name="DDS_Count" id="ddsCount" required><option value="1">1 Formulation</option><option value="2">2 Formulations</option><option value="3">3 Formulations (Free Tier max)</option><option value="4">4+ Formulations (Professional Tier)</option></select><small class="text-muted">For 4+ formulations, the $75 professional tier applies.</small></div>
@@ -1241,162 +1206,134 @@
 
     <!-- ═══ SCRIPTS ═══ -->
     <script>
-        // ── THREE.JS HERO – Anatomical Brain + DDS Particle Field ──
-        (function initThreeHero() {
-            const container = document.getElementById('hero-canvas-container');
+        // ══════════════════════════════════════════════
+        // THREE.JS – 3D LOGO (بدون أشكال برتقالية أو مخ)
+        // ══════════════════════════════════════════════
+        (function initThreeLogo() {
+            const container = document.getElementById('hero-logo-3d-container');
             if (!container || typeof THREE === 'undefined') return;
+
             const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(46, container.clientWidth / Math.max(container.clientHeight, 1), 0.1,
-                120);
-            camera.position.set(0, 0.1, 6.5);
+            const camera = new THREE.PerspectiveCamera(42, container.clientWidth / Math.max(container.clientHeight, 1),
+                0.1, 50);
+            camera.position.z = 5.5;
+
             const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             renderer.setSize(container.clientWidth, container.clientHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.42));
-            const ptLight = new THREE.PointLight(0xC9A84C, 1.05, 20);
-            ptLight.position.set(0, 0.3, 2.6);
-            scene.add(ptLight);
+            // إضاءة ناعمة
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+            const pointLight = new THREE.PointLight(0xC9A84C, 1.8, 15);
+            pointLight.position.set(0, 0.3, 3);
+            scene.add(pointLight);
 
-            const brainGroup = new THREE.Group();
-            scene.add(brainGroup);
-            const goldMat = new THREE.MeshBasicMaterial({ color: 0xC9A84C, wireframe: true, transparent: true,
-                opacity: 0.42 });
-            const goldBright = new THREE.MeshBasicMaterial({ color: 0xC9A84C, wireframe: true, transparent: true,
-                opacity: 0.62 });
-            const tealMat = new THREE.MeshBasicMaterial({ color: 0x0D6E6E, wireframe: true, transparent: true,
-            opacity: 0.28 });
-            const orangeMat = new THREE.MeshBasicMaterial({ color: 0xF57C00, wireframe: true, transparent: true,
-                opacity: 0.24 });
+            // تحميل نسيج اللوجو
+            const logoUrl =
+                'https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png';
+            const textureLoader = new THREE.TextureLoader();
+            const logoPlane = new THREE.Mesh(
+                new THREE.PlaneGeometry(1, 1),
+                new THREE.MeshBasicMaterial({
+                    map: null,
+                    transparent: true,
+                    alphaTest: 0.05,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                })
+            );
+            scene.add(logoPlane);
 
-            const hemiGeo = new THREE.SphereGeometry(0.95, 36, 28);
-            const lHemi = new THREE.Mesh(hemiGeo, goldMat);
-            lHemi.scale.set(0.74, 0.62, 0.82);
-            lHemi.position.set(-0.42, 0.05, 0);
-            brainGroup.add(lHemi);
-            const rHemi = new THREE.Mesh(hemiGeo, goldMat);
-            rHemi.scale.set(0.74, 0.62, 0.82);
-            rHemi.position.set(0.42, 0.05, 0);
-            brainGroup.add(rHemi);
+            textureLoader.load(logoUrl, (texture) => {
+                const aspect = texture.image.width / texture.image.height;
+                const baseHeight = 1.8;
+                logoPlane.scale.set(aspect * baseHeight, baseHeight, 1);
+                logoPlane.material.map = texture;
+                logoPlane.material.needsUpdate = true;
+            });
 
-            const arcGeo = new THREE.TorusGeometry(0.48, 0.012, 8, 26);
-            const arcL = new THREE.Mesh(arcGeo, goldBright);
-            arcL.rotation.y = Math.PI / 2;
-            arcL.position.set(-0.04, 0.03, 0);
-            brainGroup.add(arcL);
-            const arcR = new THREE.Mesh(arcGeo, goldBright);
-            arcR.rotation.y = Math.PI / 2;
-            arcR.position.set(0.04, 0.03, 0);
-            brainGroup.add(arcR);
+            // جسيمات ذهبية ناعمة حول اللوجو
+            const particlesGroup = new THREE.Group();
+            scene.add(particlesGroup);
+            const particlesGeom = new THREE.BufferGeometry();
+            const particlesCount = 50;
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 6;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 2.5;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 3;
+            }
+            particlesGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const particlesMat = new THREE.PointsMaterial({
+                color: 0xC9A84C,
+                size: 0.025,
+                transparent: true,
+                opacity: 0.55,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+            });
+            const particles = new THREE.Points(particlesGeom, particlesMat);
+            particlesGroup.add(particles);
 
-            const cbGeo = new THREE.SphereGeometry(0.46, 18, 12);
-            const cb = new THREE.Mesh(cbGeo, tealMat);
-            cb.scale.set(0.52, 0.32, 0.29);
-            cb.position.set(0, -0.44, 0.46);
-            brainGroup.add(cb);
-            const bsGeo = new THREE.CylinderGeometry(0.07, 0.14, 0.6, 10, 7);
-            const bs = new THREE.Mesh(bsGeo, orangeMat);
-            bs.position.set(0, -0.82, 0.05);
-            brainGroup.add(bs);
-            const bridgeGeo = new THREE.TorusGeometry(0.29, 0.015, 7, 18);
-            const bridge = new THREE.Mesh(bridgeGeo, goldBright);
-            bridge.rotation.x = Math.PI / 2.05;
-            bridge.rotation.z = Math.PI / 2;
-            bridge.position.set(0, 0.17, 0);
-            brainGroup.add(bridge);
-
-            const synGroup = new THREE.Group();
-            brainGroup.add(synGroup);
-            const synGeom = new THREE.BufferGeometry();
-            const synPos = new Float32Array(100 * 3);
-            for (let i = 0; i < 100; i++) { const th = Math.random() * Math.PI * 2;
-                const ph = Math.acos(2 * Math.random() - 1);
-                const r = 0.76 + Math.random() * 0.12;
-                const sx = Math.sin(ph) * Math.cos(th) * r;
-                const sy = Math.sin(ph) * Math.sin(th) * r * 0.62;
-                const sz = Math.cos(ph) * r * 0.77;
-                synPos[i * 3] = sx * 0.74 + (Math.random() > 0.5 ? -0.42 : 0.42);
-                synPos[i * 3 + 1] = sy + 0.04;
-                synPos[i * 3 + 2] = sz; }
-            synGeom.setAttribute('position', new THREE.BufferAttribute(synPos, 3));
-            const synPts = new THREE.Points(synGeom, new THREE.PointsMaterial({ color: 0xC9A84C, size: 0.022,
-                transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }));
-            synGroup.add(synPts);
-
-            const ddsField = new THREE.Group();
-            scene.add(ddsField);
-            const npGroup = new THREE.Group();
-            ddsField.add(npGroup);
-            for (let i = 0; i < 32; i++) { const s = 0.02 + Math.random() * 0.05;
-                const np = new THREE.Mesh(new THREE.SphereGeometry(s, 6, 4), new THREE.MeshBasicMaterial({ color: Math
-                            .random() > 0.5 ? 0xF57C00 : 0xC9A84C, transparent: true, opacity: 0.42 + Math.random() *
-                        0.3 }));
-                np.position.set((Math.random() - 0.5) * 9, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 6 - 1.2);
-                np.userData = { vx: (Math.random() - 0.5) * 0.003, vy: (Math.random() - 0.5) * 0.0025, vz: (Math.random() -
-                        0.5) * 0.0025 };
-                npGroup.add(np); }
-            const lipoGroup = new THREE.Group();
-            ddsField.add(lipoGroup);
-            for (let i = 0; i < 13; i++) { const lipo = new THREE.Mesh(new THREE.TorusGeometry(0.06 + Math.random() * 0.07,
-                    0.011, 5, 12), new THREE.MeshBasicMaterial({ color: 0x0D6E6E, wireframe: true, transparent: true,
-                    opacity: 0.28 + Math.random() * 0.25 }));
-                lipo.position.set((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 7, (Math.random() - 0.5) * 5 - 1.8);
-                lipo.userData = { rx: (Math.random() - 0.5) * 0.012, ry: (Math.random() - 0.5) * 0.012, fp: Math.random() *
-                        Math.PI * 2 };
-                lipoGroup.add(lipo); }
-            const molGroup = new THREE.Group();
-            ddsField.add(molGroup);
-            const molGeom = new THREE.BufferGeometry();
-            const molPos = new Float32Array(65 * 3);
-            for (let i = 0; i < 65; i++) { molPos[i * 3] = (Math.random() - 0.5) * 9.5;
-                molPos[i * 3 + 1] = (Math.random() - 0.5) * 8.5;
-                molPos[i * 3 + 2] = (Math.random() - 0.5) * 6.5 - 0.8; }
-            molGeom.setAttribute('position', new THREE.BufferAttribute(molPos, 3));
-            molGroup.add(new THREE.Points(molGeom, new THREE.PointsMaterial({ color: 0xC9A84C, size: 0.016,
-                transparent: true, opacity: 0.46, blending: THREE.AdditiveBlending, depthWrite: false })));
-
+            // تحريك المشهد
             function animate() {
                 requestAnimationFrame(animate);
-                const t = performance.now() * 0.00038;
-                brainGroup.rotation.y += 0.0021;
-                brainGroup.rotation.x += 0.0006;
-                synPts.material.opacity = 0.42 + Math.sin(t * 3.2) * 0.18;
-                npGroup.children.forEach(n => { n.position.x += n.userData.vx;
-                    n.position.y += n.userData.vy;
-                    n.position.z += n.userData.vz; if (Math.abs(n.position.x) > 4.8) n.position.x *= -0.92; if (Math.abs(
-                        n.position.y) > 4.2) n.position.y *= -0.92; if (Math.abs(n.position.z) > 3.2) n.position.z *=
-                        -0.92; });
-                lipoGroup.children.forEach(l => { l.rotation.x += l.userData.rx;
-                    l.rotation.y += l.userData.ry;
-                    l.position.y += Math.sin(t * 1.5 + l.userData.fp) * 0.0014; });
-                molGroup.rotation.y += 0.0004;
-                camera.position.x = Math.sin(t * 0.55) * 0.25;
-                camera.position.y = 0.1 + Math.cos(t * 0.45) * 0.14;
-                camera.lookAt(0, -0.02, 0);
-                ptLight.intensity = 0.95 + Math.sin(t * 1.8) * 0.18;
+                const t = performance.now() * 0.0005;
+                // دوران خفيف جداً للوجو
+                logoPlane.rotation.y = Math.sin(t * 0.6) * 0.12;
+                logoPlane.rotation.x = Math.cos(t * 0.45) * 0.05;
+                logoPlane.position.y = Math.sin(t * 0.7) * 0.08;
+                // دوران الجسيمات
+                particlesGroup.rotation.y += 0.003;
+                particlesGroup.rotation.x += 0.001;
+                particlesMat.opacity = 0.4 + Math.sin(t * 2.5) * 0.2;
+                // تحريك خفيف للإضاءة
+                pointLight.intensity = 1.6 + Math.sin(t * 1.8) * 0.3;
                 renderer.render(scene, camera);
             }
             animate();
-            window.addEventListener('resize', () => { camera.aspect = container.clientWidth / Math.max(container
-                    .clientHeight, 1);
+
+            // تجاوب مع تغيير حجم النافذة
+            window.addEventListener('resize', () => {
+                const w = container.clientWidth;
+                const h = Math.max(container.clientHeight, 1);
+                camera.aspect = w / h;
                 camera.updateProjectionMatrix();
-                renderer.setSize(container.clientWidth, container.clientHeight); });
+                renderer.setSize(w, h);
+            });
         })();
 
-        // ── GSAP SCROLL ANIMATIONS ──
-        (function() { if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
+        // ══════════════════════════════════════════════
+        // GSAP SCROLL ANIMATIONS
+        // ══════════════════════════════════════════════
+        (function() {
+            if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
             gsap.registerPlugin(ScrollTrigger);
-            document.querySelectorAll('.section:not(#hero):not(.section-dark), .section-dark').forEach(s => { const k = s
-                    .querySelectorAll(
-                        '.glass-card,.case-study,.principle-item,.price-card,.scroller-card,.form-wizard-container,.section-title,.section-subtitle,.grid-3>*,.pricing-grid>*,.principles-grid>*'
-                        ); if (k.length) gsap.fromTo(k, { opacity: 0, y: 42, scale: 0.96 }, { opacity: 1, y: 0,
-                        scale: 1, duration: 0.68, stagger: 0.08, ease: 'power3.out', scrollTrigger: { trigger: s,
-                            start: 'top 78%', toggleActions: 'play none none none' } }); });
-            document.querySelectorAll('tbody tr').forEach((r, i) => gsap.fromTo(r, { opacity: 0, x: -28 }, { opacity: 1,
-                x: 0, duration: 0.48, delay: i * 0.11, ease: 'power3.out', scrollTrigger: { trigger: 'table',
-                    start: 'top 80%', toggleActions: 'play none none none' } }));
+            document.querySelectorAll('.section:not(#hero):not(.section-dark), .section-dark').forEach(s => {
+                const k = s.querySelectorAll(
+                    '.glass-card,.case-study,.principle-item,.price-card,.scroller-card,.form-wizard-container,.section-title,.section-subtitle,.grid-3>*,.pricing-grid>*,.principles-grid>*'
+                );
+                if (k.length) gsap.fromTo(k, { opacity: 0, y: 42, scale: 0.96 }, {
+                    opacity: 1,
+                    y: 0,
+                    scale: 1,
+                    duration: 0.68,
+                    stagger: 0.08,
+                    ease: 'power3.out',
+                    scrollTrigger: { trigger: s, start: 'top 78%', toggleActions: 'play none none none' }
+                });
+            });
+            document.querySelectorAll('tbody tr').forEach((r, i) => gsap.fromTo(r, { opacity: 0, x: -28 }, {
+                opacity: 1,
+                x: 0,
+                duration: 0.48,
+                delay: i * 0.11,
+                ease: 'power3.out',
+                scrollTrigger: { trigger: 'table', start: 'top 80%', toggleActions: 'play none none none' }
+            }));
             document.querySelectorAll('.principle-item').forEach((item, i) => gsap.fromTo(item, { opacity: 0, x: -45 }, {
                 opacity: 1,
                 x: 0,
@@ -1404,94 +1341,154 @@
                 delay: i * 0.09,
                 ease: 'power3.out',
                 scrollTrigger: { trigger: item, start: 'top 82%', toggleActions: 'play none none none' }
-            })); })();
+            }));
+        })();
 
-        // ── NAV ──
-        (function() { const n = document.getElementById('cerebro-nav'),
-                h = document.getElementById('hero'); if (h) new IntersectionObserver(e => n.classList.toggle('scrolled', !
-                    e[0].isIntersecting), { threshold: 0.08 }).observe(h);
+        // ══════════════════════════════════════════════
+        // NAVIGATION
+        // ══════════════════════════════════════════════
+        (function() {
+            const n = document.getElementById('cerebro-nav');
+            const h = document.getElementById('hero');
+            if (h) new IntersectionObserver(e => n.classList.toggle('scrolled', !e[0].isIntersecting), { threshold: 0.08 })
+                .observe(h);
             window.addEventListener('scroll', () => n.classList.toggle('scrolled', window.scrollY > 60), { passive: true });
-            const hb = document.getElementById('navHamburger'),
-                nl = document.getElementById('navLinks'); if (hb && nl) { hb.addEventListener('click', () => nl.classList
-                    .toggle('open'));
-                nl.querySelectorAll('a').forEach(a => a.addEventListener('click', () => nl.classList.remove('open'))); } })();
+            const hb = document.getElementById('navHamburger');
+            const nl = document.getElementById('navLinks');
+            if (hb && nl) {
+                hb.addEventListener('click', () => nl.classList.toggle('open'));
+                nl.querySelectorAll('a').forEach(a => a.addEventListener('click', () => nl.classList.remove('open')));
+            }
+        })();
 
-        // ── CARD TILT ──
-        document.querySelectorAll('.tilt-card').forEach(card => { card.addEventListener('mousemove', e => { const r = card
-                    .getBoundingClientRect(); const rx = ((r.height / 2 - (e.clientY - r.top)) / (r.height / 2)) * 5;
+        // ══════════════════════════════════════════════
+        // CARD TILT
+        // ══════════════════════════════════════════════
+        document.querySelectorAll('.tilt-card').forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const r = card.getBoundingClientRect();
+                const rx = ((r.height / 2 - (e.clientY - r.top)) / (r.height / 2)) * 5;
                 const ry = (((e.clientX - r.left) - r.width / 2) / (r.width / 2)) * 5;
-                card.style.transform =
-                    `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(6px)`;
-                card.style.transition = 'transform 0.1s ease-out'; });
-            card.addEventListener('mouseleave', () => { card.style.transform =
-                    'perspective(1000px) rotateX(0) rotateY(0) translateZ(0)';
-                card.style.transition = 'transform 0.5s cubic-bezier(0.22,0.61,0.36,1)'; }); });
+                card.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(6px)`;
+                card.style.transition = 'transform 0.1s ease-out';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateZ(0)';
+                card.style.transition = 'transform 0.5s cubic-bezier(0.22,0.61,0.36,1)';
+            });
+        });
 
-        // ── SMOOTH SCROLL ──
-        document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', function(e) { const t =
-                document.querySelector(this.getAttribute('href')); if (t) { e.preventDefault();
-                window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - (document.getElementById(
-                        'cerebro-nav')?.offsetHeight || 52) - 6, behavior: 'smooth' }); } }));
+        // ══════════════════════════════════════════════
+        // SMOOTH SCROLL
+        // ══════════════════════════════════════════════
+        document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', function(e) {
+            const t = document.querySelector(this.getAttribute('href'));
+            if (t) {
+                e.preventDefault();
+                window.scrollTo({
+                    top: t.getBoundingClientRect().top + window.pageYOffset - (document.getElementById(
+                        'cerebro-nav')?.offsetHeight || 52) - 6,
+                    behavior: 'smooth'
+                });
+            }
+        }));
 
-        // ── SCROLLER DRAG ──
-        (function() { const s = document.getElementById('sampleScroller'); if (!s) return;
+        // ══════════════════════════════════════════════
+        // SCROLLER DRAG
+        // ══════════════════════════════════════════════
+        (function() {
+            const s = document.getElementById('sampleScroller');
+            if (!s) return;
             let down = false,
                 sx, sl;
-            s.addEventListener('mousedown', e => { down = true;
+            s.addEventListener('mousedown', e => {
+                down = true;
                 s.style.cursor = 'grabbing';
                 sx = e.pageX - s.offsetLeft;
-                sl = s.scrollLeft; });
+                sl = s.scrollLeft;
+            });
             s.addEventListener('mouseleave', () => { down = false;
                 s.style.cursor = 'grab'; });
             s.addEventListener('mouseup', () => { down = false;
                 s.style.cursor = 'grab'; });
-            s.addEventListener('mousemove', e => { if (!down) return;
+            s.addEventListener('mousemove', e => {
+                if (!down) return;
                 e.preventDefault();
-                s.scrollLeft = sl - (e.pageX - s.offsetLeft - sx) * 1.5; });
+                s.scrollLeft = sl - (e.pageX - s.offsetLeft - sx) * 1.5;
+            });
             s.addEventListener('touchstart', e => { sx = e.touches[0].pageX - s.offsetLeft;
-                sl = s.scrollLeft; }, { passive: true }); })();
+                sl = s.scrollLeft; }, { passive: true });
+        })();
 
-        // ── FORM WIZARD ──
-        (function() { const wiz = document.getElementById('formWizard'); if (!wiz) return;
-            const steps = wiz.querySelectorAll('.wizard-step'),
-                dots = wiz.querySelectorAll('.step-dot'),
-                lines = wiz.querySelectorAll('.step-line');
+        // ══════════════════════════════════════════════
+        // FORM WIZARD
+        // ══════════════════════════════════════════════
+        (function() {
+            const wiz = document.getElementById('formWizard');
+            if (!wiz) return;
+            const steps = wiz.querySelectorAll('.wizard-step');
+            const dots = wiz.querySelectorAll('.step-dot');
+            const lines = wiz.querySelectorAll('.step-line');
             let cs = 1;
 
-            function show(n) { steps.forEach(s => s.classList.remove('active'));
-                const t = wiz.querySelector(`.wizard-step[data-step="${n}"]`); if (t) t.classList.add('active');
-                dots.forEach(d => { const ds = +d.getAttribute('data-step');
+            function show(n) {
+                steps.forEach(s => s.classList.remove('active'));
+                const t = wiz.querySelector(`.wizard-step[data-step="${n}"]`);
+                if (t) t.classList.add('active');
+                dots.forEach(d => {
+                    const ds = +d.getAttribute('data-step');
                     d.classList.toggle('active', ds === n);
-                    d.classList.toggle('done', ds < n); });
+                    d.classList.toggle('done', ds < n);
+                });
                 lines.forEach(l => l.classList.toggle('done', +l.getAttribute('data-line') < n));
-                cs = n; }
-            wiz.querySelectorAll('.wizard-next').forEach(b => b.addEventListener('click', () => { const nxt = +b
-                    .getAttribute('data-next');
-                const cur = wiz.querySelector(`.wizard-step[data-step="${cs}"]`); if (cur) { let ok = true;
-                    cur.querySelectorAll('input[required],select[required],textarea[required]').forEach(f => { if (
-                            !f.value.trim()) { ok = false;
+                cs = n;
+            }
+            wiz.querySelectorAll('.wizard-next').forEach(b => b.addEventListener('click', () => {
+                const nxt = +b.getAttribute('data-next');
+                const cur = wiz.querySelector(`.wizard-step[data-step="${cs}"]`);
+                if (cur) {
+                    let ok = true;
+                    cur.querySelectorAll('input[required],select[required],textarea[required]').forEach(f => {
+                        if (!f.value.trim()) {
+                            ok = false;
                             f.style.borderColor = '#C62828';
                             f.style.boxShadow = '0 0 14px rgba(198,40,40,0.4)';
                             setTimeout(() => { f.style.borderColor = '';
-                                f.style.boxShadow = ''; }, 2000); } });
-                    cur.querySelectorAll('input[type="checkbox"][required]').forEach(c => { if (!c.checked) { ok =
-                                false;
+                                f.style.boxShadow = ''; }, 2000);
+                        }
+                    });
+                    cur.querySelectorAll('input[type="checkbox"][required]').forEach(c => {
+                        if (!c.checked) {
+                            ok = false;
                             c.parentElement.style.outline = '2px solid #C62828';
-                            setTimeout(() => c.parentElement.style.outline = '', 2000); } }); if (!ok)
-                    return; }
+                            setTimeout(() => c.parentElement.style.outline = '', 2000);
+                        }
+                    });
+                    if (!ok) return;
+                }
                 show(nxt);
-                wiz.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
-            wiz.querySelectorAll('.wizard-prev').forEach(b => b.addEventListener('click', () => { show(+b.getAttribute(
-                    'data-prev'));
-                wiz.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
-            dots.forEach(d => d.addEventListener('click', () => { const ds = +d.getAttribute('data-step'); if (ds <= cs ||
-                    d.classList.contains('done')) show(ds); })); })();
+                wiz.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }));
+            wiz.querySelectorAll('.wizard-prev').forEach(b => b.addEventListener('click', () => {
+                show(+b.getAttribute('data-prev'));
+                wiz.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }));
+            dots.forEach(d => d.addEventListener('click', () => {
+                const ds = +d.getAttribute('data-step');
+                if (ds <= cs || d.classList.contains('done')) show(ds);
+            }));
+        })();
 
-        // ── DDS GENERATOR ──
-        (function() { const sel = document.getElementById('ddsCount'),
-                cont = document.getElementById('ddsContainer'); if (!sel || !cont) return;
+        // ══════════════════════════════════════════════
+        // DDS GENERATOR
+        // ══════════════════════════════════════════════
+        (function() {
+            const sel = document.getElementById('ddsCount');
+            const cont = document.getElementById('ddsContainer');
+            if (!sel || !cont) return;
 
-            function block(i) { return `<div class="dds-block"><h4>Formulation ${i} *</h4>
+            function block(i) {
+                return `<div class="dds-block"><h4>Formulation ${i} *</h4>
             <div class="form-group"><label>Formulation Name *</label><input type="text" name="DDS_${i}_Name" required placeholder="e.g., Tf-Liposome"></div>
             <div class="form-group"><label>Carrier Type *</label><select name="DDS_${i}_Carrier" required><option value="">-- Select --</option><option value="liposome">Liposome</option><option value="PLGA-NP">PLGA Nanoparticle</option><option value="SLN">Solid Lipid Nanoparticle</option><option value="dendrimer">Dendrimer (PAMAM)</option><option value="polymeric_micelle">Polymeric Micelle</option><option value="exosome">Exosome</option><option value="other">Other</option></select></div>
             <div class="form-group"><label>Surface Ligand</label><input type="text" name="DDS_${i}_Ligand" placeholder="e.g., Transferrin, RVG29"></div>
@@ -1500,19 +1497,28 @@
             <div class="form-group"><label>PDI</label><input type="number" name="DDS_${i}_PDI" step="0.01" min="0" max="1" placeholder="0.18"></div>
             <div class="form-group"><label>Encapsulation Efficiency (%)</label><input type="number" name="DDS_${i}_EE" step="0.1" min="0" max="100" placeholder="82"></div>
             <div class="form-group"><label>Drug Loading (%)</label><input type="number" name="DDS_${i}_Loading" step="0.1" min="0" max="100" placeholder="12"></div>
-            <div class="form-group"><label>Release Kinetics</label><input type="text" name="DDS_${i}_Kinetics" placeholder="sustained / immediate / pH-responsive"></div></div>`; }
+            <div class="form-group"><label>Release Kinetics</label><input type="text" name="DDS_${i}_Kinetics" placeholder="sustained / immediate / pH-responsive"></div></div>`;
+            }
 
             function render(n) { let h = ''; for (let i = 1; i <= n; i++) h += block(i);
                 cont.innerHTML = h; }
             render(+sel.value);
-            sel.addEventListener('change', () => render(+sel.value)); })();
+            sel.addEventListener('change', () => render(+sel.value));
+        })();
 
-        // ── SCROLL INDICATOR ──
-        document.getElementById('heroScrollIndicator')?.addEventListener('click', () => { const t = document.getElementById(
-                'problem'); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - (document
-                    .getElementById('cerebro-nav')?.offsetHeight || 52) - 6, behavior: 'smooth' }); });
+        // ══════════════════════════════════════════════
+        // SCROLL INDICATOR
+        // ══════════════════════════════════════════════
+        document.getElementById('heroScrollIndicator')?.addEventListener('click', () => {
+            const t = document.getElementById('problem');
+            if (t) window.scrollTo({
+                top: t.getBoundingClientRect().top + window.pageYOffset - (document.getElementById('cerebro-nav')
+                    ?.offsetHeight || 52) - 6,
+                behavior: 'smooth'
+            });
+        });
 
-        console.log('CEREBRO-X — Magical Spellbook Experience Ready.');
+        console.log('CEREBRO-X — 3D Logo + Unified Background Ready.');
     </script>
 </body>
 </html>
