@@ -110,7 +110,6 @@
             text-decoration: none;
             flex-shrink: 0;
         }
-        /* ⭐️ إزالة التوهج نهائياً من شعار الشريط العلوي */
         .nav-logo-img {
             width: 38px;
             height: 38px;
@@ -231,7 +230,6 @@
             justify-content: center;
             margin-bottom: 10px;
         }
-        /* ⭐️ تكبير الحاوية لأقصى درجة */
         #hero-logo-3d-container {
             width: clamp(380px, 96vw, 1300px);
             aspect-ratio: 4 / 1;
@@ -909,8 +907,7 @@
 <body>
     <nav id="cerebro-nav">
         <a href="#hero" class="nav-logo-link">
-            <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png"
-            alt="CEREBRO-X" class="nav-logo-img">
+            <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png" alt="CEREBRO-X" class="nav-logo-img">
         </a>
         <button class="nav-hamburger" id="navHamburger"><i class="fas fa-bars"></i></button>
         <ul class="nav-links" id="navLinks">
@@ -1057,15 +1054,14 @@
         <p class="footer-credit">Built by Muhammad Talaat, BPharm | CEREBRO‑X &copy; 2026</p>
     </footer>
     <script>
-        // ═══════════ 3D LOGO – حجم ضخم جداً + جودة فائقة + بارالاكس ناعم ═══════════
+        // ═══════════ 3D LOGO – HIGH QUALITY, SUBTLE MOVEMENT ═══════════
         (function initThreeLogo() {
             const container = document.getElementById('hero-logo-3d-container');
             if (!container || typeof THREE === 'undefined') return;
 
             const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(40, container.clientWidth / Math.max(container.clientHeight, 1), 0.1,
-                80);
-            camera.position.z = 7.2; // أبعد قليلاً لاستيعاب الحجم الضخم
+            const camera = new THREE.PerspectiveCamera(46, container.clientWidth / Math.max(container.clientHeight, 1), 0.1, 80);
+            camera.position.z = 8.2;
 
             const renderer = new THREE.WebGLRenderer({
                 alpha: true,
@@ -1074,47 +1070,39 @@
                 powerPreference: "high-performance"
             });
             renderer.setSize(container.clientWidth, container.clientHeight);
-            // ⭐️ بكسل ريشو عالي جداً يصل لـ 3x
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.5));
             renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
 
-            // إضاءة محايدة للحفاظ على ألوان اللوجو
-            const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.25);
             scene.add(ambientLight);
 
-            const logoUrl =
-                'https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png';
+            const logoUrl = 'https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png';
             const textureLoader = new THREE.TextureLoader();
             const logoPlane = new THREE.Mesh(
                 new THREE.PlaneGeometry(1, 1),
-                new THREE.MeshBasicMaterial({
-                    map: null,
-                    transparent: true,
-                    side: THREE.DoubleSide,
-                    depthWrite: false,
-                    color: 0xffffff
-                })
+                new THREE.MeshBasicMaterial({ map: null, transparent: true, side: THREE.DoubleSide, depthWrite: false, color: 0xffffff })
             );
             scene.add(logoPlane);
 
-            // ⭐️ تحميل النسيج بجودة قصوى
             textureLoader.load(logoUrl, (texture) => {
                 texture.minFilter = THREE.LinearMipmapLinearFilter;
                 texture.magFilter = THREE.LinearFilter;
                 texture.colorSpace = THREE.SRGBColorSpace;
                 const aspect = texture.image.width / texture.image.height;
-                const desiredWidth = 9.5; // ⭐️ عرض ضخم جداً
-                logoPlane.scale.set(desiredWidth, desiredWidth / aspect, 1);
+                const visibleHalfHeight = 8.2 * Math.tan((46 * Math.PI) / 360);
+                const visibleHeight = visibleHalfHeight * 2;
+                const targetHeight = visibleHeight * 0.92;
+                const targetWidth = targetHeight * aspect;
+                logoPlane.scale.set(targetWidth, targetHeight, 1);
                 logoPlane.material.map = texture;
                 logoPlane.material.needsUpdate = true;
             });
 
-            // جسيمات ذهبية كثيرة
             const particlesGroup = new THREE.Group();
             scene.add(particlesGroup);
             const particlesGeom = new THREE.BufferGeometry();
-            const particlesCount = 280;
+            const particlesCount = 260;
             const positions = new Float32Array(particlesCount * 3);
             for (let i = 0; i < particlesCount; i++) {
                 positions[i * 3] = (Math.random() - 0.5) * 9;
@@ -1123,23 +1111,16 @@
             }
             particlesGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             const particlesMat = new THREE.PointsMaterial({
-                color: 0xC9A84C,
-                size: 0.032,
-                transparent: true,
-                opacity: 0.7,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
+                color: 0xC9A84C, size: 0.03, transparent: true, opacity: 0.68,
+                blending: THREE.AdditiveBlending, depthWrite: false
             });
             particlesGroup.add(new THREE.Points(particlesGeom, particlesMat));
 
-            // حلقة ذهبية
-            const ringGeom = new THREE.TorusGeometry(3.4, 0.01, 16, 120);
-            const ring = new THREE.Mesh(ringGeom, new THREE.MeshBasicMaterial({ color: 0xC9A84C, transparent: true,
-                opacity: 0.35 }));
+            const ringGeom = new THREE.TorusGeometry(3.2, 0.009, 16, 110);
+            const ring = new THREE.Mesh(ringGeom, new THREE.MeshBasicMaterial({ color: 0xC9A84C, transparent: true, opacity: 0.33 }));
             ring.rotation.x = Math.PI / 2;
             scene.add(ring);
 
-            // بارالاكس بالماوس
             const mouse = { x: 0, y: 0 };
             const targetRotation = { x: 0, y: 0 };
             const currentRotation = { x: 0, y: 0 };
@@ -1147,15 +1128,15 @@
             document.addEventListener('mousemove', (e) => {
                 mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
                 mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-                targetRotation.y = mouse.x * 0.18;
-                targetRotation.x = mouse.y * 0.09;
+                targetRotation.y = mouse.x * 0.16;
+                targetRotation.x = mouse.y * 0.08;
             });
             document.addEventListener('touchmove', (e) => {
                 const touch = e.touches[0];
                 mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
                 mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
-                targetRotation.y = mouse.x * 0.13;
-                targetRotation.x = mouse.y * 0.06;
+                targetRotation.y = mouse.x * 0.12;
+                targetRotation.x = mouse.y * 0.05;
             }, { passive: true });
 
             function animate() {
@@ -1163,13 +1144,13 @@
                 const t = performance.now() * 0.0005;
                 currentRotation.y += (targetRotation.y - currentRotation.y) * 0.04;
                 currentRotation.x += (targetRotation.x - currentRotation.x) * 0.04;
-                logoPlane.rotation.y = currentRotation.y + Math.sin(t * 0.7) * 0.04;
-                logoPlane.rotation.x = currentRotation.x + Math.cos(t * 0.6) * 0.03;
-                logoPlane.position.y = Math.sin(t * 1.2) * 0.1;
+                logoPlane.rotation.y = currentRotation.y + Math.sin(t * 0.7) * 0.03;
+                logoPlane.rotation.x = currentRotation.x + Math.cos(t * 0.6) * 0.02;
+                logoPlane.position.y = Math.sin(t * 0.8) * 0.04; // subtle vertical movement
                 particlesGroup.rotation.y -= 0.002;
                 particlesGroup.rotation.x += 0.001;
                 ring.rotation.z += 0.002;
-                ring.rotation.x = Math.PI / 2 + Math.sin(t * 0.7) * 0.06;
+                ring.rotation.x = Math.PI / 2 + Math.sin(t * 0.7) * 0.05;
                 renderer.render(scene, camera);
             }
             animate();
@@ -1183,7 +1164,7 @@
             });
         })();
 
-        // GSAP + scripts as before
+        // GSAP + other scripts
         (function(){if(typeof gsap==='undefined'||typeof ScrollTrigger==='undefined')return;gsap.registerPlugin(ScrollTrigger);document.querySelectorAll('.section:not(#hero):not(.section-dark),.section-dark').forEach(s=>{const k=s.querySelectorAll('.glass-card,.case-study,.principle-item,.price-card,.scroller-card,.section-title,.section-subtitle,.grid-3>*,.pricing-grid>*,.principles-grid>*');if(k.length)gsap.fromTo(k,{opacity:0,y:42,scale:0.96},{opacity:1,y:0,scale:1,duration:0.68,stagger:0.08,ease:'power3.out',scrollTrigger:{trigger:s,start:'top 78%',toggleActions:'play none none none'}});});document.querySelectorAll('tbody tr').forEach((r,i)=>gsap.fromTo(r,{opacity:0,x:-28},{opacity:1,x:0,duration:0.48,delay:i*0.11,ease:'power3.out',scrollTrigger:{trigger:'table',start:'top 80%',toggleActions:'play none none none'}}));document.querySelectorAll('.principle-item').forEach((item,i)=>gsap.fromTo(item,{opacity:0,x:-45},{opacity:1,x:0,duration:0.52,delay:i*0.09,ease:'power3.out',scrollTrigger:{trigger:item,start:'top 82%',toggleActions:'play none none none'}}));})();
         (function(){const n=document.getElementById('cerebro-nav'),h=document.getElementById('hero');if(h)new IntersectionObserver(e=>n.classList.toggle('scrolled',!e[0].isIntersecting),{threshold:0.08}).observe(h);window.addEventListener('scroll',()=>n.classList.toggle('scrolled',window.scrollY>60),{passive:true});const hb=document.getElementById('navHamburger'),nl=document.getElementById('navLinks');if(hb&&nl){hb.addEventListener('click',()=>nl.classList.toggle('open'));nl.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>nl.classList.remove('open')));}})();
         document.querySelectorAll('.tilt-card').forEach(card=>{card.addEventListener('mousemove',e=>{const r=card.getBoundingClientRect();const rx=((r.height/2-(e.clientY-r.top))/(r.height/2))*5;const ry=(((e.clientX-r.left)-r.width/2)/(r.width/2))*5;card.style.transform=`perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(6px)`;card.style.transition='transform 0.1s ease-out';});card.addEventListener('mouseleave',()=>{card.style.transform='perspective(1000px) rotateX(0) rotateY(0) translateZ(0)';card.style.transition='transform 0.5s cubic-bezier(0.22,0.61,0.36,1)';});});
