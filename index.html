@@ -37,8 +37,9 @@
             --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
             --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-            --bg-url: url('https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D%20Background.png');
-            --logo-url: url('https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png');
+            --bg-url: url('https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Seamless%2C%20tileable%20background%20pattern.png');
+            --logo-url: url('https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Primary%20Logo.png');
+            --engine-icon-url: url('https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Engine%20-%20Background%20system%2C%20pattern%2C%20visual%20language.png');
         }
 
         * {
@@ -67,7 +68,7 @@
             inset: -40px;
             background-image: var(--bg-url);
             background-repeat: repeat;
-            background-size: 380px;
+            background-size: 420px;
             opacity: 0.10;
             z-index: -2;
             pointer-events: none;
@@ -78,7 +79,7 @@
                 background-position: 0 0;
             }
             100% {
-                background-position: 760px 760px;
+                background-position: 840px 840px;
             }
         }
 
@@ -114,6 +115,7 @@
             height: 38px;
             object-fit: contain;
             transition: transform 0.35s var(--ease-out);
+            border-radius: 6px;
         }
         .nav-logo-img:hover {
             transform: scale(1.08);
@@ -904,7 +906,7 @@
 <body>
     <nav id="cerebro-nav">
         <a href="#hero" class="nav-logo-link">
-            <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png" alt="CEREBRO-X" class="nav-logo-img">
+            <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Engine%20-%20Background%20system%2C%20pattern%2C%20visual%20language.png" alt="CEREBRO-X" class="nav-logo-img">
         </a>
         <button class="nav-hamburger" id="navHamburger"><i class="fas fa-bars"></i></button>
         <ul class="nav-links" id="navLinks">
@@ -1073,7 +1075,7 @@
             const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
             scene.add(ambientLight);
 
-            const logoUrl = 'https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/CEREBRO%20%5BX%5D.images/CEREBRO%20%5BX%5D.png';
+            const logoUrl = 'https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Primary%20Logo.png';
             const textureLoader = new THREE.TextureLoader();
             const logoPlane = new THREE.Mesh(
                 new THREE.PlaneGeometry(1, 1),
