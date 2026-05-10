@@ -1,0 +1,2 @@
+Drug,ML_Success_Probability,Half_Life_Days,Docking_Affinity_kcal,MW_Da,ADMET_BBB_Score,ADMET_Hepatotox_Risk,ADMET_Overall_Flag
+Donepezil,72.65435178620459,2.92,-7.194,379.5,0.0,MODERATE,REVIEW

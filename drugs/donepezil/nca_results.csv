@@ -1,0 +1,2 @@
+Cmax,tmax_h,AUC_0_t,AUC_0_inf,AUC_0_t_pct,lambda_z_per_h,t_half_h,MRT_h,CL_apparent,Vd_ss,Vd_z,R2_terminal,n_terminal_pts,method,Drug,Organ
+811.067194,0.0,92.150559,182.009076,50.63,0.006921,100.1494,99.7828,0.121,12.0737,17.4827,1.0,4,Linear-log trapezoidal NCA (FDA 2003),Donepezil,blood

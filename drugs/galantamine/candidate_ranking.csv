@@ -1,0 +1,2 @@
+Drug,ML_Success_Probability,Half_Life_Days,Docking_Affinity_kcal,MW_Da,ADMET_BBB_Score,ADMET_Hepatotox_Risk,ADMET_Overall_Flag
+Lecanemab,70.06788850122507,0.21,-9.193,86943.0,0.0,LOW,REVIEW

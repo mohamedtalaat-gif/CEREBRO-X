@@ -1,0 +1,2 @@
+Cmax,tmax_h,AUC_0_t,AUC_0_inf,AUC_0_t_pct,lambda_z_per_h,t_half_h,MRT_h,CL_apparent,Vd_ss,Vd_z,R2_terminal,n_terminal_pts,method,Drug,Organ
+125.43395,0.0,479.633146,674.525078,71.11,0.025469,27.2154,38.5259,0.0327,1.2598,1.2839,1.0,4,Linear-log trapezoidal NCA (FDA 2003),Lecanemab,blood
