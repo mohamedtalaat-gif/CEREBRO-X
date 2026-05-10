@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CEREBRO-X · C03 PK · Galantamine + Mannose-Liposome</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#020817;color:#F1F5F9;
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-feature-settings:'cv11','ss03';-webkit-font-smoothing:antialiased;
+  letter-spacing:-0.011em}
+body{background:radial-gradient(ellipse 120% 80% at 50% 40%,#0a1628 0%,#020817 70%)}
+canvas{display:block}
+
+/* Header bar */
+.cere-header{position:fixed;top:0;left:0;right:0;height:56px;display:flex;
+  align-items:center;justify-content:space-between;padding:0 32px;
+  background:linear-gradient(180deg,rgba(2,8,23,0.95) 0%,rgba(2,8,23,0) 100%);
+  z-index:100;backdrop-filter:blur(8px)}
+.cere-header .logo{font-size:13px;font-weight:600;letter-spacing:3px;
+  color:#94A3B8;display:flex;align-items:center;gap:14px}
+.cere-header .logo .badge{padding:4px 10px;border-radius:4px;background:rgba(255,255,255,0.06);
+  font-weight:500;letter-spacing:2px;color:#E2E8F0;font-size:10px}
+.cere-header .scene-label{font-size:11px;letter-spacing:4px;color:#64748B;
+  font-weight:500;text-transform:uppercase}
+
+/* Glassmorphism panels */
+.glass{background:rgba(15,23,42,0.55);border:1px solid rgba(148,163,184,0.10);
+  border-radius:10px;backdrop-filter:blur(20px) saturate(140%);
+  -webkit-backdrop-filter:blur(20px) saturate(140%);
+  box-shadow:0 8px 32px rgba(0,0,0,0.4),
+             0 1px 0 rgba(255,255,255,0.04) inset}
+.glass-strong{background:rgba(15,23,42,0.78)}
+
+/* Info card variants */
+.info-card{padding:14px 18px}
+.info-card .eyebrow{font-size:10px;letter-spacing:3px;text-transform:uppercase;
+  color:#94A3B8;font-weight:500;margin-bottom:6px}
+.info-card .title{font-size:18px;font-weight:300;letter-spacing:-0.4px;
+  color:#F8FAFC;margin-bottom:4px;line-height:1.2}
+.info-card .body{font-size:11px;color:#94A3B8;line-height:1.5}
+.info-card .body b{color:#F1F5F9;font-weight:500}
+.info-card.accent-left{border-left:2px solid var(--accent)}
+.info-card.accent-right{border-right:2px solid var(--accent)}
+
+/* Stat pill row */
+.stat-row{position:fixed;left:0;right:0;display:flex;gap:10px;justify-content:center;
+  flex-wrap:wrap;padding:0 32px;z-index:50}
+.stat-pill{padding:7px 14px;border-radius:18px;background:rgba(15,23,42,0.65);
+  border:1px solid rgba(148,163,184,0.10);font-size:11px;color:#CBD5E1;
+  backdrop-filter:blur(12px);font-feature-settings:'tnum'}
+.stat-pill b{color:#F8FAFC;margin-left:5px;font-weight:600}
+
+/* Verdict block */
+.verdict{padding:32px 40px;text-align:center;background:rgba(0,0,0,0.45);
+  backdrop-filter:blur(12px);border-top:1px solid rgba(148,163,184,0.08)}
+.verdict .score{font-size:54px;font-weight:200;line-height:1;
+  letter-spacing:-2px;font-feature-settings:'tnum'}
+.verdict .score sup{font-size:22px;color:#64748B;font-weight:300;margin-left:4px}
+.verdict .verdict-text{font-size:13px;letter-spacing:5px;text-transform:uppercase;
+  margin-top:10px;font-weight:600}
+.verdict .meta{font-size:11px;color:#64748B;margin-top:8px;letter-spacing:0.5px}
+
+/* Loading ramp on first paint */
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn 1.2s ease-out forwards}
+.fade-in-2{animation:fadeIn 1.2s ease-out 0.4s forwards;opacity:0}
+.fade-in-3{animation:fadeIn 1.2s ease-out 0.8s forwards;opacity:0}
+
+.stage{position:fixed;top:56px;left:0;right:0;bottom:120px}
+.legend{position:fixed;bottom:32px;left:32px;right:32px;display:flex;
+  gap:32px;justify-content:center;align-items:center;flex-wrap:wrap;z-index:50}
+.legend-item{display:flex;align-items:center;gap:10px;font-size:12px;color:#CBD5E1}
+.legend-item .swatch{width:22px;height:3px;border-radius:2px}
+.legend-item b{color:#F8FAFC;font-weight:500}
+.pk-stats{position:fixed;top:80px;right:32px;z-index:50;max-width:280px}
+.pk-stats .info-card{padding:14px 18px;--accent:#FFD166}
+.pk-stats table{width:100%;font-size:11px;color:#CBD5E1;
+  border-collapse:collapse;margin-top:6px;font-feature-settings:'tnum'}
+.pk-stats td{padding:4px 0}
+.pk-stats td:last-child{text-align:right;color:#F8FAFC;font-weight:500}
+.pk-title{position:fixed;top:80px;left:32px;z-index:50;max-width:340px}
+.pk-title .info-card{padding:14px 18px;--accent:#FFD166}
+</style></head><body>
+<div class="cere-header">
+  <div class="logo">CEREBRO-X<span class="badge">v22.1</span></div>
+  <div class="scene-label">C03 · PHARMACOKINETICS</div>
+</div>
+
+<div class="pk-title">
+  <div class="info-card glass accent-left fade-in">
+    <div class="eyebrow">Time Course · small molecule</div>
+    <div class="title">Galantamine + Mannose-Liposome</div>
+    <div class="body">First-order absorption + elimination<br/>Brain ISF lagged + BBB%-scaled</div>
+  </div>
+</div>
+
+<div class="pk-stats">
+  <div class="info-card glass accent-right fade-in-2">
+    <div class="eyebrow">PK Parameters</div>
+    <table>
+      <tr><td>Half-life</td><td>0.71 d</td></tr>
+      <tr><td>Plasma C_max</td><td>90.39 μg/mL</td></tr>
+      <tr><td>Brain C_max</td><td>286.7853 μg/mL</td></tr>
+      <tr><td>AUC plasma</td><td>2126.9</td></tr>
+      <tr><td>AUC brain</td><td>7644.11</td></tr>
+      <tr><td>Brain/Plasma</td><td>359.41%</td></tr>
+    </table>
+  </div>
+</div>
+
+<canvas id="c8bccf737" class="stage"></canvas>
+
+<div class="legend">
+  <div class="legend-item"><div class="swatch" style="background:#EF4444"></div><b>Plasma</b> (systemic)</div>
+  <div class="legend-item"><div class="swatch" style="background:#FFD166"></div><b>Brain ISF</b> (CNS)</div>
+  <div class="legend-item"><div class="swatch" style="background:#94A3B8;opacity:0.5"></div>Therapeutic threshold</div>
+</div>
+
+<div style="position:fixed;top:54%;left:50%;transform:translate(-50%,0);
+              max-width:580px;z-index:30">
+  <div class="info-card glass accent-left fade-in-3"
+        style="--accent:#FFD166;padding:14px 18px;font-size:11px;
+                color:#94A3B8;line-height:1.5">
+    <div style="font-size:12px;color:#FFD166;letter-spacing:2px;
+                  font-weight:600;margin-bottom:6px;text-transform:uppercase">
+      Pharmacokinetic Notes — Stealth liposome / SLN for sustained release · PLGA for prot
+    </div>
+    <em style="color:#CBD5E1;font-style:normal">Lipophilic + low MW + few HBD favors transit · Wager CNS-MPO ≥4 ideal</em>
+  </div>
+</div>
+
+<script>
+// ── DPI-aware canvas setup ──────────────────────────────────────────
+function setupCanvas(canvasId){
+  const cnv = document.getElementById(canvasId);
+  const ctx = cnv.getContext('2d', {alpha: false});
+  const dpr = window.devicePixelRatio || 1;
+  function resize(){
+    const w = cnv.offsetWidth || window.innerWidth;
+    const h = cnv.offsetHeight || window.innerHeight;
+    cnv.width = w * dpr;
+    cnv.height = h * dpr;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  return {cnv, ctx, getW: () => cnv.offsetWidth || window.innerWidth,
+                     getH: () => cnv.offsetHeight || window.innerHeight};
+}
+
+// ── Easing ──────────────────────────────────────────────────────────
+const easeOutCubic = t => 1 - Math.pow(1-t, 3);
+const easeInOutCubic = t => t<0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+const easeOutExpo = t => t===1 ? 1 : 1 - Math.pow(2, -10*t);
+
+// ── Atmospheric haze (depth-of-field illusion) ──────────────────────
+function drawAtmosphere(ctx, W, H, t, density){
+  density = density || 40;
+  for(let i=0;i<density;i++){
+    const seed = i*73.31;
+    const x = ((seed + t*0.015) % W);
+    const y = H*0.5 + Math.sin(seed*0.1 + t*0.0008)*H*0.4;
+    const z = 0.3 + 0.7*Math.sin(seed*0.07);    // depth
+    const r = 1.2 + z*1.8;
+    ctx.fillStyle = "rgba(148,163,184," + (0.012 + z*0.025) + ")";
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+// ── Drug shape primitives ───────────────────────────────────────────
+function drawDrugDiamond(ctx, x, y, size, primary, secondary, glow, t, rot){
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot || t*0.001);
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 14;
+  // Multi-stop gradient for jewel look
+  const g = ctx.createLinearGradient(-size, -size, size, size);
+  g.addColorStop(0, primary);
+  g.addColorStop(0.5, secondary);
+  g.addColorStop(1, primary);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(0, -size);
+  ctx.lineTo(size, 0);
+  ctx.lineTo(0, size);
+  ctx.lineTo(-size, 0);
+  ctx.closePath();
+  ctx.fill();
+  // Inner highlight (shine)
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.beginPath();
+  ctx.moveTo(0, -size*0.6);
+  ctx.lineTo(size*0.3, -size*0.2);
+  ctx.lineTo(0, 0);
+  ctx.lineTo(-size*0.3, -size*0.2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawDrugY(ctx, x, y, size, primary, secondary, glow, t, rot){
+  // Y-shape for IgG antibody
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot || 0);
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 16;
+  ctx.strokeStyle = primary;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, size);                          // Fc stem
+  ctx.lineTo(0, 0);
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-size*0.7, -size*0.7);             // Fab arm 1
+  ctx.moveTo(0, 0);
+  ctx.lineTo(size*0.7, -size*0.7);              // Fab arm 2
+  ctx.stroke();
+  // Knobs at tips (CDR loops)
+  ctx.fillStyle = secondary;
+  [[0, size], [-size*0.7, -size*0.7], [size*0.7, -size*0.7]].forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p[0], p[1], 4, 0, Math.PI*2);
+    ctx.fill();
+  });
+  // Hinge region dot
+  ctx.fillStyle = primary;
+  ctx.beginPath();
+  ctx.arc(0, 0, 3, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawDrugHelix(ctx, x, y, size, primary, secondary, glow, t, rot){
+  // Double helix for oligonucleotides
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot || 0);
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 12;
+  for(let i=0;i<8;i++){
+    const u = i/7;
+    const yp = (u-0.5)*size*2.2;
+    const phaseShift = t*0.002;
+    const x1 = Math.sin(u*Math.PI*4 + phaseShift)*size*0.45;
+    const x2 = -x1;
+    // Backbone strands
+    ctx.fillStyle = primary;
+    ctx.beginPath();
+    ctx.arc(x1, yp, 2.5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = secondary;
+    ctx.beginPath();
+    ctx.arc(x2, yp, 2.5, 0, Math.PI*2);
+    ctx.fill();
+    // Base pairs (rungs)
+    if(i%2===0){
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x1, yp);
+      ctx.lineTo(x2, yp);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawDrugBlob(ctx, x, y, size, primary, secondary, glow, t){
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 18;
+  const grad = ctx.createRadialGradient(-size*0.3, -size*0.3, 0, 0, 0, size);
+  grad.addColorStop(0, primary);
+  grad.addColorStop(1, secondary);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  for(let a=0; a<Math.PI*2; a+=0.08){
+    const r = size*(1 + 0.18*Math.sin(a*3 + t*0.0012) + 0.10*Math.sin(a*5 + t*0.0017));
+    const px = Math.cos(a)*r;
+    const py = Math.sin(a)*r;
+    if(a===0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawDrugChain(ctx, x, y, size, primary, secondary, glow, t){
+  // Linear peptide chain
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 10;
+  for(let i=0;i<7;i++){
+    const u = i/6;
+    const xp = (u-0.5)*size*2;
+    const yp = Math.sin(u*Math.PI*2 + t*0.002)*size*0.3;
+    ctx.fillStyle = (i%2===0) ? primary : secondary;
+    ctx.beginPath();
+    ctx.arc(xp, yp, 3.5, 0, Math.PI*2);
+    ctx.fill();
+    if(i>0){
+      const u0 = (i-1)/6;
+      const xp0 = (u0-0.5)*size*2;
+      const yp0 = Math.sin(u0*Math.PI*2 + t*0.002)*size*0.3;
+      ctx.strokeStyle = "rgba(255,255,255,0.3)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(xp0, yp0);
+      ctx.lineTo(xp, yp);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawDrugCell(ctx, x, y, size, primary, secondary, glow, t){
+  // Cell with nucleus
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 16;
+  // Cytoplasm
+  const grad = ctx.createRadialGradient(-size*0.3, -size*0.3, 0, 0, 0, size);
+  grad.addColorStop(0, primary + "AA");
+  grad.addColorStop(1, secondary + "60");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(0, 0, size, 0, Math.PI*2);
+  ctx.fill();
+  // Nucleus
+  ctx.fillStyle = secondary;
+  ctx.beginPath();
+  ctx.arc(0, 0, size*0.4, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// Universal drug-shape dispatcher
+function drawDrug(ctx, shape, x, y, size, primary, secondary, glow, t, rot){
+  switch(shape){
+    case "y_shape":            drawDrugY(ctx, x, y, size, primary, secondary, glow, t, rot); break;
+    case "double_helix":       drawDrugHelix(ctx, x, y, size, primary, secondary, glow, t, rot); break;
+    case "blob":               drawDrugBlob(ctx, x, y, size, primary, secondary, glow, t); break;
+    case "chain":              drawDrugChain(ctx, x, y, size, primary, secondary, glow, t); break;
+    case "circle_with_nucleus":drawDrugCell(ctx, x, y, size, primary, secondary, glow, t); break;
+    default:                   drawDrugDiamond(ctx, x, y, size, primary, secondary, glow, t, rot);
+  }
+}
+
+// ── DDS shape primitives ────────────────────────────────────────────
+function drawDDSBilayer(ctx, cx, cy, R, outer, inner, highlight, t){
+  // Outer glow halo
+  const halo = ctx.createRadialGradient(cx, cy, R*0.95, cx, cy, R*1.4);
+  halo.addColorStop(0, outer + "30");
+  halo.addColorStop(1, "transparent");
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(cx, cy, R*1.4, 0, Math.PI*2); ctx.fill();
+  // Outer leaflet
+  const og = ctx.createRadialGradient(cx-R*0.3, cy-R*0.3, R*0.4, cx, cy, R);
+  og.addColorStop(0, highlight + "AA");
+  og.addColorStop(0.7, outer + "60");
+  og.addColorStop(1, outer + "30");
+  ctx.fillStyle = og;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.fill();
+  // Bilayer rings (lipid headgroups)
+  ctx.strokeStyle = outer;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.arc(cx, cy, R-3, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, R-9, 0, Math.PI*2); ctx.stroke();
+  // Aqueous core
+  ctx.fillStyle = inner + "30";
+  ctx.beginPath(); ctx.arc(cx, cy, R-12, 0, Math.PI*2); ctx.fill();
+  // Phospholipid head dots (simulated)
+  ctx.fillStyle = highlight;
+  for(let i=0;i<24;i++){
+    const a = i*Math.PI*2/24 + t*0.0003;
+    const px = cx + Math.cos(a)*(R-3);
+    const py = cy + Math.sin(a)*(R-3);
+    ctx.beginPath(); ctx.arc(px, py, 1.2, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function drawDDSCapsid(ctx, cx, cy, R, outer, inner, highlight, t){
+  const sides = 12;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(t*0.0003);
+  // Outer halo
+  const halo = ctx.createRadialGradient(0, 0, R*0.9, 0, 0, R*1.3);
+  halo.addColorStop(0, outer + "40");
+  halo.addColorStop(1, "transparent");
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(0, 0, R*1.3, 0, Math.PI*2); ctx.fill();
+  // Capsid faces
+  const grad = ctx.createRadialGradient(-R*0.3, -R*0.3, 0, 0, 0, R);
+  grad.addColorStop(0, highlight);
+  grad.addColorStop(0.6, outer);
+  grad.addColorStop(1, inner);
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = outer;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for(let i=0;i<sides;i++){
+    const a = i*Math.PI*2/sides;
+    const x = Math.cos(a)*R; const y = Math.sin(a)*R;
+    if(i===0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Inner triangulation (faceted look)
+  ctx.strokeStyle = "rgba(255,255,255,0.15)";
+  ctx.lineWidth = 1;
+  for(let i=0;i<sides;i++){
+    const a = i*Math.PI*2/sides;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(a)*R, Math.sin(a)*R);
+    ctx.stroke();
+  }
+  // Spike proteins (capsid surface)
+  for(let i=0;i<sides;i++){
+    const a = i*Math.PI*2/sides + Math.PI/sides;
+    const x = Math.cos(a)*R; const y = Math.sin(a)*R;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI*2);
+    ctx.fillStyle = highlight;
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawDDSPLGA(ctx, cx, cy, R, outer, inner, highlight, t){
+  // Outer halo
+  const halo = ctx.createRadialGradient(cx, cy, R*0.95, cx, cy, R*1.35);
+  halo.addColorStop(0, outer + "30");
+  halo.addColorStop(1, "transparent");
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(cx, cy, R*1.35, 0, Math.PI*2); ctx.fill();
+  // Sphere with depth gradient
+  const grad = ctx.createRadialGradient(cx-R*0.3, cy-R*0.3, R*0.1, cx, cy, R);
+  grad.addColorStop(0, highlight);
+  grad.addColorStop(0.5, outer);
+  grad.addColorStop(1, inner);
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.fill();
+  // Pore texture
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  for(let i=0;i<28;i++){
+    const seed = i*73.31;
+    const a = seed % (Math.PI*2);
+    const r = R*(0.3 + 0.5*((seed*0.13) % 1));
+    const px = cx + Math.cos(a + t*0.0003)*r;
+    const py = cy + Math.sin(a + t*0.0003)*r;
+    const dotR = 1 + 1.5*((seed*0.07) % 1);
+    ctx.beginPath(); ctx.arc(px, py, dotR, 0, Math.PI*2); ctx.fill();
+  }
+  // Edge highlight ring
+  ctx.strokeStyle = highlight + "80";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(cx, cy, R-1, 0, Math.PI*2); ctx.stroke();
+}
+
+function drawDDSLNP(ctx, cx, cy, R, outer, inner, highlight, t){
+  // Outer halo
+  const halo = ctx.createRadialGradient(cx, cy, R, cx, cy, R*1.4);
+  halo.addColorStop(0, outer + "40"); halo.addColorStop(1, "transparent");
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(cx, cy, R*1.4, 0, Math.PI*2); ctx.fill();
+  // Outer lipid shell (PEG corona)
+  const og = ctx.createRadialGradient(cx, cy, R*0.6, cx, cy, R);
+  og.addColorStop(0, outer + "AA"); og.addColorStop(1, outer);
+  ctx.fillStyle = og;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.fill();
+  // Inner ionizable lipid core
+  const ig = ctx.createRadialGradient(cx-R*0.2, cy-R*0.2, 0, cx, cy, R*0.7);
+  ig.addColorStop(0, highlight); ig.addColorStop(1, inner);
+  ctx.fillStyle = ig;
+  ctx.beginPath(); ctx.arc(cx, cy, R*0.7, 0, Math.PI*2); ctx.fill();
+  // PEG corona "hairs" — wisps
+  ctx.strokeStyle = highlight + "50";
+  ctx.lineWidth = 1.2;
+  for(let i=0;i<28;i++){
+    const a = i*Math.PI*2/28 + t*0.0002;
+    const x1 = cx + Math.cos(a)*R;
+    const y1 = cy + Math.sin(a)*R;
+    const x2 = cx + Math.cos(a)*(R + 8 + Math.sin(t*0.002 + i)*3);
+    const y2 = cy + Math.sin(a)*(R + 8 + Math.sin(t*0.002 + i)*3);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+}
+
+function drawDDSGeneric(ctx, cx, cy, R, outer, inner, highlight, t){
+  const halo = ctx.createRadialGradient(cx, cy, R*0.95, cx, cy, R*1.35);
+  halo.addColorStop(0, outer + "20"); halo.addColorStop(1, "transparent");
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(cx, cy, R*1.35, 0, Math.PI*2); ctx.fill();
+  const grad = ctx.createRadialGradient(cx-R*0.3, cy-R*0.3, 0, cx, cy, R);
+  grad.addColorStop(0, highlight);
+  grad.addColorStop(0.5, outer);
+  grad.addColorStop(1, inner);
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.fill();
+}
+
+function drawDDS(ctx, shape, cx, cy, R, outer, inner, highlight, t){
+  switch(shape){
+    case "bilayer_vesicle":     drawDDSBilayer(ctx, cx, cy, R, outer, inner, highlight, t); break;
+    case "icosahedral_capsid":  drawDDSCapsid(ctx, cx, cy, R, outer, inner, highlight, t); break;
+    case "sphere_with_pores":   drawDDSPLGA(ctx, cx, cy, R, outer, inner, highlight, t); break;
+    case "core_shell_lipid":    drawDDSLNP(ctx, cx, cy, R, outer, inner, highlight, t); break;
+    default:                    drawDDSGeneric(ctx, cx, cy, R, outer, inner, highlight, t);
+  }
+}
+
+const {cnv,ctx,getW,getH} = setupCanvas('c8bccf737');
+const TIMES  = [0.0, 0.256, 0.512, 0.769, 1.025, 1.281, 1.537, 1.793, 2.05, 2.306, 2.562, 2.818, 3.074, 3.331, 3.587, 3.843, 4.099, 4.355, 4.612, 4.868, 5.124, 5.38, 5.636, 5.893, 6.149, 6.405, 6.661, 6.917, 7.174, 7.43, 7.686, 7.942, 8.198, 8.455, 8.711, 8.967, 9.223, 9.479, 9.735, 9.992, 10.248, 10.504, 10.76, 11.016, 11.273, 11.529, 11.785, 12.041, 12.297, 12.554, 12.81, 13.066, 13.322, 13.578, 13.835, 14.091, 14.347, 14.603, 14.859, 15.116, 15.372, 15.628, 15.884, 16.14, 16.397, 16.653, 16.909, 17.165, 17.421, 17.678, 17.934, 18.19, 18.446, 18.702, 18.959, 19.215, 19.471, 19.727, 19.983, 20.24, 20.496, 20.752, 21.008, 21.264, 21.521, 21.777, 22.033, 22.289, 22.545, 22.802, 23.058, 23.314, 23.57, 23.826, 24.083, 24.339, 24.595, 24.851, 25.107, 25.364, 25.62, 25.876, 26.132, 26.388, 26.644, 26.901, 27.157, 27.413, 27.669, 27.925, 28.182, 28.438, 28.694, 28.95, 29.206, 29.463, 29.719, 29.975, 30.231, 30.487, 30.744, 31.0, 31.256, 31.512, 31.768, 32.025, 32.281, 32.537, 32.793, 33.049, 33.306, 33.562, 33.818, 34.074, 34.33, 34.587, 34.843, 35.099, 35.355, 35.611, 35.868, 36.124, 36.38, 36.636, 36.892, 37.149, 37.405, 37.661, 37.917, 38.173, 38.43, 38.686, 38.942, 39.198, 39.454, 39.711, 39.967, 40.223, 40.479, 40.735, 40.992, 41.248, 41.504, 41.76, 42.016, 42.273, 42.529, 42.785, 43.041, 43.297, 43.553, 43.81, 44.066, 44.322, 44.578, 44.834, 45.091, 45.347, 45.603, 45.859, 46.115, 46.372, 46.628, 46.884, 47.14, 47.396, 47.653, 47.909, 48.165, 48.421, 48.677, 48.934, 49.19, 49.446, 49.702, 49.958, 50.215, 50.471, 50.727, 50.983];
+const PLASMA = [0.0, 31.7303, 53.0065, 67.1677, 76.4875, 82.514, 86.3013, 88.5671, 89.8002, 90.3332, 90.3928, 90.1332, 89.6593, 89.0425, 88.3316, 87.5596, 86.749, 85.915, 85.0681, 84.2152, 83.3612, 82.5092, 81.6614, 80.8193, 79.9838, 79.1555, 78.3348, 77.522, 76.7171, 75.9203, 75.1316, 74.3509, 73.5782, 72.8135, 72.0567, 71.3077, 70.5665, 69.833, 69.1071, 68.3888, 67.6779, 66.9744, 66.2782, 65.5892, 64.9074, 64.2327, 63.565, 62.9042, 62.2503, 61.6032, 60.9629, 60.3292, 59.702, 59.0814, 58.4673, 57.8595, 57.2581, 56.6629, 56.0738, 55.491, 54.9141, 54.3433, 53.7784, 53.2194, 52.6661, 52.1187, 51.5769, 51.0408, 50.5102, 49.9851, 49.4655, 48.9513, 48.4425, 47.9389, 47.4406, 46.9474, 46.4594, 45.9765, 45.4985, 45.0256, 44.5575, 44.0944, 43.636, 43.1824, 42.7335, 42.2893, 41.8497, 41.4147, 40.9842, 40.5581, 40.1365, 39.7193, 39.3064, 38.8978, 38.4935, 38.0933, 37.6974, 37.3055, 36.9177, 36.5339, 36.1542, 35.7783, 35.4064, 35.0384, 34.6742, 34.3137, 33.957, 33.604, 33.2547, 32.909, 32.5669, 32.2284, 31.8934, 31.5619, 31.2338, 30.9091, 30.5878, 30.2698, 29.9552, 29.6438, 29.3356, 29.0307, 28.7289, 28.4303, 28.1348, 27.8423, 27.5529, 27.2665, 26.983, 26.7025, 26.425, 26.1503, 25.8784, 25.6094, 25.3432, 25.0798, 24.8191, 24.5611, 24.3058, 24.0531, 23.8031, 23.5556, 23.3108, 23.0684, 22.8287, 22.5913, 22.3565, 22.1241, 21.8941, 21.6665, 21.4413, 21.2184, 20.9979, 20.7796, 20.5636, 20.3498, 20.1383, 19.929, 19.7218, 19.5168, 19.3139, 19.1131, 18.9145, 18.7178, 18.5233, 18.3307, 18.1402, 17.9516, 17.765, 17.5803, 17.3976, 17.2167, 17.0378, 16.8606, 16.6854, 16.5119, 16.3403, 16.1704, 16.0023, 15.836, 15.6714, 15.5085, 15.3473, 15.1877, 15.0298, 14.8736, 14.719, 14.566, 14.4146, 14.2647, 14.1165, 13.9697, 13.8245, 13.6808, 13.5386, 13.3978, 13.2586, 13.1208, 12.9844, 12.8494];
+const BRAIN  = [0.0, 0.0, 1.04854, 27.36853, 57.93075, 88.55629, 117.22328, 143.09002, 165.93791, 185.85901, 203.08454, 217.89388, 230.56857, 241.371, 250.53638, 258.27121, 264.75501, 270.14321, 274.57032, 278.15297, 280.99255, 283.17751, 284.78524, 285.88373, 286.53281, 286.7853, 286.68792, 286.28208, 285.60449, 284.68777, 283.56094, 282.24979, 280.77727, 279.16383, 277.42767, 275.58499, 273.65022, 271.63623, 269.55445, 267.41507, 265.22715, 262.99877, 260.73709, 258.44849, 256.13864, 253.81257, 251.47475, 249.12913, 246.77922, 244.42813, 242.07861, 239.73309, 237.39369, 235.06231, 232.74061, 230.43004, 228.13187, 225.84722, 223.57704, 221.32219, 219.08338, 216.86124, 214.6563, 212.46902, 210.29976, 208.14885, 206.01654, 203.90304, 201.80852, 199.73309, 197.67685, 195.63985, 193.62211, 191.62365, 189.64444, 187.68444, 185.74361, 183.82186, 181.91913, 180.0353, 178.17029, 176.32397, 174.49623, 172.68694, 170.89597, 169.12317, 167.36841, 165.63154, 163.91241, 162.21087, 160.52677, 158.85995, 157.21026, 155.57754, 153.96164, 152.36239, 150.77963, 149.21322, 147.66299, 146.12878, 144.61044, 143.10781, 141.62073, 140.14906, 138.69264, 137.2513, 135.82491, 134.41331, 133.01635, 131.63388, 130.26576, 128.91184, 127.57197, 126.24601, 124.93381, 123.63524, 122.35016, 121.07842, 119.81989, 118.57444, 117.34192, 116.12221, 114.91517, 113.72067, 112.53859, 111.36878, 110.21113, 109.06552, 107.9318, 106.80987, 105.6996, 104.60087, 103.51356, 102.43754, 101.37272, 100.31895, 99.27614, 98.24417, 97.22293, 96.2123, 95.21218, 94.22245, 93.24301, 92.27375, 91.31456, 90.36535, 89.426, 88.49641, 87.57649, 86.66613, 85.76524, 84.87371, 83.99144, 83.11835, 82.25433, 81.39929, 80.55314, 79.71579, 78.88714, 78.06711, 77.2556, 76.45252, 75.6578, 74.87133, 74.09304, 73.32284, 72.56064, 71.80637, 71.05994, 70.32127, 69.59028, 68.86688, 68.15101, 67.44258, 66.74151, 66.04773, 65.36116, 64.68173, 64.00936, 63.34398, 62.68551, 62.03389, 61.38905, 60.75091, 60.1194, 59.49445, 58.87601, 58.26399, 57.65833, 57.05897, 56.46584, 55.87887, 55.29801, 54.72318, 54.15433, 53.5914, 53.03431, 52.48302, 51.93745, 51.39756];
+const TMAX   = 50.98;
+const CMAX   = 90.3928;
+const DRUG_COLOR = "#FFD166";
+const DRUG_GLOW  = "rgba(255,209,102,0.7)";
+
+let progress = 0;
+let cycleCount = 0;
+
+function loop(){
+  const t = performance.now();
+  // Linear ramp 0→1 over 4s, then loop
+  progress = Math.min(1, progress + 0.0042);
+
+  const W = getW(); const H = getH();
+  ctx.fillStyle = "rgba(2,8,23,0.18)";
+  ctx.fillRect(0, 0, W, H);
+  drawAtmosphere(ctx, W, H, t, 30);
+
+  // Plot box
+  const padL = 90, padR = 50, padT = 30, padB = 50;
+  const pW = W - padL - padR;
+  const pH = H - padT - padB;
+
+  // Grid
+  ctx.strokeStyle = "rgba(148,163,184,0.08)";
+  ctx.lineWidth = 1;
+  for(let i=0; i<=10; i++){
+    const x = padL + pW*i/10;
+    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT+pH); ctx.stroke();
+    const y = padT + pH*i/10;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+pW, y); ctx.stroke();
+  }
+
+  // Therapeutic threshold (dashed at 40% Cmax)
+  const therY = padT + pH*0.6;
+  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = "rgba(148,163,184,0.45)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(padL, therY); ctx.lineTo(padL+pW, therY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(148,163,184,0.55)";
+  ctx.font = "9px 'Inter', sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("threshold (40% Cmax)", padL + 8, therY - 4);
+
+  // Axis labels
+  ctx.fillStyle = "#64748B";
+  ctx.font = "10px 'Inter', sans-serif";
+  ctx.textAlign = "center";
+  for(let i=0; i<=5; i++){
+    const tv = TMAX * i/5;
+    const x = padL + pW*i/5;
+    ctx.fillText(tv.toFixed(1) + " h", x, padT + pH + 18);
+  }
+  ctx.textAlign = "right";
+  for(let i=0; i<=5; i++){
+    const cv = CMAX * (1 - i/5);
+    const y = padT + pH*i/5;
+    ctx.fillText(cv.toFixed(2), padL - 10, y + 3);
+  }
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#94A3B8";
+  ctx.fillText("Time (hours)", padL + pW/2, padT + pH + 38);
+  ctx.save();
+  ctx.translate(20, padT + pH/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillText("Concentration (μg/mL)", 0, 0);
+  ctx.restore();
+
+  // Compute n_visible from progress
+  const nVis = Math.floor(TIMES.length * progress);
+
+  // Plasma curve (red)
+  ctx.strokeStyle = "#EF4444";
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = "rgba(239,68,68,0.5)";
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  for(let i=0; i<nVis; i++){
+    const x = padL + pW * TIMES[i]/TMAX;
+    const y = padT + pH * (1 - PLASMA[i]/CMAX);
+    if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Brain area fill
+  ctx.fillStyle = DRUG_COLOR + "20";
+  ctx.beginPath();
+  ctx.moveTo(padL, padT + pH);
+  for(let i=0; i<nVis; i++){
+    const x = padL + pW * TIMES[i]/TMAX;
+    const y = padT + pH * (1 - BRAIN[i]/CMAX);
+    ctx.lineTo(x, y);
+  }
+  if(nVis > 0){
+    ctx.lineTo(padL + pW * TIMES[nVis-1]/TMAX, padT + pH);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Brain curve (drug color)
+  ctx.strokeStyle = DRUG_COLOR;
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = DRUG_GLOW;
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  for(let i=0; i<nVis; i++){
+    const x = padL + pW * TIMES[i]/TMAX;
+    const y = padT + pH * (1 - BRAIN[i]/CMAX);
+    if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Tip markers (current point)
+  if(nVis > 0){
+    const i = nVis - 1;
+    const x = padL + pW * TIMES[i]/TMAX;
+    // Plasma marker
+    const yp = padT + pH * (1 - PLASMA[i]/CMAX);
+    ctx.fillStyle = "#EF4444";
+    ctx.shadowColor = "rgba(239,68,68,0.8)";
+    ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.arc(x, yp, 4, 0, Math.PI*2); ctx.fill();
+    // Brain marker
+    const yb = padT + pH * (1 - BRAIN[i]/CMAX);
+    ctx.fillStyle = DRUG_COLOR;
+    ctx.shadowColor = DRUG_GLOW;
+    ctx.beginPath(); ctx.arc(x, yb, 4, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // Cycle counter
+  if(progress >= 1){
+    progress = 0;
+    cycleCount++;
+  }
+
+  requestAnimationFrame(loop);
+}
+loop();
+</script></body></html>

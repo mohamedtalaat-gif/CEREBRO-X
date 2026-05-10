@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CEREBRO-X | V05 — Biodistribution | Lecanemab</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap">
+<style>
+:root {
+  --void-base:#060610; --void-elevated:#0a0a1a; --void-panel:#0f2040;
+  --gold:#C9A84C; --gold-light:#D4B563; --gold-dark:#B89A3F;
+  --neuro-positive:#0D6E6E; --alert-red:#C62828; --molecule-orange:#F57C00;
+  --text-primary:#E0E0E0; --text-secondary:#9CA3AF; --text-muted:#6B7280;
+  --hairline:#1F2937;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--void-base);
+       font-family: 'Inter','Segoe UI',Helvetica,Arial,sans-serif;
+       color: var(--text-primary); font-weight: 300;
+       line-height: 1.65; letter-spacing: 0.01em; }
+.container { max-width: 900px; margin: 0 auto; padding: 24px; }
+h2 { color: var(--gold); font-size: 1.4em; font-weight: 700;
+     margin-bottom: 6px; letter-spacing: -0.3px; }
+.subtitle { color: var(--text-secondary); font-size: .82em;
+            margin-bottom: 16px; font-weight: 400; }
+canvas { display: block; border-radius: 10px;
+         border: 1px solid var(--hairline); background: var(--void-elevated); }
+.ctrl { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+button { background: var(--void-panel); color: var(--text-primary);
+         border: 1px solid var(--hairline); padding: 8px 18px;
+         border-radius: 8px; cursor: pointer; font-family: inherit;
+         font-size: .85em; font-weight: 500; transition: all .2s ease; }
+button:hover { background: var(--void-elevated); border-color: var(--gold);
+               color: var(--gold); transform: translateY(-1px); }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+           gap: 10px; margin-top: 16px; }
+.metric { background: var(--void-panel); border: 1px solid var(--hairline);
+          border-radius: 10px; padding: 14px; text-align: center; }
+.metric-val { color: var(--gold); font-size: 1.5em; font-weight: 800;
+              letter-spacing: -0.4px; line-height: 1.1; }
+.metric-lbl { color: var(--text-muted); font-size: .68em; margin-top: 5px;
+              text-transform: uppercase; letter-spacing: 1.5px; font-weight: 500; }
+.progress { width: 100%; height: 6px; background: var(--hairline);
+            border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.progress-bar { height: 6px; background: linear-gradient(90deg,var(--gold-dark),var(--gold),var(--gold-light));
+                border-radius: 3px; transition: width .05s; }
+</style>
+
+</head>
+<body>
+<div class="container">
+  <h2>CEREBRO-X | V05 — Biodistribution | Lecanemab</h2>
+  <p class="subtitle">In-silico organ distribution | CNS target: 0.1% | CNS/off-target ratio: 0.0125 | No animal studies (3R principle)</p>
+  <canvas id="c05" width="860" height="300"></canvas>
+  <div class="progress"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+  <div class="ctrl">
+    <button onclick="anim.toggle()" id="playBtn">▶ Play</button>
+    <button onclick="anim.reset()">↺ Reset</button>
+    <button onclick="anim.step()">⏭ Step +1%</button>
+  </div>
+  <div class="metrics">
+  <div class="metric"><div class="metric-val">0.1%</div><div class="metric-lbl">Brain (Target)</div></div>
+  <div class="metric"><div class="metric-val">0.0125</div><div class="metric-lbl">CNS/Off-target</div></div>
+  <div class="metric"><div class="metric-val">7</div><div class="metric-lbl">Organs Modelled</div></div>
+  <div class="metric"><div class="metric-val">in-silico</div><div class="metric-lbl">No animal studies</div></div>
+</div>
+</div>
+<script>
+
+const C5=document.getElementById('c05');const X5=C5.getContext('2d');
+const W5=C5.width,H5=C5.height;
+const organs5=[["Brain (Target)", 0.1], ["Liver", 12.0], ["Spleen", 8.0], ["Lung", 6.0], ["Kidney", 4.0], ["Blood", 69.9], ["Other tissues", -0.1]];
+const colors5=["#C9A84C", "#F57C00", "#7C4DFF", "#C62828", "#0D6E6E", "#888", "#0D6E6E"];
+const cx5=W5*0.38,cy5=H5*0.5,R5=Math.min(W5,H5)*0.32;
+
+const anim5=(function(){
+  let t=0,playing=false;
+  function draw(p){
+    X5.fillStyle='#0a0a1a';X5.fillRect(0,0,W5,H5);
+    // Donut chart
+    let startAng=-Math.PI/2;
+    const total=organs5.reduce((s,[,v])=>s+v,0)||100;
+    organs5.forEach(([name,val],i)=>{
+      const sweep=(val/total)*Math.PI*2*p;
+      X5.beginPath();X5.moveTo(cx5,cy5);
+      X5.arc(cx5,cy5,R5,startAng,startAng+sweep);
+      X5.fillStyle=colors5[i];X5.fill();
+      // Label
+      const midAng=startAng+sweep/2;
+      if(sweep>0.2){
+        const lx=cx5+Math.cos(midAng)*(R5*0.65);
+        const ly=cy5+Math.sin(midAng)*(R5*0.65);
+        X5.fillStyle='white';X5.font='bold 9px monospace';X5.textAlign='center';
+        X5.fillText(val.toFixed(1)+'%',lx,ly);
+      }
+      startAng+=sweep;
+    });
+    // Donut hole
+    X5.beginPath();X5.arc(cx5,cy5,R5*0.45,0,Math.PI*2);
+    X5.fillStyle='#0a0a1a';X5.fill();
+    X5.fillStyle='#C9A84C';X5.font='bold 12px monospace';X5.textAlign='center';
+    X5.fillText('ORGAN',cx5,cy5-6);X5.fillText('MAP',cx5,cy5+10);
+    // Legend bars (right side)
+    const lx5=W5*0.67;
+    organs5.forEach(([name,val],i)=>{
+      const ly=40+i*34;
+      const bw=(val/total)*200*p;
+      X5.fillStyle=colors5[i];X5.fillRect(lx5,ly,bw,14);
+      X5.fillStyle='#E0E0E0';X5.font='9px monospace';X5.textAlign='left';
+      X5.fillText(name,lx5+Math.max(bw+4,4),ly+10);
+      X5.fillStyle=colors5[i];X5.fillText(val.toFixed(1)+'%',lx5-36,ly+10);
+    });
+    document.getElementById('progressBar').style.width=(p*100)+'%';
+  }
+  function loop(){
+    if(!playing)return;t=Math.min(1,t+0.006);draw(t);
+    if(t>=1){playing=false;document.getElementById('playBtn').textContent='↺ Replay';return;}
+    requestAnimationFrame(loop);
+  }
+  return{
+    toggle(){if(t>=1)t=0;playing=!playing;
+      document.getElementById('playBtn').textContent=playing?'⏸ Pause':'▶ Play';if(playing)loop();},
+    reset(){t=0;playing=false;draw(0);document.getElementById('playBtn').textContent='▶ Play';},
+    step(){t=Math.min(1,t+0.04);draw(t);},
+  };
+})();
+anim5.reset();
+
+</script>
+</body>
+</html>

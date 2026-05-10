@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CEREBRO-X | V01 — BBB Crossing | Donepezil</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap">
+<style>
+:root {
+  --void-base:#060610; --void-elevated:#0a0a1a; --void-panel:#0f2040;
+  --gold:#C9A84C; --gold-light:#D4B563; --gold-dark:#B89A3F;
+  --neuro-positive:#0D6E6E; --alert-red:#C62828; --molecule-orange:#F57C00;
+  --text-primary:#E0E0E0; --text-secondary:#9CA3AF; --text-muted:#6B7280;
+  --hairline:#1F2937;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--void-base);
+       font-family: 'Inter','Segoe UI',Helvetica,Arial,sans-serif;
+       color: var(--text-primary); font-weight: 300;
+       line-height: 1.65; letter-spacing: 0.01em; }
+.container { max-width: 900px; margin: 0 auto; padding: 24px; }
+h2 { color: var(--gold); font-size: 1.4em; font-weight: 700;
+     margin-bottom: 6px; letter-spacing: -0.3px; }
+.subtitle { color: var(--text-secondary); font-size: .82em;
+            margin-bottom: 16px; font-weight: 400; }
+canvas { display: block; border-radius: 10px;
+         border: 1px solid var(--hairline); background: var(--void-elevated); }
+.ctrl { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+button { background: var(--void-panel); color: var(--text-primary);
+         border: 1px solid var(--hairline); padding: 8px 18px;
+         border-radius: 8px; cursor: pointer; font-family: inherit;
+         font-size: .85em; font-weight: 500; transition: all .2s ease; }
+button:hover { background: var(--void-elevated); border-color: var(--gold);
+               color: var(--gold); transform: translateY(-1px); }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+           gap: 10px; margin-top: 16px; }
+.metric { background: var(--void-panel); border: 1px solid var(--hairline);
+          border-radius: 10px; padding: 14px; text-align: center; }
+.metric-val { color: var(--gold); font-size: 1.5em; font-weight: 800;
+              letter-spacing: -0.4px; line-height: 1.1; }
+.metric-lbl { color: var(--text-muted); font-size: .68em; margin-top: 5px;
+              text-transform: uppercase; letter-spacing: 1.5px; font-weight: 500; }
+.progress { width: 100%; height: 6px; background: var(--hairline);
+            border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.progress-bar { height: 6px; background: linear-gradient(90deg,var(--gold-dark),var(--gold),var(--gold-light));
+                border-radius: 3px; transition: width .05s; }
+</style>
+
+</head>
+<body>
+<div class="container">
+  <h2>CEREBRO-X | V01 — BBB Crossing | Donepezil</h2>
+  <p class="subtitle">Carrier: plga | Ligand: RVG29 | BBB Enhancement: 45.0% (vs native 3.0%)</p>
+  <canvas id="c01" width="860" height="340"></canvas>
+  <div class="progress"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+  <div class="ctrl">
+    <button onclick="anim.toggle()" id="playBtn">▶ Play</button>
+    <button onclick="anim.reset()">↺ Reset</button>
+    <button onclick="anim.step()">⏭ Step +1%</button>
+  </div>
+  <div class="metrics">
+  <div class="metric"><div class="metric-val">45.0%</div><div class="metric-lbl">BBB Enhancement</div></div>
+  <div class="metric"><div class="metric-val">3.0%</div><div class="metric-lbl">Native BBB</div></div>
+  <div class="metric"><div class="metric-val">12.0%</div><div class="metric-lbl">CNS Bioavailability</div></div>
+  <div class="metric"><div class="metric-val">130nm</div><div class="metric-lbl">Carrier Size</div></div>
+</div>
+</div>
+<script>
+
+const C = document.getElementById('c01');
+const X = C.getContext('2d');
+const DATA = {drug:'Donepezil',carrier:'plga',ligand:'RVG29',
+  size:130.0,bbbEnh:45.0,bbbNat:3.0,cnsBA:12.0,ee:75.0,peg:5.0};
+
+const anim = (function(){
+  let t=0, playing=false, raf=null;
+  const W=C.width,H=C.height;
+
+  function draw(t){
+    X.fillStyle='#0a0a1a';X.fillRect(0,0,W,H);
+    // Background zones
+    const bbbY=H*0.42;
+    X.fillStyle='rgba(13,110,60,0.08)';X.fillRect(0,0,W,bbbY-15);    // blood
+    X.fillStyle='rgba(13,23,64,0.25)';X.fillRect(0,bbbY+15,W,H-bbbY-15); // brain
+    // Zone labels
+    X.fillStyle='rgba(46,204,113,0.5)';X.font='11px monospace';
+    X.fillText('BLOOD (pH 7.4)',12,24);
+    X.fillStyle='rgba(52,152,219,0.5)';
+    X.fillText('BRAIN PARENCHYMA',12,H-14);
+
+    // BBB membrane
+    const g=X.createLinearGradient(0,bbbY-15,0,bbbY+15);
+    g.addColorStop(0,'#0D6E6E');g.addColorStop(0.5,'#0D6E6E');g.addColorStop(1,'#0D6E6E');
+    X.fillStyle=g;X.fillRect(0,bbbY-15,W,30);
+    X.fillStyle='#0D6E6E';X.font='9px monospace';
+    X.fillText('BBB Endothelium — '+DATA.ligand+' receptors',10,bbbY+4);
+
+    // Receptors
+    const recX=[80,170,270,370,460,560,660,760];
+    recX.forEach((rx,ri)=>{
+      const engaged=t>0.3&&Math.abs(rx-W/2)<160;
+      X.beginPath();X.arc(rx,bbbY-15,7,0,Math.PI*2);
+      X.fillStyle=engaged?'#F57C00':'#0f2040';X.fill();
+      X.strokeStyle='#C9A84C';X.lineWidth=1.5;X.stroke();
+      if(engaged&&t>0.45){
+        X.fillStyle='rgba(232,119,34,0.25)';
+        X.beginPath();X.arc(rx,bbbY-15,14,0,Math.PI*2);X.fill();
+      }
+    });
+
+    // Nanocarrier position (approaches BBB, crosses at t=0.5)
+    const npY = t<0.5 ? H*0.1+(bbbY-50-H*0.1)*t*2
+                       : bbbY-50+(H*0.75-(bbbY-50))*(t-0.5)*2;
+    const npX=W/2;
+    const crossed=npY>bbbY+30;
+    const crossing=npY>=bbbY-60&&npY<=bbbY+60;
+
+    // PEG corona
+    for(let i=0;i<12;i++){
+      const ang=i*30*Math.PI/180+t*1.5;
+      const r=DATA.size/5+10;
+      X.beginPath();X.moveTo(npX+Math.cos(ang)*r,npY+Math.sin(ang)*r);
+      X.lineTo(npX+Math.cos(ang)*(r+8),npY+Math.sin(ang)*(r+8));
+      X.strokeStyle=crossed?'rgba(13,110,110,0.5)':'#0D6E6E';X.lineWidth=1.5;X.stroke();
+      X.beginPath();X.arc(npX+Math.cos(ang)*(r+8),npY+Math.sin(ang)*(r+8),2.5,0,Math.PI*2);
+      X.fillStyle='#0D6E6E';X.fill();
+    }
+    // NP core
+    X.beginPath();X.arc(npX,npY,DATA.size/5,0,Math.PI*2);
+    X.fillStyle=crossed?'#0D6E6E':'#0f2040';X.fill();
+    X.strokeStyle='#C9A84C';X.lineWidth=2;X.stroke();
+    // Ligands
+    for(let i=0;i<8;i++){
+      const ang=i*45*Math.PI/180+t;
+      const lr=DATA.size/5+3,lr2=lr+6;
+      X.beginPath();X.moveTo(npX+Math.cos(ang)*lr,npY+Math.sin(ang)*lr);
+      X.lineTo(npX+Math.cos(ang)*lr2,npY+Math.sin(ang)*lr2);
+      X.strokeStyle=crossing?'#F57C00':'#7C4DFF';X.lineWidth=2;X.stroke();
+      X.beginPath();X.arc(npX+Math.cos(ang)*lr2,npY+Math.sin(ang)*lr2,3,0,Math.PI*2);
+      X.fillStyle=crossing?'#F57C00':'#7C4DFF';X.fill();
+    }
+    // Drug payload
+    X.beginPath();X.arc(npX,npY,7,0,Math.PI*2);
+    X.fillStyle=crossed?'rgba(232,119,34,0.9)':'#F57C00';X.fill();
+
+    // Multiple NPs trailing (simulating dosing)
+    if(t>0.3){
+      for(let i=1;i<=3;i++){
+        const tt=Math.max(0,t-i*0.08);
+        const ny=tt<0.5?H*0.1+(bbbY-50-H*0.1)*tt*2:bbbY-50+(H*0.75-(bbbY-50))*(tt-0.5)*2;
+        const nx=npX+(i%2===0?-60:60);
+        const a=Math.max(0,(1-i*0.2)*0.6);
+        X.globalAlpha=a;
+        X.beginPath();X.arc(nx,ny,DATA.size/6,0,Math.PI*2);
+        X.fillStyle='#0f2040';X.fill();X.strokeStyle='#C9A84C';X.lineWidth=1;X.stroke();
+        X.globalAlpha=1;
+      }
+    }
+
+    // Status overlay
+    const status=['Loading carriers...','Circulating in blood','Approaching BBB','Receptor binding!','Crossing BBB!','Releasing in brain ✓'];
+    const si=Math.min(5,Math.floor(t*6));
+    X.fillStyle='rgba(201,168,76,0.9)';X.font='bold 12px monospace';X.textAlign='center';
+    X.fillText(status[si],W/2,H-16);X.textAlign='left';
+    // Progress bar
+    document.getElementById('progressBar').style.width=(t*100)+'%';
+  }
+
+  function loop(){
+    if(!playing)return;
+    t=Math.min(1,t+0.004);
+    draw(t);
+    if(t>=1){playing=false;document.getElementById('playBtn').textContent='↺ Replay';return;}
+    raf=requestAnimationFrame(loop);
+  }
+  return {
+    toggle(){
+      if(t>=1)t=0;
+      playing=!playing;
+      document.getElementById('playBtn').textContent=playing?'⏸ Pause':'▶ Play';
+      if(playing)loop();
+    },
+    reset(){t=0;playing=false;draw(0);document.getElementById('playBtn').textContent='▶ Play';
+      document.getElementById('progressBar').style.width='0%';},
+    step(){t=Math.min(1,t+0.01);draw(t);},
+  };
+})();
+anim.reset();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CEREBRO-X | V03 — Drug Release Kinetics | Donepezil</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap">
+<style>
+:root {
+  --void-base:#060610; --void-elevated:#0a0a1a; --void-panel:#0f2040;
+  --gold:#C9A84C; --gold-light:#D4B563; --gold-dark:#B89A3F;
+  --neuro-positive:#0D6E6E; --alert-red:#C62828; --molecule-orange:#F57C00;
+  --text-primary:#E0E0E0; --text-secondary:#9CA3AF; --text-muted:#6B7280;
+  --hairline:#1F2937;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--void-base);
+       font-family: 'Inter','Segoe UI',Helvetica,Arial,sans-serif;
+       color: var(--text-primary); font-weight: 300;
+       line-height: 1.65; letter-spacing: 0.01em; }
+.container { max-width: 900px; margin: 0 auto; padding: 24px; }
+h2 { color: var(--gold); font-size: 1.4em; font-weight: 700;
+     margin-bottom: 6px; letter-spacing: -0.3px; }
+.subtitle { color: var(--text-secondary); font-size: .82em;
+            margin-bottom: 16px; font-weight: 400; }
+canvas { display: block; border-radius: 10px;
+         border: 1px solid var(--hairline); background: var(--void-elevated); }
+.ctrl { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+button { background: var(--void-panel); color: var(--text-primary);
+         border: 1px solid var(--hairline); padding: 8px 18px;
+         border-radius: 8px; cursor: pointer; font-family: inherit;
+         font-size: .85em; font-weight: 500; transition: all .2s ease; }
+button:hover { background: var(--void-elevated); border-color: var(--gold);
+               color: var(--gold); transform: translateY(-1px); }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+           gap: 10px; margin-top: 16px; }
+.metric { background: var(--void-panel); border: 1px solid var(--hairline);
+          border-radius: 10px; padding: 14px; text-align: center; }
+.metric-val { color: var(--gold); font-size: 1.5em; font-weight: 800;
+              letter-spacing: -0.4px; line-height: 1.1; }
+.metric-lbl { color: var(--text-muted); font-size: .68em; margin-top: 5px;
+              text-transform: uppercase; letter-spacing: 1.5px; font-weight: 500; }
+.progress { width: 100%; height: 6px; background: var(--hairline);
+            border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.progress-bar { height: 6px; background: linear-gradient(90deg,var(--gold-dark),var(--gold),var(--gold-light));
+                border-radius: 3px; transition: width .05s; }
+</style>
+
+</head>
+<body>
+<div class="container">
+  <h2>CEREBRO-X | V03 — Drug Release Kinetics | Donepezil</h2>
+  <p class="subtitle">Release model: Sustained first-order | t50 blood=23.2h | t50 endosomal=46.3h | In-DDS vs Endosomal vs Free Drug</p>
+  <canvas id="c03" width="860" height="320"></canvas>
+  <div class="progress"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+  <div class="ctrl">
+    <button onclick="anim.toggle()" id="playBtn">▶ Play</button>
+    <button onclick="anim.reset()">↺ Reset</button>
+    <button onclick="anim.step()">⏭ Step +1%</button>
+  </div>
+  <div class="metrics">
+  <div class="metric"><div class="metric-val">23.2h</div><div class="metric-lbl">t50 (blood pH 7.4)</div></div>
+  <div class="metric"><div class="metric-val">46.3h</div><div class="metric-lbl">t50 (endosomal pH 5.5)</div></div>
+  <div class="metric"><div class="metric-val">Sustained first-order</div><div class="metric-lbl">Release Model</div></div>
+  <div class="metric"><div class="metric-val">75%</div><div class="metric-lbl">Max EE Released</div></div>
+</div>
+</div>
+<script>
+
+const C3=document.getElementById('c03');const X3=C3.getContext('2d');
+const tArr3=[0.0, 0.7, 1.4, 2.4, 3.1, 3.9, 4.8, 5.5, 6.3, 7.2, 8.0, 8.9, 9.6, 10.4, 11.3, 12.1, 12.8, 13.7, 14.5, 15.4, 16.2, 16.9, 17.8, 18.6, 19.3, 20.3, 21.0, 21.9, 22.7, 23.4, 24.4, 25.1, 25.8, 26.8, 27.5, 28.5, 29.2, 29.9, 30.9, 31.6, 32.3, 33.3, 34.0, 35.0, 35.7, 36.4, 37.4, 38.1, 38.8, 39.8, 40.5, 41.5, 42.2, 42.9, 43.9, 44.6, 45.3, 46.3, 47.0, 48.0];
+const series3=[
+  {name:'In-DDS (blood)',data:[0.0, 1.61, 3.19, 5.24, 6.73, 8.2, 10.11, 11.5, 12.86, 14.64, 15.93, 17.62, 18.85, 20.06, 21.62, 22.77, 23.89, 25.35, 26.41, 27.8, 28.81, 29.81, 31.1, 32.04, 32.96, 34.16, 35.04, 36.18, 37.01, 37.83, 38.89, 39.66, 40.42, 41.41, 42.13, 43.07, 43.75, 44.42, 45.3, 45.93, 46.56, 47.37, 47.96, 48.73, 49.3, 49.85, 50.57, 51.09, 51.61, 52.27, 52.76, 53.4, 53.86, 54.31, 54.9, 55.34, 55.76, 56.31, 56.71, 57.23],color:'#F57C00',dash:[]},
+  {name:'Endosomal (pH 5.5)',data:[0.0, 0.81, 1.61, 2.67, 3.45, 4.22, 5.24, 5.99, 6.73, 7.71, 8.44, 9.4, 10.11, 10.81, 11.73, 12.41, 13.09, 13.98, 14.64, 15.5, 16.15, 16.78, 17.62, 18.24, 18.85, 19.66, 20.25, 21.04, 21.62, 22.2, 22.96, 23.52, 24.08, 24.81, 25.35, 26.06, 26.59, 27.11, 27.8, 28.31, 28.81, 29.48, 29.97, 30.62, 31.1, 31.57, 32.19, 32.66, 33.11, 33.71, 34.16, 34.75, 35.18, 35.61, 36.18, 36.6, 37.01, 37.56, 37.96, 38.49],color:'#7C4DFF',dash:[]},
+  {name:'Free drug (no DDS)',data:[0.0, 12.04, 22.15, 33.84, 40.45, 46.71, 52.41, 56.04, 59.47, 62.6, 64.85, 66.89, 68.2, 69.43, 70.55, 71.36, 71.94, 72.56, 73.0, 73.4, 73.69, 73.9, 74.12, 74.28, 74.4, 74.53, 74.61, 74.69, 74.74, 74.78, 74.83, 74.86, 74.88, 74.91, 74.92, 74.94, 74.95, 74.96, 74.97, 74.97, 74.98, 74.98, 74.98, 74.99, 74.99, 74.99, 74.99, 74.99, 75.0, 75.0, 75.0, 75.0, 75.0, 75.0, 75.0, 75.0, 75.0, 75.0, 75.0, 75.0],color:'#C62828',dash:[6,4]},
+];
+const W3=C3.width,H3=C3.height,PAD3={t:20,r:130,b:40,l:60};
+const pW=W3-PAD3.l-PAD3.r,pH3=H3-PAD3.t-PAD3.b;
+const sX3=i=>PAD3.l+i/(tArr3.length-1)*pW;
+const sY3=v=>PAD3.t+pH3-(v/100)*pH3;
+
+const anim3=(function(){
+  let t=0,playing=false;
+  function draw(p){
+    X3.fillStyle='#0a0a1a';X3.fillRect(0,0,W3,H3);
+    X3.strokeStyle='#1F2937';X3.lineWidth=0.5;
+    for(let i=0;i<=5;i++){
+      const y=PAD3.t+i*pH3/5;
+      X3.beginPath();X3.moveTo(PAD3.l,y);X3.lineTo(W3-PAD3.r,y);X3.stroke();
+      X3.fillStyle='#888';X3.font='9px monospace';X3.textAlign='right';
+      X3.fillText((100-i*20)+'%',PAD3.l-4,y+3);
+    }
+    for(let i=0;i<=6;i++){
+      const x=PAD3.l+i*pW/6;
+      X3.beginPath();X3.moveTo(x,PAD3.t);X3.lineTo(x,H3-PAD3.b);X3.stroke();
+      const tv=tArr3[Math.floor(i*(tArr3.length-1)/6)]||0;
+      X3.fillStyle='#888';X3.textAlign='center';X3.fillText(tv.toFixed(0)+'h',x,H3-PAD3.b+14);
+    }
+    X3.fillStyle='#C9A84C';X3.font='10px monospace';X3.textAlign='center';
+    X3.fillText('Time (h)',W3/2,H3-4);
+    X3.save();X3.translate(12,H3/2);X3.rotate(-Math.PI/2);
+    X3.fillText('% Dose Released',0,0);X3.restore();
+    const nPts=Math.max(2,Math.floor(p*tArr3.length));
+    series3.forEach((s,li)=>{
+      if(nPts<2)return;
+      X3.setLineDash(s.dash);
+      X3.beginPath();X3.moveTo(sX3(0),sY3(s.data[0]));
+      for(let i=1;i<nPts;i++) X3.lineTo(sX3(i),sY3(s.data[i]||0));
+      X3.strokeStyle=s.color;X3.lineWidth=2;X3.stroke();X3.setLineDash([]);
+      X3.fillStyle=s.color;X3.fillRect(W3-PAD3.r+8,PAD3.t+li*18,20,3);
+      X3.fillStyle='#E0E0E0';X3.font='9px monospace';X3.textAlign='left';
+      X3.fillText(s.name,W3-PAD3.r+32,PAD3.t+li*18+4);
+    });
+    document.getElementById('progressBar').style.width=(p*100)+'%';
+  }
+  function loop(){
+    if(!playing)return;t=Math.min(1,t+0.005);draw(t);
+    if(t>=1){playing=false;document.getElementById('playBtn').textContent='↺ Replay';return;}
+    requestAnimationFrame(loop);
+  }
+  return{
+    toggle(){if(t>=1)t=0;playing=!playing;
+      document.getElementById('playBtn').textContent=playing?'⏸ Pause':'▶ Play';if(playing)loop();},
+    reset(){t=0;playing=false;draw(0);document.getElementById('playBtn').textContent='▶ Play';},
+    step(){t=Math.min(1,t+0.02);draw(t);},
+  };
+})();
+anim3.reset();
+
+</script>
+</body>
+</html>

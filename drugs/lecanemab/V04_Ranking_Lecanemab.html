@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CEREBRO-X | V04 — DDS Ranking | Lecanemab</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap">
+<style>
+:root {
+  --void-base:#060610; --void-elevated:#0a0a1a; --void-panel:#0f2040;
+  --gold:#C9A84C; --gold-light:#D4B563; --gold-dark:#B89A3F;
+  --neuro-positive:#0D6E6E; --alert-red:#C62828; --molecule-orange:#F57C00;
+  --text-primary:#E0E0E0; --text-secondary:#9CA3AF; --text-muted:#6B7280;
+  --hairline:#1F2937;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--void-base);
+       font-family: 'Inter','Segoe UI',Helvetica,Arial,sans-serif;
+       color: var(--text-primary); font-weight: 300;
+       line-height: 1.65; letter-spacing: 0.01em; }
+.container { max-width: 900px; margin: 0 auto; padding: 24px; }
+h2 { color: var(--gold); font-size: 1.4em; font-weight: 700;
+     margin-bottom: 6px; letter-spacing: -0.3px; }
+.subtitle { color: var(--text-secondary); font-size: .82em;
+            margin-bottom: 16px; font-weight: 400; }
+canvas { display: block; border-radius: 10px;
+         border: 1px solid var(--hairline); background: var(--void-elevated); }
+.ctrl { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+button { background: var(--void-panel); color: var(--text-primary);
+         border: 1px solid var(--hairline); padding: 8px 18px;
+         border-radius: 8px; cursor: pointer; font-family: inherit;
+         font-size: .85em; font-weight: 500; transition: all .2s ease; }
+button:hover { background: var(--void-elevated); border-color: var(--gold);
+               color: var(--gold); transform: translateY(-1px); }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+           gap: 10px; margin-top: 16px; }
+.metric { background: var(--void-panel); border: 1px solid var(--hairline);
+          border-radius: 10px; padding: 14px; text-align: center; }
+.metric-val { color: var(--gold); font-size: 1.5em; font-weight: 800;
+              letter-spacing: -0.4px; line-height: 1.1; }
+.metric-lbl { color: var(--text-muted); font-size: .68em; margin-top: 5px;
+              text-transform: uppercase; letter-spacing: 1.5px; font-weight: 500; }
+.progress { width: 100%; height: 6px; background: var(--hairline);
+            border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.progress-bar { height: 6px; background: linear-gradient(90deg,var(--gold-dark),var(--gold),var(--gold-light));
+                border-radius: 3px; transition: width .05s; }
+</style>
+
+</head>
+<body>
+<div class="container">
+  <h2>CEREBRO-X | V04 — DDS Ranking | Lecanemab</h2>
+  <p class="subtitle">Top 8 DDS by Composite Score | Winner: Tf-PEG-Liposome (100.0)</p>
+  <canvas id="c04" width="860" height="300"></canvas>
+  <div class="progress"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+  <div class="ctrl">
+    <button onclick="anim.toggle()" id="playBtn">▶ Play</button>
+    <button onclick="anim.reset()">↺ Reset</button>
+    <button onclick="anim.step()">⏭ Step +1%</button>
+  </div>
+  <div class="metrics">
+  <div class="metric"><div class="metric-val" style="font-size:1em">Tf-PEG-Liposome</div><div class="metric-lbl">Top DDS</div></div>
+  <div class="metric"><div class="metric-val">100.0</div><div class="metric-lbl">Composite Score</div></div>
+  <div class="metric"><div class="metric-val">8</div><div class="metric-lbl">DDS Evaluated</div></div>
+  <div class="metric"><div class="metric-val">0.0%</div><div class="metric-lbl">Top BBB Enh.</div></div>
+</div>
+</div>
+<script>
+
+const C4=document.getElementById('c04');const X4=C4.getContext('2d');
+const names4=["Tf-PEG-Liposome", "RVG29-Liposome-pH", "ApoE-LNP", "Tf-SLN-Stealth", "RVG29-PLGA-NP", "Lf-Polymer-Micelle", "Bare-PLGA", "AAV9-vector"];
+const scores4=[100.0, 100.0, 100.0, 100.0, 100.0, 97.0, 78.0, 53.0];
+const bbb4=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+const colors4=["#C9A84C", "#C9A84C", "#C9A84C", "#C9A84C", "#C9A84C", "#C9A84C", "#C9A84C", "#C9A84C"];
+const W4=C4.width,H4=C4.height;
+const maxScore=Math.max(...scores4)*1.1||100;
+const barH=Math.floor((H4-60)/names4.length)-2;
+
+const anim4=(function(){
+  let t=0,playing=false;
+  function draw(p){
+    X4.fillStyle='#0a0a1a';X4.fillRect(0,0,W4,H4);
+    X4.fillStyle='#C9A84C';X4.font='bold 11px monospace';X4.textAlign='center';
+    X4.fillText('DDS Composite Score Ranking',W4/2,16);
+    const lPad=200,rPad=80;
+    names4.forEach((n,i)=>{
+      const y=30+i*(barH+2);
+      const bW=Math.max(0,(scores4[i]/maxScore)*(W4-lPad-rPad)*p);
+      // Bar
+      const grad=X4.createLinearGradient(lPad,0,lPad+bW,0);
+      grad.addColorStop(0,colors4[i]);grad.addColorStop(1,colors4[i]+'44');
+      X4.fillStyle=grad;X4.fillRect(lPad,y,bW,barH);
+      // Name
+      X4.fillStyle='#E0E0E0';X4.font=`${Math.min(10,barH*0.65)}px monospace`;X4.textAlign='right';
+      X4.fillText(n,lPad-4,y+barH*0.65);
+      // Score label
+      if(bW>30){
+        X4.fillStyle='white';X4.textAlign='left';
+        X4.fillText(scores4[i].toFixed(1),lPad+bW+4,y+barH*0.65);
+      }
+      // Top 1 crown
+      if(i===0&&p>0.5){
+        X4.fillStyle='#C9A84C';X4.font='12px monospace';X4.textAlign='right';
+        X4.fillText('★ BEST',lPad+bW-2,y+barH*0.65);
+      }
+    });
+    document.getElementById('progressBar').style.width=(p*100)+'%';
+  }
+  function loop(){
+    if(!playing)return;t=Math.min(1,t+0.008);draw(t);
+    if(t>=1){playing=false;document.getElementById('playBtn').textContent='↺ Replay';return;}
+    requestAnimationFrame(loop);
+  }
+  return{
+    toggle(){if(t>=1)t=0;playing=!playing;
+      document.getElementById('playBtn').textContent=playing?'⏸ Pause':'▶ Play';if(playing)loop();},
+    reset(){t=0;playing=false;draw(0);document.getElementById('playBtn').textContent='▶ Play';},
+    step(){t=Math.min(1,t+0.05);draw(t);},
+  };
+})();
+anim4.reset();
+
+</script>
+</body>
+</html>
