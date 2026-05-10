@@ -1,673 +1,2392 @@
-لقد ركزت على إصلاح المشكلات التي أشرت إليها مع الحفاظ على كامل التصميم الأصلي. الصفحة الآن تحتوي على جميع بطاقات الأدوية الستة، وتعمل النافذة المنبثقة (popup) عند التمرير فوق أي مبدأ من المبادئ الـ 62، بالإضافة إلى الشعارات والخلفية الديناميكية كما طلبت.
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="CEREBRO-X — AI-Native, physics-informed computational engine for CNS drug delivery system design. 62 validation principles. Zero guesswork.">
-    <meta name="keywords" content="drug delivery, BBB, CNS, nanoparticle, DDS, computational pharmacology, AI, CEREBRO-X">
-    <title>CEREBRO-X | AI-Native Drug-Delivery Design Engine</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --void-00: #030308;
-            --void-01: #060610;
-            --void-02: #0a0a1a;
-            --void-03: #0f2040;
-            --void-04: #162b50;
-            --gold: #C9A84C;
-            --gold-lt: #D4B563;
-            --gold-dk: #B89A3F;
-            --gold-glow: rgba(201,168,76,.55);
-            --gold-thin: rgba(201,168,76,.18);
-            --teal: #0D6E6E;
-            --teal-lt: #5BA89B;
-            --red: #C62828;
-            --orange: #F57C00;
-            --purple: #7C4DFF;
-            --text-1: #F0F0F0;
-            --text-2: #9CA3AF;
-            --text-3: #4B5563;
-            --hr: rgba(255,255,255,.07);
-            --glass: rgba(10,14,32,.6);
-            --glass-b: rgba(201,168,76,.15);
-            --r-sm: 10px;
-            --r-md: 16px;
-            --r-lg: 24px;
-            --sans: 'Outfit', system-ui, sans-serif;
-            --body: 'DM Sans', system-ui, sans-serif;
-            --mono: 'JetBrains Mono', monospace;
-        }
-        *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
-        html { scroll-behavior:smooth; font-size:16px; }
-        body {
-            background: var(--void-01);
-            color: var(--text-1);
-            font-family: var(--body);
-            line-height: 1.65;
-            overflow-x: hidden;
-        }
-        img { display:block; max-width:100%; }
-        a { color:var(--gold); text-decoration:none; transition:color .2s; }
-        a:hover { color:var(--gold-lt); }
-        button { font-family:inherit; cursor:pointer; border:none; }
-        input, select, textarea { font-family:inherit; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="CEREBRO-X — AI-Native, physics-informed computational engine for CNS drug delivery system design. 62 validation principles. Zero guesswork.">
+<meta name="keywords" content="drug delivery, BBB, CNS, nanoparticle, DDS, computational pharmacology, AI, CEREBRO-X">
+<title>CEREBRO-X | AI-Native Drug-Delivery Design Engine</title>
 
-        #bg-canvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
-        body::after {
-            content:'';
-            position:fixed; inset:0; z-index:1;
-            background: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(201,168,76,.04) 0%, transparent 60%);
-            pointer-events:none;
-        }
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-        /* ════════════════════════ METEORS ════════════════════════ */
-        .meteor-background {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            z-index: 0; pointer-events: none; overflow: hidden;
-        }
-        .meteor {
-            position: absolute; width: 36px; height: 36px;
-            background-image: url('https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Engine%20-%20Background%20system%2C%20pattern%2C%20visual%20language.png');
-            background-size: contain; background-repeat: no-repeat;
-            opacity: 0;
-            animation: meteor-fall linear infinite;
-        }
-        @keyframes meteor-fall {
-            0% { transform: translate(0, -120px) rotate(0deg); opacity: 0; }
-            8% { opacity: 0.55; }
-            92% { opacity: 0.25; }
-            100% { transform: translate(-180px, 105vh) rotate(380deg); opacity: 0; }
-        }
-        .meteor:nth-child(1) { left: 5%; animation-duration: 8.2s; animation-delay: 0s; }
-        .meteor:nth-child(2) { left: 12%; animation-duration: 10.5s; animation-delay: 1.2s; }
-        .meteor:nth-child(3) { left: 20%; animation-duration: 12.1s; animation-delay: 2.4s; }
-        .meteor:nth-child(4) { left: 28%; animation-duration: 9.3s; animation-delay: 3.1s; }
-        .meteor:nth-child(5) { left: 36%; animation-duration: 11.4s; animation-delay: 0.6s; }
-        .meteor:nth-child(6) { left: 44%; animation-duration: 13.2s; animation-delay: 2.9s; }
-        .meteor:nth-child(7) { left: 52%; animation-duration: 9.8s; animation-delay: 1.7s; }
-        .meteor:nth-child(8) { left: 60%; animation-duration: 11.9s; animation-delay: 3.8s; }
-        .meteor:nth-child(9) { left: 68%; animation-duration: 8.7s; animation-delay: 0.9s; }
-        .meteor:nth-child(10) { left: 76%; animation-duration: 10.2s; animation-delay: 4.2s; }
-        .meteor:nth-child(11) { left: 84%; animation-duration: 12.5s; animation-delay: 1.4s; }
-        .meteor:nth-child(12) { left: 92%; animation-duration: 9.1s; animation-delay: 2.1s; }
-        .meteor:nth-child(13) { left: 8%; animation-duration: 11.3s; animation-delay: 3.5s; }
-        .meteor:nth-child(14) { left: 16%; animation-duration: 13.6s; animation-delay: 0.3s; }
-        .meteor:nth-child(15) { left: 24%; animation-duration: 8.9s; animation-delay: 4.6s; }
-        .meteor:nth-child(16) { left: 32%; animation-duration: 10.8s; animation-delay: 1.9s; }
-        .meteor:nth-child(17) { left: 40%; animation-duration: 12.3s; animation-delay: 3.3s; }
-        .meteor:nth-child(18) { left: 48%; animation-duration: 9.5s; animation-delay: 0.5s; }
-        .meteor:nth-child(19) { left: 56%; animation-duration: 11.7s; animation-delay: 2.7s; }
-        .meteor:nth-child(20) { left: 64%; animation-duration: 8.4s; animation-delay: 4.0s; }
-        .meteor:nth-child(21) { left: 72%; animation-duration: 10.1s; animation-delay: 1.1s; }
-        .meteor:nth-child(22) { left: 80%; animation-duration: 12.8s; animation-delay: 3.6s; }
-        .meteor:nth-child(23) { left: 88%; animation-duration: 9.6s; animation-delay: 2.3s; }
-        .meteor:nth-child(24) { left: 3%; animation-duration: 11.2s; animation-delay: 4.4s; }
-        .meteor:nth-child(25) { left: 96%; animation-duration: 10.7s; animation-delay: 0.7s; }
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   CEREBRO-X — Design System v22.1 | Apple-class presentation layer
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --void-00:   #030308;
+  --void-01:   #060610;
+  --void-02:   #0a0a1a;
+  --void-03:   #0f2040;
+  --void-04:   #162b50;
+  --gold:      #C9A84C;
+  --gold-lt:   #D4B563;
+  --gold-dk:   #B89A3F;
+  --gold-glow: rgba(201,168,76,.55);
+  --gold-thin: rgba(201,168,76,.18);
+  --teal:      #0D6E6E;
+  --teal-lt:   #5BA89B;
+  --red:       #C62828;
+  --orange:    #F57C00;
+  --purple:    #7C4DFF;
+  --text-1:    #F0F0F0;
+  --text-2:    #9CA3AF;
+  --text-3:    #4B5563;
+  --hr:        rgba(255,255,255,.07);
+  --glass:     rgba(10,14,32,.6);
+  --glass-b:   rgba(201,168,76,.15);
+  --r-sm:      10px;
+  --r-md:      16px;
+  --r-lg:      24px;
+  --sans:      'Outfit', system-ui, sans-serif;
+  --body:      'DM Sans', system-ui, sans-serif;
+  --mono:      'JetBrains Mono', monospace;
+}
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; font-size:16px; }
+body {
+  background: var(--void-01);
+  color: var(--text-1);
+  font-family: var(--body);
+  line-height: 1.65;
+  overflow-x: hidden;
+}
+img { display:block; max-width:100%; }
+a { color:var(--gold); text-decoration:none; transition:color .2s; }
+a:hover { color:var(--gold-lt); }
+button { font-family:inherit; cursor:pointer; border:none; }
+input, select, textarea { font-family:inherit; }
 
-        /* ════════════════════════ HEADER LOGO ════════════════════════ */
-        .header-logo-wrap {
-            position: relative; z-index: 10; text-align: center;
-            padding: 30px 20px 10px;
-            animation: fadeInDown 1.2s cubic-bezier(.16,1,.3,1);
-        }
-        @keyframes fadeInDown { from { opacity:0; transform:translateY(-48px); } to { opacity:1; transform:translateY(0); } }
-        .header-logo-img {
-            max-width: 400px; width: 88%; height: auto; margin: 0 auto;
-            filter: drop-shadow(0 12px 28px rgba(201,168,76,.45));
-            transition: all .35s cubic-bezier(.16,1,.3,1); cursor: default;
-        }
-        .header-logo-img:hover {
-            transform: scale(1.04) translateY(-4px);
-            filter: drop-shadow(0 18px 42px rgba(201,168,76,.65));
-        }
+/* ── CANVAS BACKGROUND (Three.js) ── */
+#bg-canvas {
+  position:fixed; inset:0; z-index:0;
+  pointer-events:none;
+}
+/* ── PAGE OVERLAY (gold-radial center glow) ── */
+body::after {
+  content:'';
+  position:fixed; inset:0; z-index:1;
+  background: radial-gradient(ellipse 80% 60% at 50% 30%,
+    rgba(201,168,76,.04) 0%, transparent 60%);
+  pointer-events:none;
+}
 
-        /* ════════════════════════ LAYOUT (restante original) ═══════════ */
-        main { position:relative; z-index:2; }
-        .container { max-width:1200px; margin:0 auto; padding:0 28px; }
-        section { padding:120px 0; position:relative; }
-        .display { font-family:var(--sans); font-weight:800; letter-spacing:-.04em; line-height:1.05; }
-        .head-xl { font-size: clamp(2.8rem,6vw,5.2rem); }
-        .head-lg { font-size: clamp(2rem,4vw,3.4rem); }
-        .head-md { font-size: clamp(1.4rem,2.5vw,2rem); }
-        .eyebrow { font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.28em; color:var(--gold); display:inline-block; margin-bottom:14px; }
-        .lead { font-size:1.1rem; color:var(--text-2); max-width:680px; }
-        .glass { background:var(--glass); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid var(--glass-b); border-radius:var(--r-md); }
-        .btn-gold { display:inline-flex; align-items:center; gap:8px; padding:14px 32px; background:linear-gradient(135deg, var(--gold-dk), var(--gold)); color:var(--void-01); font-family:var(--sans); font-weight:700; font-size:.95rem; letter-spacing:.05em; border-radius:8px; border:none; transition:transform .25s, box-shadow .25s; }
-        .btn-gold:hover { transform:translateY(-2px); box-shadow:0 12px 36px var(--gold-glow); color:var(--void-01); }
-        .btn-ghost { display:inline-flex; align-items:center; gap:8px; padding:13px 30px; background:transparent; color:var(--gold); font-family:var(--sans); font-weight:600; font-size:.95rem; letter-spacing:.04em; border-radius:8px; border:1px solid var(--glass-b); transition:border-color .25s, color .25s; }
-        .btn-ghost:hover { border-color:var(--gold); color:var(--gold-lt); }
-        .reveal { opacity:0; transform:translateY(48px); transition:opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1); }
-        .reveal.active { opacity:1; transform:translateY(0); }
-        .reveal-d1 { transition-delay:.1s; } .reveal-d2 { transition-delay:.2s; } .reveal-d3 { transition-delay:.3s; } .reveal-d4 { transition-delay:.4s; }
+/* ═══════════════════════════════════════════════════════════════════════════
+   METEOR BACKGROUND (NEW — Engine pattern falling)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.meteor-background {
+  position: fixed; top:0; left:0; width:100%; height:100%;
+  z-index: 0; pointer-events: none; overflow: hidden;
+}
+.meteor {
+  position: absolute; width: 36px; height: 36px;
+  background-image: url('https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Engine%20-%20Background%20system%2C%20pattern%2C%20visual%20language.png');
+  background-size: contain; background-repeat: no-repeat;
+  opacity: 0;
+  animation: meteor-fall linear infinite;
+}
+@keyframes meteor-fall {
+  0%   { transform: translate(0, -120px) rotate(0deg); opacity: 0; }
+  8%   { opacity: 0.55; }
+  92%  { opacity: 0.25; }
+  100% { transform: translate(-180px, 105vh) rotate(380deg); opacity: 0; }
+}
+.meteor:nth-child(1)  { left: 5%;  animation-duration: 8.2s;  animation-delay: 0s; }
+.meteor:nth-child(2)  { left: 12%; animation-duration: 10.5s; animation-delay: 1.2s; }
+.meteor:nth-child(3)  { left: 20%; animation-duration: 12.1s; animation-delay: 2.4s; }
+.meteor:nth-child(4)  { left: 28%; animation-duration: 9.3s;  animation-delay: 3.1s; }
+.meteor:nth-child(5)  { left: 36%; animation-duration: 11.4s; animation-delay: 0.6s; }
+.meteor:nth-child(6)  { left: 44%; animation-duration: 13.2s; animation-delay: 2.9s; }
+.meteor:nth-child(7)  { left: 52%; animation-duration: 9.8s;  animation-delay: 1.7s; }
+.meteor:nth-child(8)  { left: 60%; animation-duration: 11.9s; animation-delay: 3.8s; }
+.meteor:nth-child(9)  { left: 68%; animation-duration: 8.7s;  animation-delay: 0.9s; }
+.meteor:nth-child(10) { left: 76%; animation-duration: 10.2s; animation-delay: 4.2s; }
+.meteor:nth-child(11) { left: 84%; animation-duration: 12.5s; animation-delay: 1.4s; }
+.meteor:nth-child(12) { left: 92%; animation-duration: 9.1s;  animation-delay: 2.1s; }
+.meteor:nth-child(13) { left: 8%;  animation-duration: 11.3s; animation-delay: 3.5s; }
+.meteor:nth-child(14) { left: 16%; animation-duration: 13.6s; animation-delay: 0.3s; }
+.meteor:nth-child(15) { left: 24%; animation-duration: 8.9s;  animation-delay: 4.6s; }
+.meteor:nth-child(16) { left: 32%; animation-duration: 10.8s; animation-delay: 1.9s; }
+.meteor:nth-child(17) { left: 40%; animation-duration: 12.3s; animation-delay: 3.3s; }
+.meteor:nth-child(18) { left: 48%; animation-duration: 9.5s;  animation-delay: 0.5s; }
+.meteor:nth-child(19) { left: 56%; animation-duration: 11.7s; animation-delay: 2.7s; }
+.meteor:nth-child(20) { left: 64%; animation-duration: 8.4s;  animation-delay: 4.0s; }
+.meteor:nth-child(21) { left: 72%; animation-duration: 10.1s; animation-delay: 1.1s; }
+.meteor:nth-child(22) { left: 80%; animation-duration: 12.8s; animation-delay: 3.6s; }
+.meteor:nth-child(23) { left: 88%; animation-duration: 9.6s;  animation-delay: 2.3s; }
+.meteor:nth-child(24) { left: 3%;  animation-duration: 11.2s; animation-delay: 4.4s; }
+.meteor:nth-child(25) { left: 96%; animation-duration: 10.7s; animation-delay: 0.7s; }
 
-        /* ── NAV ── */
-        nav { position:fixed; top:0; left:0; right:0; z-index:100; padding:0 28px; height:60px; display:flex; align-items:center; justify-content:space-between; background:rgba(6,6,16,.75); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-bottom:1px solid var(--hr); }
-        .nav-brand { display:flex; align-items:center; gap:12px; text-decoration:none; }
-        .nav-logo { height:36px; width:auto; object-fit:contain; }
-        .nav-name { font-family:var(--sans); font-weight:800; font-size:1.05rem; letter-spacing:.02em; color:var(--text-1); }
-        .nav-links { display:flex; align-items:center; gap:6px; list-style:none; }
-        .nav-links a, .nav-links button { padding:6px 14px; border-radius:6px; font-size:.85rem; color:var(--text-2); transition:color .2s, background .2s; background:transparent; font-family:var(--body); }
-        .nav-links a:hover, .nav-links button:hover { color:var(--text-1); background:rgba(255,255,255,.06); }
-        .nav-demo { display:flex; align-items:center; gap:6px; padding:7px 16px; background:rgba(201,168,76,.12); border:1px solid var(--gold-thin); border-radius:20px; color:var(--gold)!important; font-weight:600!important; font-size:.82rem!important; letter-spacing:.06em; text-transform:uppercase; transition:all .25s!important; }
-        .nav-demo:hover { background:rgba(201,168,76,.22)!important; border-color:var(--gold)!important; color:var(--gold-lt)!important; }
-        .nav-demo::before { content:'▶'; font-size:.7rem; }
-        .nav-cta { padding:8px 20px; background:linear-gradient(135deg, var(--gold-dk), var(--gold)); color:var(--void-01)!important; font-weight:700!important; border-radius:6px; }
-        .nav-cta:hover { background:linear-gradient(135deg, var(--gold), var(--gold-lt))!important; }
-        .mobile-menu-btn { display:none; flex-direction:column; gap:5px; width:32px; cursor:pointer; background:none; border:none; padding:4px; }
-        .mobile-menu-btn span { display:block; height:2px; background:var(--text-2); border-radius:1px; }
+/* ═══════════════════════════════════════════════════════════════════════════
+   HEADER LOGO (NEW — dynamic entrance, mouse-responsive)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.header-logo-wrap {
+  position: relative; z-index: 10; text-align: center;
+  padding: 36px 20px 6px;
+  animation: fadeInDown 1.2s cubic-bezier(.16,1,.3,1);
+}
+@keyframes fadeInDown {
+  from { opacity:0; transform:translateY(-48px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.header-logo-img {
+  max-width: 420px; width: 88%; height: auto; margin: 0 auto;
+  filter: drop-shadow(0 12px 28px rgba(201,168,76,.45));
+  transition: all .35s cubic-bezier(.16,1,.3,1);
+  cursor: default;
+}
+.header-logo-img:hover {
+  transform: scale(1.04) translateY(-4px);
+  filter: drop-shadow(0 18px 42px rgba(201,168,76,.65));
+}
 
-        /* ── HERO ── */
-        #hero { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:100px 24px 80px; position:relative; }
-        #hero::after { content:''; position:absolute; bottom:0; left:0; right:0; height:200px; background:linear-gradient(to top, var(--void-01), transparent); pointer-events:none; z-index:1; }
-        .hero-tag { display:inline-block; margin-bottom:28px; padding:6px 18px; background:rgba(201,168,76,.1); border:1px solid var(--gold-thin); border-radius:20px; font-family:var(--mono); font-size:.72rem; color:var(--gold); letter-spacing:.22em; text-transform:uppercase; animation:fadeUp 1.2s .2s both; }
-        .hero-title { animation:fadeUp 1.4s .4s both; }
-        .hero-title .line2 { background:linear-gradient(120deg, var(--gold) 0%, var(--gold-lt) 40%, var(--gold) 80%); background-size:200% 100%; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:shimmer 4s ease-in-out infinite; }
-        @keyframes shimmer { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(36px)} to{opacity:1;transform:translateY(0)} }
-        .hero-sub { margin:24px auto 0; font-size:1.1rem; color:var(--text-2); max-width:600px; line-height:1.7; animation:fadeUp 1.4s .6s both; }
-        .hero-btns { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-top:40px; animation:fadeUp 1.4s .8s both; }
-        .hero-stats { display:flex; flex-wrap:wrap; justify-content:center; gap:40px; margin-top:60px; animation:fadeUp 1.4s 1s both; }
-        .hero-stat .num { font-family:var(--sans); font-weight:900; font-size:clamp(2.4rem,4vw,3.2rem); line-height:1; letter-spacing:-.04em; }
-        .hero-stat .lbl { font-size:.72rem; color:var(--text-2); letter-spacing:.14em; text-transform:uppercase; margin-top:8px; }
-        .stat-divider { width:1px; background:var(--hr); }
-        .hero-scroll { position:absolute; bottom:50px; left:50%; transform:translateX(-50%); animation:bounce 2.5s infinite 2s; opacity:0; animation-fill-mode:forwards; color:var(--text-2); font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; text-align:center; z-index:2; }
-        .hero-scroll::after { content:'↓'; display:block; font-size:1.3rem; margin-top:4px; }
-        @keyframes bounce { 0%,20%{opacity:.5;transform:translateX(-50%) translateY(0)} 50%{opacity:1;transform:translateX(-50%) translateY(10px)} 100%{opacity:.5;transform:translateX(-50%) translateY(0)} }
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRINCIPLE POPUP (NEW — hover tooltip)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.principle-popup {
+  position: absolute; z-index: 999;
+  background: rgba(15,20,40,0.95); backdrop-filter: blur(16px);
+  border: 1px solid var(--gold-thin); border-radius: 10px;
+  padding: 14px 18px; color: var(--text-1); font-family: var(--body);
+  min-width: 220px; max-width: 280px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+  pointer-events: none; opacity: 0; transition: opacity 0.2s;
+  font-size: 0.82rem; line-height: 1.5;
+}
+.principle-popup.show { opacity: 1; }
+.principle-popup strong {
+  color: var(--gold); display: block;
+  font-family: var(--sans); font-size: 0.9rem; margin-bottom: 4px;
+}
+.principle-popup .class-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 0.65rem; font-weight: 700; margin-right: 4px;
+}
+.class-A { background: rgba(13,110,110,.25); color: var(--teal-lt); }
+.class-B { background: rgba(124,77,255,.25); color: #A78BFA; }
+.class-C { background: rgba(245,124,0,.25); color: #FFA040; }
 
-        /* ── PROBLEM, CASE STUDY, PRINCIPLES etc. (original) ── */
-        #problem { background:linear-gradient(to bottom, var(--void-01), var(--void-02) 50%, var(--void-01)); }
-        .prob-grid { display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:center; margin-top:60px; }
-        .prob-big-num { font-family:var(--sans); font-weight:900; font-size:clamp(5rem,12vw,9rem); line-height:1; letter-spacing:-.06em; background:linear-gradient(135deg, var(--red) 0%, var(--orange) 60%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-        .prob-items { list-style:none; margin-top:24px; }
-        .prob-items li { display:flex; align-items:baseline; gap:14px; padding:14px 0; border-bottom:1px solid var(--hr); font-size:.95rem; color:var(--text-2); }
-        .prob-items li::before { content:'•'; color:var(--gold); font-size:1.4rem; flex-shrink:0; }
-        #how-it-works { background:var(--void-01); }
-        .steps-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:60px; position:relative; }
-        .steps-grid::before { content:''; position:absolute; top:40px; left:calc(16.66% + 24px); right:calc(16.66% + 24px); height:1px; background:linear-gradient(90deg,transparent,var(--gold) 30%,var(--gold) 70%,transparent); z-index:0; }
-        .step-card { padding:32px 24px; text-align:center; position:relative; z-index:1; transition:transform .3s, border-color .3s; }
-        .step-card:hover { transform:translateY(-4px); border-color:rgba(201,168,76,.4); }
-        .step-num { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; background:linear-gradient(135deg, var(--gold-dk), var(--gold)); color:var(--void-01); font-family:var(--sans); font-weight:800; font-size:1.2rem; box-shadow:0 0 30px var(--gold-glow); }
-        .step-card h3 { font-family:var(--sans); font-weight:700; font-size:1.1rem; margin-bottom:12px; color:var(--text-1); }
-        .step-card p { font-size:.9rem; color:var(--text-2); line-height:1.6; }
-        #case-study { background:linear-gradient(to bottom, var(--void-01), var(--void-02), var(--void-01)); }
-        .cs-table { width:100%; border-collapse:collapse; margin-top:40px; font-size:.92rem; }
-        .cs-table th { background:var(--void-03); color:var(--gold); padding:14px 20px; text-align:left; font-family:var(--sans); font-weight:700; letter-spacing:.04em; border-bottom:1px solid var(--glass-b); }
-        .cs-table td { padding:12px 20px; border-bottom:1px solid var(--hr); }
-        .cs-table tr:hover td { background:rgba(201,168,76,.03); }
-        .badge { display:inline-block; padding:3px 10px; border-radius:4px; font-size:.72rem; font-weight:700; font-family:var(--mono); letter-spacing:.08em; }
-        .badge-good { background:rgba(13,110,110,.25); color:var(--teal-lt); }
-        .badge-sm { background:rgba(201,168,76,.15); color:var(--gold-lt); }
-        .badge-bio { background:rgba(124,77,255,.2); color:#A78BFA; }
-        .badge-aso { background:rgba(245,124,0,.2); color:#FFA040; }
-        .insight-box { margin-top:24px; padding:20px 24px; border-left:3px solid var(--gold); background:rgba(201,168,76,.05); border-radius:0 8px 8px 0; font-size:.9rem; color:var(--text-2); }
-        .insight-box strong { color:var(--gold); }
+/* ── LAYOUT ── */
+main { position:relative; z-index:2; }
+.container { max-width:1200px; margin:0 auto; padding:0 28px; }
+section { padding:120px 0; position:relative; }
 
-        /* ── DRUG CARDS ── */
-        #sample-outputs { background:var(--void-01); }
-        .drugs-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px,1fr)); gap:20px; margin-top:50px; }
-        .drug-card { border-radius:var(--r-md); overflow:hidden; cursor:pointer; transition:transform .35s cubic-bezier(.16,1,.3,1), box-shadow .35s, border-color .35s; position:relative; }
-        .drug-card:hover { transform:translateY(-6px) scale(1.01); box-shadow:0 20px 60px rgba(0,0,0,.5), 0 0 40px rgba(201,168,76,.1); border-color:rgba(201,168,76,.4); }
-        .drug-card-header { padding:24px 24px 0; display:flex; align-items:flex-start; justify-content:space-between; }
-        .drug-type { font-family:var(--mono); font-size:.68rem; letter-spacing:.15em; text-transform:uppercase; color:var(--text-2); }
-        .drug-verdict { font-family:var(--sans); font-weight:700; font-size:.72rem; letter-spacing:.1em; padding:4px 10px; border-radius:4px; }
-        .verdict-good { background:rgba(13,110,110,.2); color:var(--teal-lt); }
-        .drug-name { font-family:var(--sans); font-weight:800; font-size:1.5rem; letter-spacing:-.02em; margin:12px 24px 0; color:var(--text-1); }
-        .drug-indication { font-size:.82rem; color:var(--text-2); margin:4px 24px 0; }
-        .bbb-ring { margin:20px 24px; display:flex; align-items:center; gap:16px; }
-        .ring-svg { width:64px; height:64px; flex-shrink:0; }
-        .ring-info .label { font-size:.7rem; color:var(--text-2); letter-spacing:.1em; text-transform:uppercase; }
-        .ring-info .val { font-family:var(--sans); font-weight:800; font-size:1.3rem; color:var(--gold); }
-        .drug-meta { margin:0 24px 20px; display:flex; flex-wrap:wrap; gap:10px; }
-        .drug-meta span { font-family:var(--mono); font-size:.7rem; background:rgba(255,255,255,.05); border:1px solid var(--hr); border-radius:4px; padding:3px 10px; color:var(--text-2); }
-        .drug-meta span strong { color:var(--text-1); }
-        .drug-dds { margin:0 24px 20px; padding:12px 14px; background:rgba(201,168,76,.06); border:1px solid var(--gold-thin); border-radius:8px; }
-        .drug-dds .label { font-size:.65rem; color:var(--gold); letter-spacing:.14em; text-transform:uppercase; font-family:var(--mono); }
-        .drug-dds .val { font-family:var(--sans); font-weight:600; font-size:.95rem; margin-top:4px; }
-        .drug-actions { display:flex; gap:10px; padding:0 24px 24px; }
-        .drug-btn { flex:1; padding:10px 0; border-radius:7px; border:none; font-family:var(--sans); font-weight:600; font-size:.82rem; letter-spacing:.04em; text-align:center; cursor:pointer; transition:all .2s; display:block; }
-        .drug-btn-dash { background:linear-gradient(135deg, var(--gold-dk), var(--gold)); color:var(--void-01); }
-        .drug-btn-dash:hover { transform:translateY(-1px); box-shadow:0 6px 20px var(--gold-glow); }
-        .drug-btn-pdf { background:rgba(255,255,255,.06); border:1px solid var(--hr); color:var(--text-2); }
-        .drug-btn-pdf:hover { border-color:var(--gold-thin); color:var(--text-1); }
+/* ── TYPOGRAPHY ── */
+.display { font-family:var(--sans); font-weight:800; letter-spacing:-.04em; line-height:1.05; }
+.head-xl { font-size: clamp(2.8rem,6vw,5.2rem); }
+.head-lg { font-size: clamp(2rem,4vw,3.4rem); }
+.head-md { font-size: clamp(1.4rem,2.5vw,2rem); }
+.eyebrow {
+  font-family:var(--mono); font-size:.72rem;
+  text-transform:uppercase; letter-spacing:.28em;
+  color:var(--gold); display:inline-block; margin-bottom:14px;
+}
+.lead { font-size:1.1rem; color:var(--text-2); max-width:680px; }
 
-        /* ── PRINCIPLE POPUP ── */
-        .principle-popup {
-            position: absolute; z-index: 999;
-            background: rgba(15,20,40,0.95); backdrop-filter: blur(16px);
-            border: 1px solid var(--gold-thin); border-radius: 10px;
-            padding: 14px 18px; color: var(--text-1); font-family: var(--body);
-            min-width: 220px; max-width: 280px;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.6);
-            pointer-events: none; opacity: 0; transition: opacity 0.2s;
-            font-size: 0.82rem; line-height: 1.5;
-        }
-        .principle-popup.show { opacity: 1; }
-        .principle-popup strong { color: var(--gold); display: block; font-family: var(--sans); font-size: 0.9rem; margin-bottom: 4px; }
-        .principle-popup .class-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 700; margin-right: 4px; }
-        .class-A { background: rgba(13,110,110,.25); color: var(--teal-lt); }
-        .class-B { background: rgba(124,77,255,.25); color: #A78BFA; }
-        .class-C { background: rgba(245,124,0,.25); color: #FFA040; }
+/* ── GLASS CARD ── */
+.glass {
+  background:var(--glass);
+  backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+  border:1px solid var(--glass-b);
+  border-radius:var(--r-md);
+}
 
-        /* (كل الأجزاء الأخرى مطابقة للأصل) */
-    </style>
+/* ── BUTTONS ── */
+.btn-gold {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:14px 32px;
+  background:linear-gradient(135deg, var(--gold-dk), var(--gold));
+  color:var(--void-01); font-family:var(--sans); font-weight:700;
+  font-size:.95rem; letter-spacing:.05em;
+  border-radius:8px; border:none;
+  transition:transform .25s, box-shadow .25s;
+}
+.btn-gold:hover {
+  transform:translateY(-2px);
+  box-shadow:0 12px 36px var(--gold-glow);
+  color:var(--void-01);
+}
+.btn-ghost {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:13px 30px;
+  background:transparent;
+  color:var(--gold); font-family:var(--sans); font-weight:600;
+  font-size:.95rem; letter-spacing:.04em;
+  border-radius:8px; border:1px solid var(--glass-b);
+  transition:border-color .25s, color .25s;
+}
+.btn-ghost:hover { border-color:var(--gold); color:var(--gold-lt); }
+
+/* ── REVEAL ANIMATION ── */
+.reveal {
+  opacity:0; transform:translateY(48px);
+  transition:opacity .9s cubic-bezier(.16,1,.3,1),
+              transform .9s cubic-bezier(.16,1,.3,1);
+}
+.reveal.active { opacity:1; transform:translateY(0); }
+.reveal-d1 { transition-delay:.1s; }
+.reveal-d2 { transition-delay:.2s; }
+.reveal-d3 { transition-delay:.3s; }
+.reveal-d4 { transition-delay:.4s; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NAVBAR
+   ═══════════════════════════════════════════════════════════════════════════ */
+nav {
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  padding:0 28px;
+  height:60px;
+  display:flex; align-items:center; justify-content:space-between;
+  background:rgba(6,6,16,.7);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--hr);
+  transition:background .3s;
+}
+.nav-brand {
+  display:flex; align-items:center; gap:12px;
+  text-decoration:none;
+}
+.nav-logo { height:34px; width:auto; }
+.nav-name {
+  font-family:var(--sans); font-weight:800;
+  font-size:1.05rem; letter-spacing:.02em; color:var(--text-1);
+}
+.nav-links {
+  display:flex; align-items:center; gap:6px;
+  list-style:none;
+}
+.nav-links a, .nav-links button {
+  padding:6px 14px; border-radius:6px;
+  font-size:.85rem; color:var(--text-2);
+  transition:color .2s, background .2s;
+  background:transparent;
+  font-family:var(--body);
+}
+.nav-links a:hover, .nav-links button:hover {
+  color:var(--text-1); background:rgba(255,255,255,.06);
+}
+.nav-demo {
+  display:flex; align-items:center; gap:6px;
+  padding:7px 16px;
+  background:rgba(201,168,76,.12);
+  border:1px solid var(--gold-thin);
+  border-radius:20px;
+  color:var(--gold) !important;
+  font-weight:600 !important;
+  font-size:.82rem !important;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  transition:all .25s !important;
+}
+.nav-demo:hover {
+  background:rgba(201,168,76,.22) !important;
+  border-color:var(--gold) !important;
+  color:var(--gold-lt) !important;
+}
+.nav-demo::before { content:'▶'; font-size:.7rem; }
+.nav-cta {
+  padding:8px 20px;
+  background:linear-gradient(135deg, var(--gold-dk), var(--gold));
+  color:var(--void-01) !important;
+  font-weight:700 !important; border-radius:6px;
+}
+.nav-cta:hover { background:linear-gradient(135deg, var(--gold), var(--gold-lt)) !important; }
+@media(max-width:900px){
+  .nav-links { display:none; }
+  .mobile-menu-btn { display:flex; }
+}
+.mobile-menu-btn {
+  display:none; flex-direction:column; gap:5px;
+  width:32px; cursor:pointer; background:none; border:none; padding:4px;
+}
+.mobile-menu-btn span {
+  display:block; height:2px; background:var(--text-2); border-radius:1px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HERO
+   ═══════════════════════════════════════════════════════════════════════════ */
+#hero {
+  min-height:100vh;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  text-align:center;
+  padding:100px 24px 80px;
+  position:relative;
+}
+#hero::after {
+  content:'';
+  position:absolute; bottom:0; left:0; right:0; height:200px;
+  background:linear-gradient(to top, var(--void-01), transparent);
+  pointer-events:none; z-index:1;
+}
+.hero-tag {
+  display:inline-block; margin-bottom:28px;
+  padding:6px 18px;
+  background:rgba(201,168,76,.1);
+  border:1px solid var(--gold-thin);
+  border-radius:20px;
+  font-family:var(--mono); font-size:.72rem;
+  color:var(--gold); letter-spacing:.22em;
+  text-transform:uppercase;
+  animation:fadeUp 1.2s .2s both;
+}
+.hero-title {
+  animation:fadeUp 1.4s .4s both;
+}
+.hero-title .line2 {
+  background:linear-gradient(120deg, var(--gold) 0%, var(--gold-lt) 40%, var(--gold) 80%);
+  background-size:200% 100%;
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+  animation:shimmer 4s ease-in-out infinite;
+}
+@keyframes shimmer { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(36px)} to{opacity:1;transform:translateY(0)} }
+.hero-sub {
+  margin:24px auto 0; font-size:1.1rem; color:var(--text-2);
+  max-width:600px; line-height:1.7;
+  animation:fadeUp 1.4s .6s both;
+}
+.hero-btns {
+  display:flex; gap:14px; flex-wrap:wrap; justify-content:center;
+  margin-top:40px;
+  animation:fadeUp 1.4s .8s both;
+}
+.hero-stats {
+  display:flex; flex-wrap:wrap; justify-content:center; gap:40px;
+  margin-top:60px;
+  animation:fadeUp 1.4s 1s both;
+}
+.hero-stat .num {
+  font-family:var(--sans); font-weight:900;
+  font-size:clamp(2.4rem,4vw,3.2rem);
+  line-height:1; letter-spacing:-.04em;
+}
+.hero-stat .lbl {
+  font-size:.72rem; color:var(--text-2);
+  letter-spacing:.14em; text-transform:uppercase; margin-top:8px;
+}
+.stat-divider { width:1px; background:var(--hr); }
+.hero-scroll {
+  position:absolute; bottom:50px; left:50%;
+  transform:translateX(-50%);
+  animation:bounce 2.5s infinite 2s;
+  opacity:0; animation-fill-mode:forwards;
+  color:var(--text-2); font-size:.7rem;
+  letter-spacing:.2em; text-transform:uppercase;
+  text-align:center; z-index:2;
+}
+.hero-scroll::after {
+  content:'↓'; display:block; font-size:1.3rem; margin-top:4px;
+}
+@keyframes bounce {
+  0%,20%{opacity:.5;transform:translateX(-50%) translateY(0)}
+  50%{opacity:1;transform:translateX(-50%) translateY(10px)}
+  100%{opacity:.5;transform:translateX(-50%) translateY(0)}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROBLEM SECTION
+   ═══════════════════════════════════════════════════════════════════════════ */
+#problem {
+  background:linear-gradient(to bottom, var(--void-01), var(--void-02) 50%, var(--void-01));
+}
+.prob-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:80px;
+  align-items:center; margin-top:60px;
+}
+.prob-big-num {
+  font-family:var(--sans); font-weight:900;
+  font-size:clamp(5rem,12vw,9rem);
+  line-height:1; letter-spacing:-.06em;
+  background:linear-gradient(135deg, var(--red) 0%, var(--orange) 60%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.prob-items { list-style:none; margin-top:24px; }
+.prob-items li {
+  display:flex; align-items:baseline; gap:14px;
+  padding:14px 0; border-bottom:1px solid var(--hr);
+  font-size:.95rem; color:var(--text-2);
+}
+.prob-items li::before {
+  content:'•'; color:var(--gold); font-size:1.4rem; flex-shrink:0;
+}
+@media(max-width:768px){ .prob-grid { grid-template-columns:1fr; gap:40px; } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HOW IT WORKS
+   ═══════════════════════════════════════════════════════════════════════════ */
+#how { background:var(--void-01); }
+.steps-grid {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:24px;
+  margin-top:60px; position:relative;
+}
+.steps-grid::before {
+  content:'';
+  position:absolute; top:40px; left:calc(16.66% + 24px); right:calc(16.66% + 24px);
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold) 30%,var(--gold) 70%,transparent);
+  z-index:0;
+}
+.step-card {
+  padding:32px 24px; text-align:center; position:relative; z-index:1;
+  transition:transform .3s, border-color .3s;
+}
+.step-card:hover { transform:translateY(-4px); border-color:rgba(201,168,76,.4); }
+.step-num {
+  width:52px; height:52px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto 20px;
+  background:linear-gradient(135deg, var(--gold-dk), var(--gold));
+  color:var(--void-01); font-family:var(--sans); font-weight:800; font-size:1.2rem;
+  box-shadow:0 0 30px var(--gold-glow);
+}
+.step-card h3 {
+  font-family:var(--sans); font-weight:700; font-size:1.1rem;
+  margin-bottom:12px; color:var(--text-1);
+}
+.step-card p { font-size:.9rem; color:var(--text-2); line-height:1.6; }
+@media(max-width:768px){
+  .steps-grid { grid-template-columns:1fr; }
+  .steps-grid::before { display:none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIVE CASE STUDY
+   ═══════════════════════════════════════════════════════════════════════════ */
+#case-study {
+  background:linear-gradient(to bottom, var(--void-01), var(--void-02), var(--void-01));
+}
+.cs-table {
+  width:100%; border-collapse:collapse; margin-top:40px; font-size:.92rem;
+}
+.cs-table th {
+  background:var(--void-03); color:var(--gold);
+  padding:14px 20px; text-align:left;
+  font-family:var(--sans); font-weight:700; letter-spacing:.04em;
+  border-bottom:1px solid var(--glass-b);
+}
+.cs-table td { padding:12px 20px; border-bottom:1px solid var(--hr); }
+.cs-table tr:hover td { background:rgba(201,168,76,.03); }
+.badge {
+  display:inline-block; padding:3px 10px; border-radius:4px;
+  font-size:.72rem; font-weight:700; font-family:var(--mono);
+  letter-spacing:.08em;
+}
+.badge-good { background:rgba(13,110,110,.25); color:var(--teal-lt); }
+.badge-sm { background:rgba(201,168,76,.15); color:var(--gold-lt); }
+.badge-bio { background:rgba(124,77,255,.2); color:#A78BFA; }
+.badge-aso { background:rgba(245,124,0,.2); color:#FFA040; }
+.insight-box {
+  margin-top:24px; padding:20px 24px;
+  border-left:3px solid var(--gold);
+  background:rgba(201,168,76,.05);
+  border-radius:0 8px 8px 0;
+  font-size:.9rem; color:var(--text-2);
+}
+.insight-box strong { color:var(--gold); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SAMPLE OUTPUTS — DRUG SHOWCASE
+   ═══════════════════════════════════════════════════════════════════════════ */
+#sample-outputs { background:var(--void-01); }
+.drugs-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(340px,1fr));
+  gap:20px; margin-top:50px;
+}
+.drug-card {
+  border-radius:var(--r-md);
+  overflow:hidden; cursor:pointer;
+  transition:transform .35s cubic-bezier(.16,1,.3,1),
+              box-shadow .35s cubic-bezier(.16,1,.3,1),
+              border-color .35s;
+  position:relative;
+}
+.drug-card:hover {
+  transform:translateY(-6px) scale(1.01);
+  box-shadow:0 20px 60px rgba(0,0,0,.5), 0 0 40px rgba(201,168,76,.1);
+  border-color:rgba(201,168,76,.4);
+}
+/* 3D tilt on mouse move handled by JS */
+.drug-card-header {
+  padding:24px 24px 0;
+  display:flex; align-items:flex-start; justify-content:space-between;
+}
+.drug-type {
+  font-family:var(--mono); font-size:.68rem;
+  letter-spacing:.15em; text-transform:uppercase;
+  color:var(--text-2);
+}
+.drug-verdict {
+  font-family:var(--sans); font-weight:700;
+  font-size:.72rem; letter-spacing:.1em;
+  padding:4px 10px; border-radius:4px;
+}
+.verdict-good { background:rgba(13,110,110,.2); color:var(--teal-lt); }
+.verdict-fair { background:rgba(245,124,0,.2); color:#FFA040; }
+
+.drug-name {
+  font-family:var(--sans); font-weight:800;
+  font-size:1.5rem; letter-spacing:-.02em;
+  margin:12px 24px 0; color:var(--text-1);
+}
+.drug-indication {
+  font-size:.82rem; color:var(--text-2);
+  margin:4px 24px 0;
+}
+
+/* BBB score arc */
+.bbb-ring {
+  margin:20px 24px;
+  display:flex; align-items:center; gap:16px;
+}
+.ring-svg { width:64px; height:64px; flex-shrink:0; }
+.ring-info .label { font-size:.7rem; color:var(--text-2); letter-spacing:.1em; text-transform:uppercase; }
+.ring-info .val {
+  font-family:var(--sans); font-weight:800;
+  font-size:1.3rem; color:var(--gold);
+}
+
+.drug-meta {
+  margin:0 24px 20px;
+  display:flex; flex-wrap:wrap; gap:10px;
+}
+.drug-meta span {
+  font-family:var(--mono); font-size:.7rem;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--hr); border-radius:4px;
+  padding:3px 10px; color:var(--text-2);
+}
+.drug-meta span strong { color:var(--text-1); }
+
+.drug-dds {
+  margin:0 24px 20px;
+  padding:12px 14px;
+  background:rgba(201,168,76,.06);
+  border:1px solid var(--gold-thin);
+  border-radius:8px;
+}
+.drug-dds .label { font-size:.65rem; color:var(--gold); letter-spacing:.14em; text-transform:uppercase; font-family:var(--mono); }
+.drug-dds .val { font-family:var(--sans); font-weight:600; font-size:.95rem; margin-top:4px; }
+
+.drug-actions {
+  display:flex; gap:10px;
+  padding:0 24px 24px;
+}
+.drug-btn {
+  flex:1; padding:10px 0; border-radius:7px; border:none;
+  font-family:var(--sans); font-weight:600; font-size:.82rem;
+  letter-spacing:.04em; text-align:center;
+  cursor:pointer; transition:all .2s; display:block;
+}
+.drug-btn-dash {
+  background:linear-gradient(135deg, var(--gold-dk), var(--gold));
+  color:var(--void-01);
+}
+.drug-btn-dash:hover { transform:translateY(-1px); box-shadow:0 6px 20px var(--gold-glow); }
+.drug-btn-pdf {
+  background:rgba(255,255,255,.06);
+  border:1px solid var(--hr); color:var(--text-2);
+}
+.drug-btn-pdf:hover { border-color:var(--gold-thin); color:var(--text-1); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DEMO SECTION
+   ═══════════════════════════════════════════════════════════════════════════ */
+#live-demo { background:var(--void-02); }
+.demo-wrap {
+  margin-top:50px; position:relative;
+}
+.demo-particle-ring {
+  position:absolute; inset:-20px;
+  border-radius:var(--r-lg);
+  background:transparent;
+  border:1px solid rgba(201,168,76,.15);
+  animation:ringPulse 4s ease-in-out infinite;
+  pointer-events:none;
+}
+.demo-particle-ring::before {
+  content:'';
+  position:absolute; inset:-15px;
+  border-radius:calc(var(--r-lg) + 14px);
+  border:1px solid rgba(201,168,76,.07);
+  animation:ringPulse 4s ease-in-out infinite .5s;
+}
+@keyframes ringPulse {
+  0%,100%{ box-shadow:0 0 20px rgba(201,168,76,.1); }
+  50%    { box-shadow:0 0 60px rgba(201,168,76,.2), inset 0 0 30px rgba(201,168,76,.05); }
+}
+.demo-frame-outer {
+  background:var(--glass);
+  border:1px solid var(--glass-b);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+  backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+}
+.demo-header {
+  padding:16px 24px;
+  border-bottom:1px solid var(--hr);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.demo-dots { display:flex; gap:8px; }
+.demo-dots span {
+  width:12px; height:12px; border-radius:50%;
+}
+.demo-dots span:nth-child(1){ background:#C62828; }
+.demo-dots span:nth-child(2){ background:var(--orange); }
+.demo-dots span:nth-child(3){ background:var(--teal-lt); }
+.demo-url {
+  font-family:var(--mono); font-size:.75rem;
+  color:var(--text-2); letter-spacing:.05em;
+}
+.demo-frame {
+  width:100%; border:none;
+  height:600px; display:block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   62 PRINCIPLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+#principles {
+  background:var(--void-01);
+}
+.principles-intro {
+  display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center;
+  margin-top:60px;
+}
+@media(max-width:768px){ .principles-intro{grid-template-columns:1fr;gap:40px;} }
+.principle-groups { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.pg-card {
+  padding:18px;
+  transition:transform .3s, border-color .3s;
+}
+.pg-card:hover { transform:translateY(-3px); border-color:rgba(201,168,76,.35); }
+.pg-card h4 { font-family:var(--sans); font-size:.95rem; font-weight:700; color:var(--gold); margin-bottom:8px; }
+.pg-card p { font-size:.8rem; color:var(--text-2); line-height:1.5; }
+
+.principle-dots {
+  display:flex; flex-wrap:wrap; gap:5px; margin-top:24px;
+}
+.p-dot {
+  width:32px; height:32px; border-radius:5px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:7px; font-weight:600;
+  color:#fff; transition:transform .2s, box-shadow .2s; cursor:default;
+}
+.p-dot:hover { transform:scale(1.3); box-shadow:0 0 12px var(--gold-glow); }
+.p-dot.pa { background:var(--teal); }
+.p-dot.pb { background:var(--purple); }
+.p-dot.pc { background:var(--orange); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRICING
+   ═══════════════════════════════════════════════════════════════════════════ */
+#pricing { background:var(--void-02); }
+.pricing-grid {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:20px;
+  margin-top:50px;
+}
+@media(max-width:900px){ .pricing-grid{grid-template-columns:1fr;max-width:420px;margin-left:auto;margin-right:auto;} }
+.tier {
+  padding:32px; position:relative; overflow:hidden;
+  transition:transform .3s, border-color .3s;
+}
+.tier:hover { transform:translateY(-4px); }
+.tier.featured { border-color:var(--gold); }
+.tier.featured::before {
+  content:'MOST POPULAR';
+  position:absolute; top:18px; right:-30px;
+  background:linear-gradient(135deg, var(--gold-dk), var(--gold));
+  color:var(--void-01); font-family:var(--mono); font-size:.62rem;
+  font-weight:700; letter-spacing:.18em;
+  padding:4px 48px; transform:rotate(45deg);
+}
+.tier-name {
+  font-family:var(--sans); font-weight:800; font-size:1.05rem;
+  color:var(--gold); letter-spacing:.04em; text-transform:uppercase;
+}
+.tier-price {
+  font-family:var(--sans); font-weight:900;
+  font-size:2.8rem; letter-spacing:-.04em;
+  margin:12px 0; color:var(--text-1);
+}
+.tier-price span { font-size:1rem; font-weight:400; color:var(--text-2); }
+.tier-desc { font-size:.85rem; color:var(--text-2); margin-bottom:24px; }
+.tier-features { list-style:none; margin-bottom:28px; }
+.tier-features li {
+  display:flex; gap:10px; padding:8px 0;
+  font-size:.88rem; color:var(--text-2);
+  border-bottom:1px solid var(--hr);
+}
+.tier-features li::before { content:'✓'; color:var(--teal-lt); flex-shrink:0; }
+.tier-features li.required::before { content:'★'; color:var(--gold); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REQUEST FORM
+   ═══════════════════════════════════════════════════════════════════════════ */
+#request-form { background:var(--void-01); }
+.form-wrap {
+  max-width:680px; margin:50px auto 0;
+  padding:40px;
+}
+.form-steps {
+  display:flex; justify-content:center; gap:0; margin-bottom:36px;
+}
+.form-step-dot {
+  display:flex; flex-direction:column; align-items:center; flex:1;
+  position:relative; cursor:pointer;
+}
+.form-step-dot::before {
+  content:''; position:absolute; top:18px; left:50%; right:-50%;
+  height:2px; background:var(--hr); z-index:0;
+}
+.form-step-dot:last-child::before { display:none; }
+.sdot {
+  width:36px; height:36px; border-radius:50%; z-index:1;
+  display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--hr); background:var(--void-02);
+  font-family:var(--sans); font-weight:700; font-size:.9rem;
+  color:var(--text-2); transition:all .3s;
+}
+.form-step-dot.active .sdot { border-color:var(--gold); background:var(--gold); color:var(--void-01); }
+.form-step-dot.done .sdot { border-color:var(--teal); background:var(--teal); color:#fff; }
+.step-label { font-size:.68rem; color:var(--text-2); margin-top:8px; letter-spacing:.1em; text-align:center; white-space:nowrap; }
+
+.form-page { display:none; }
+.form-page.active { display:block; animation:fadeUp .4s ease; }
+
+.form-group { margin-bottom:20px; }
+.form-label {
+  display:block; font-size:.82rem; font-weight:600;
+  color:var(--text-2); margin-bottom:8px; letter-spacing:.04em;
+}
+.form-label .req { color:var(--gold); margin-left:2px; }
+.form-input, .form-select, .form-textarea {
+  width:100%; padding:12px 14px;
+  background:rgba(255,255,255,.05); border:1px solid var(--hr);
+  border-radius:8px; color:var(--text-1); font-size:.9rem;
+  transition:border-color .2s, box-shadow .2s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline:none; border-color:var(--gold-thin);
+  box-shadow:0 0 0 3px rgba(201,168,76,.1);
+}
+.form-select option { background:var(--void-02); }
+.form-textarea { resize:vertical; min-height:100px; }
+.form-check {
+  display:flex; gap:12px; align-items:flex-start;
+  padding:14px; background:rgba(255,255,255,.03);
+  border:1px solid var(--hr); border-radius:8px; margin-bottom:12px;
+}
+.form-check input[type=checkbox] {
+  width:18px; height:18px; flex-shrink:0;
+  accent-color:var(--gold); cursor:pointer; margin-top:2px;
+}
+.form-check .check-text { font-size:.85rem; color:var(--text-2); line-height:1.5; }
+.form-check .check-text strong { color:var(--text-1); }
+.form-nav { display:flex; gap:12px; margin-top:28px; }
+.btn-next, .btn-back, .btn-submit {
+  padding:13px 28px; border-radius:8px;
+  font-family:var(--sans); font-weight:700; font-size:.9rem;
+  letter-spacing:.04em; transition:all .2s;
+}
+.btn-next, .btn-submit {
+  background:linear-gradient(135deg, var(--gold-dk), var(--gold));
+  color:var(--void-01); border:none; flex:1;
+}
+.btn-next:hover, .btn-submit:hover { box-shadow:0 8px 24px var(--gold-glow); transform:translateY(-1px); }
+.btn-back {
+  background:rgba(255,255,255,.06); color:var(--text-2);
+  border:1px solid var(--hr);
+}
+.btn-back:hover { border-color:var(--gold-thin); color:var(--text-1); }
+.form-success {
+  display:none; text-align:center; padding:40px 20px;
+}
+.form-success.show { display:block; animation:fadeUp .5s ease; }
+.success-icon { font-size:3rem; margin-bottom:16px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════════════════════ */
+footer {
+  border-top:1px solid var(--hr); padding:50px 0;
+  background:var(--void-01); text-align:center;
+}
+.foot-logo { width:70px; margin:0 auto 16px; opacity:.7; }
+footer p { color:var(--text-2); font-size:.85rem; }
+footer strong { color:var(--text-1); }
+.foot-links { display:flex; gap:24px; justify-content:center; margin-top:16px; flex-wrap:wrap; }
+.foot-links a { color:var(--text-2); font-size:.82rem; transition:color .2s; }
+.foot-links a:hover { color:var(--gold); }
+</style>
 </head>
 <body>
 
-    <div class="meteor-background">
-        <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
-        <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
-        <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
-        <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
-        <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
+<!-- ── METEOR BACKGROUND (NEW) ────────────────────────────────────────── -->
+<div class="meteor-background">
+  <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
+  <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
+  <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
+  <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
+  <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
+</div>
+
+<!-- ── THREE.JS CANVAS ──────────────────────────────────────────────────── -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     NAVBAR
+     ══════════════════════════════════════════════════════════════════════ -->
+<nav id="navbar">
+  <a href="#hero" class="nav-brand">
+    <img
+      src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Engine%20-%20Background%20system%2C%20pattern%2C%20visual%20language.png"
+      class="nav-logo" alt="CEREBRO-X">
+    <span class="nav-name">CEREBRO-X</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#how-it-works">How It Works</a></li>
+    <li><a href="#case-study">Case Study</a></li>
+    <li><a href="#sample-outputs">Results</a></li>
+    <li><a href="prezi.html" target="_blank" class="nav-demo">Live Demo</a></li>
+    <li><a href="#principles">Principles</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#request-form" class="nav-cta">Request Analysis</a></li>
+  </ul>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<main>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     HEADER LOGO (NEW — above hero)
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="header-logo-wrap">
+  <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Primary%20Logo.png"
+       alt="CEREBRO-X Primary Logo" class="header-logo-img" loading="eager">
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     HERO
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="hero">
+  <span class="hero-tag">AI-Native · Physics-Informed · Molecule-Aware</span>
+  <h1 class="display head-xl hero-title">
+    The Engine That<br>
+    <span class="line2">Ends the Guesswork</span>
+  </h1>
+  <p class="hero-sub">
+    CEREBRO-X evaluates every candidate drug-delivery system against
+    62 computational validation principles — from quantum BBB physics
+    to regulatory readiness — before a single experiment is run.
+  </p>
+  <div class="hero-btns">
+    <a href="#sample-outputs" class="btn-gold">Explore Results ↓</a>
+    <a href="prezi.html" target="_blank" class="btn-ghost">▶ Watch Demo</a>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="num" style="color:var(--red)">98%</div>
+      <div class="lbl">CNS drugs fail<br>to cross the BBB</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="hero-stat">
+      <div class="num" style="color:var(--gold)">62</div>
+      <div class="lbl">Validation principles<br>per candidate DDS</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="hero-stat">
+      <div class="num" style="color:var(--teal-lt)">6</div>
+      <div class="lbl">Validated drugs<br>across 3 classes</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="hero-stat">
+      <div class="num" style="color:var(--gold)">$0</div>
+      <div class="lbl">For academic<br>collaborations</div>
+    </div>
+  </div>
+  <div class="hero-scroll">Scroll to explore</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     PROBLEM
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="problem">
+  <div class="container">
+    <div class="prob-grid">
+      <div class="reveal">
+        <span class="eyebrow">The Challenge</span>
+        <div class="prob-big-num">98%</div>
+        <h2 class="display head-lg" style="margin-top:16px">
+          Fail to cross the<br>Blood-Brain Barrier
+        </h2>
+        <p class="lead" style="margin-top:20px">
+          Over 98% of small molecules and ~100% of large biologics fail
+          to reach the CNS in therapeutic concentrations. Researchers spend
+          months in wet-lab trial-and-error when the answer could be
+          computed in minutes.
+        </p>
+      </div>
+      <div class="reveal reveal-d2">
+        <ul class="prob-items">
+          <li>The BBB actively rejects 95%+ of candidate nanocarriers via efflux pumps and enzymatic degradation</li>
+          <li>Protein corona formation silently deactivates 70% of "successful" in-vitro formulations in vivo</li>
+          <li>Scale-up from lab to manufacturing introduces shear stress that collapses most nanoparticle architectures</li>
+          <li>Drug-DDS compatibility is rarely assessed computationally — leading to encapsulation failures discovered only after synthesis</li>
+          <li>Glymphatic clearance removes brain-resident carriers 4–10× faster than researchers assume, negating CNS residence time</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     HOW IT WORKS
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="how-it-works">
+  <div class="container">
+    <div class="reveal" style="text-align:center">
+      <span class="eyebrow">The Process</span>
+      <h2 class="display head-lg">How CEREBRO-X Works</h2>
+      <p class="lead" style="margin:18px auto 0">
+        Physics-informed computation from molecular input to ranked decision report.
+        No wet lab. No waiting. Just answers.
+      </p>
+    </div>
+    <div class="steps-grid">
+      <div class="glass step-card reveal reveal-d1">
+        <div class="step-num">1</div>
+        <h3>Submit Your Molecule</h3>
+        <p>Provide your drug's SMILES/FASTA sequence and specify your candidate DDS formulations. Download our structured Excel template for precise input.</p>
+        <div style="margin-top:16px">
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_Input_Template.xlsx"
+             class="btn-ghost" style="font-size:.82rem;padding:8px 18px;">
+            Download Template
+          </a>
+        </div>
+      </div>
+      <div class="glass step-card reveal reveal-d2">
+        <div class="step-num">2</div>
+        <h3>62-Principle Analysis</h3>
+        <p>The engine evaluates every candidate against 62 computational principles: BBB physics, PBPK kinetics, protein corona, shelf-life, manufacturability, and more. All driven by real equations.</p>
+      </div>
+      <div class="glass step-card reveal reveal-d3">
+        <div class="step-num">3</div>
+        <h3>Ranked Decision Report</h3>
+        <p>Receive a comprehensive, publication-ready package: interactive HTML dashboards, PDF reports, animated PBPK videos, a ranked DDS leaderboard, and (on request) a Pre-IND regulatory framework.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     CASE STUDY
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="case-study">
+  <div class="container">
+    <div class="reveal" style="text-align:center">
+      <span class="eyebrow">Live Case</span>
+      <h2 class="display head-lg">Same Disease. Different Carriers.</h2>
+      <p class="lead" style="margin:18px auto 0">
+        CEREBRO-X differentiates between APIs with the same indication based purely
+        on molecular properties — no assumptions, no guesswork.
+      </p>
+    </div>
+    <div class="reveal" style="margin-top:40px;overflow-x:auto;">
+      <table class="cs-table">
+        <thead>
+          <tr>
+            <th>Drug</th>
+            <th>Class</th>
+            <th>Key Properties</th>
+            <th>Top-1 DDS</th>
+            <th>BBB Score</th>
+            <th>Key Differentiator</th>
+            <th>Verdict</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Donepezil</strong></td>
+            <td><span class="badge badge-sm">Small Molecule</span></td>
+            <td><span style="font-family:var(--mono);font-size:.8rem">LogP 4.77 · MW 379.5 Da</span></td>
+            <td>Solid Lipid Nanoparticle</td>
+            <td><strong style="color:var(--gold)">78.4</strong> / 100</td>
+            <td>High lipophilicity fits lipid-based matrices perfectly</td>
+            <td><span class="badge badge-good">GOOD</span></td>
+          </tr>
+          <tr>
+            <td><strong>Rivastigmine</strong></td>
+            <td><span class="badge badge-sm">Small Molecule</span></td>
+            <td><span style="font-family:var(--mono);font-size:.8rem">LogP 2.30 · MW 250.3 Da</span></td>
+            <td>PLGA Nanoparticle</td>
+            <td><strong style="color:var(--gold)">72.1</strong> / 100</td>
+            <td>Moderate lipophilicity demands polymeric encapsulation</td>
+            <td><span class="badge badge-good">GOOD</span></td>
+          </tr>
+          <tr>
+            <td><strong>Galantamine</strong></td>
+            <td><span class="badge badge-sm">Small Molecule</span></td>
+            <td><span style="font-family:var(--mono);font-size:.8rem">LogP 1.83 · MW 287.4 Da</span></td>
+            <td>Mannose-Liposome</td>
+            <td><strong style="color:var(--gold)">69.5</strong> / 100</td>
+            <td>Low LogP benefits from surface-modified active targeting</td>
+            <td><span class="badge badge-good">GOOD</span></td>
+          </tr>
+          <tr>
+            <td><strong>Lecanemab</strong></td>
+            <td><span class="badge badge-bio">Biologic (mAb)</span></td>
+            <td><span style="font-family:var(--mono);font-size:.8rem">~148 kDa · IgG1</span></td>
+            <td>Tf-PEG-Liposome</td>
+            <td><strong style="color:var(--gold)">74.3</strong> / 100</td>
+            <td>Transferrin-receptor-mediated transcytosis for large biologics</td>
+            <td><span class="badge badge-good">GOOD</span></td>
+          </tr>
+          <tr>
+            <td><strong>Temozolomide</strong></td>
+            <td><span class="badge badge-sm">Small Molecule</span></td>
+            <td><span style="font-family:var(--mono);font-size:.8rem">LogP −0.96 · MW 194.1 Da</span></td>
+            <td>RVG29-PLGA-NP</td>
+            <td><strong style="color:var(--gold)">76.8</strong> / 100</td>
+            <td>Neuron-specific RVG29 ligand maximises CNS accumulation</td>
+            <td><span class="badge badge-good">GOOD</span></td>
+          </tr>
+          <tr>
+            <td><strong>Nusinersen</strong></td>
+            <td><span class="badge badge-aso">ASO</span></td>
+            <td><span style="font-family:var(--mono);font-size:.8rem">~7.1 kDa · Phosphorothioate</span></td>
+            <td>ApoE-LNP</td>
+            <td><strong style="color:var(--gold)">71.2</strong> / 100</td>
+            <td>ApoE-apolipoprotein coating mimics LDL-receptor pathway</td>
+            <td><span class="badge badge-good">GOOD</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="insight-box reveal">
+      <strong>Key Insight:</strong> Six drugs treating three different CNS diseases —
+      six completely different optimal delivery systems, identified from molecular
+      descriptors alone. No manual parameter tuning. No prior assumptions.
+      The same engine handles small molecules, biologics, and nucleic acids with equal precision.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     SAMPLE OUTPUTS — DRUG SHOWCASE (ALL 6 DRUGS)
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="sample-outputs">
+  <div class="container">
+    <div class="reveal" style="text-align:center">
+      <span class="eyebrow">Live Results</span>
+      <h2 class="display head-lg">Explore Sample Outputs</h2>
+      <p class="lead" style="margin:18px auto 0">
+        Real pipeline output for six drugs across three molecular classes.
+        Each card links to a live interactive dashboard and a downloadable
+        publication-ready PDF report.
+      </p>
     </div>
 
-    <canvas id="bg-canvas"></canvas>
+    <div class="drugs-grid" id="drugs-grid">
 
-    <nav id="navbar">
-        <a href="#hero" class="nav-brand">
-            <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Engine%20-%20Background%20system%2C%20pattern%2C%20visual%20language.png"
-                 class="nav-logo" alt="CEREBRO-X Engine">
-            <span class="nav-name">CEREBRO-X</span>
-        </a>
-        <ul class="nav-links">
-            <li><a href="#how-it-works">How It Works</a></li>
-            <li><a href="#case-study">Case Study</a></li>
-            <li><a href="#sample-outputs">Results</a></li>
-            <li><a href="prezi.html" target="_blank" class="nav-demo">Live Demo</a></li>
-            <li><a href="#principles">Principles</a></li>
-            <li><a href="#pricing">Pricing</a></li>
-            <li><a href="#request-form" class="nav-cta">Request Analysis</a></li>
-        </ul>
-        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">
+      <!-- Donepezil -->
+      <div class="glass drug-card reveal reveal-d1" data-drug="donepezil">
+        <div class="drug-card-header">
+          <div>
+            <div class="drug-type">Small Molecule · BCS I · Alzheimer's</div>
+          </div>
+          <span class="drug-verdict verdict-good">GOOD</span>
+        </div>
+        <div class="drug-name">Donepezil</div>
+        <div class="drug-indication">AChEI · First-line therapy for mild–severe AD</div>
+        <div class="bbb-ring">
+          <svg class="ring-svg" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr1)" stroke-width="6"
+              stroke-dasharray="163" stroke-dashoffset="39" stroke-linecap="round"
+              transform="rotate(-90 32 32)"/>
+            <defs><linearGradient id="gr1" x1="0" y1="0" x2="1" y2="1">
+              <stop stop-color="#B89A3F"/><stop offset="1" stop-color="#D4B563"/>
+            </linearGradient></defs>
+            <text x="32" y="37" text-anchor="middle" fill="#C9A84C"
+              font-family="Outfit,sans-serif" font-size="13" font-weight="800">78</text>
+          </svg>
+          <div class="ring-info">
+            <div class="label">BBB Score</div>
+            <div class="val">78.4 / 100</div>
+          </div>
+        </div>
+        <div class="drug-meta">
+          <span>LogP <strong>4.77</strong></span>
+          <span>MW <strong>379.5 Da</strong></span>
+          <span>Composite <strong>81.2</strong></span>
+        </div>
+        <div class="drug-dds">
+          <div class="label">Optimal DDS</div>
+          <div class="val">Solid Lipid Nanoparticle (SLN)</div>
+        </div>
+        <div class="drug-actions">
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Donepezil.html"
+             target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a>
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Donepezil.pdf"
+             target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a>
+          <button onclick="openDataModal('donepezil','Donepezil')" class="drug-btn" style="flex:none;width:100%;padding:10px 0;border-radius:7px;border:none;font-family:var(--sans);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-align:center;cursor:pointer;background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;transition:all .2s;" onmouseover="this.style.borderColor='rgba(201,168,76,.4)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)';this.style.color='var(--text-2)'">📊 Explore Raw Data</button>
+        </div>
+      </div>
+
+      <!-- Rivastigmine -->
+      <div class="glass drug-card reveal reveal-d2" data-drug="rivastigmine">
+        <div class="drug-card-header">
+          <div class="drug-type">Small Molecule · BCS I · Alzheimer's / PDD</div>
+          <span class="drug-verdict verdict-good">GOOD</span>
+        </div>
+        <div class="drug-name">Rivastigmine</div>
+        <div class="drug-indication">AChEI · AD and Parkinson's disease dementia</div>
+        <div class="bbb-ring">
+          <svg class="ring-svg" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr2)" stroke-width="6"
+              stroke-dasharray="163" stroke-dashoffset="45" stroke-linecap="round"
+              transform="rotate(-90 32 32)"/>
+            <defs><linearGradient id="gr2" x1="0" y1="0" x2="1" y2="1">
+              <stop stop-color="#0D6E6E"/><stop offset="1" stop-color="#5BA89B"/>
+            </linearGradient></defs>
+            <text x="32" y="37" text-anchor="middle" fill="#5BA89B"
+              font-family="Outfit,sans-serif" font-size="13" font-weight="800">72</text>
+          </svg>
+          <div class="ring-info">
+            <div class="label">BBB Score</div>
+            <div class="val">72.1 / 100</div>
+          </div>
+        </div>
+        <div class="drug-meta">
+          <span>LogP <strong>2.30</strong></span>
+          <span>MW <strong>250.3 Da</strong></span>
+          <span>Composite <strong>74.7</strong></span>
+        </div>
+        <div class="drug-dds">
+          <div class="label">Optimal DDS</div>
+          <div class="val">RVG29-PLGA Nanoparticle</div>
+        </div>
+        <div class="drug-actions">
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Rivastigmine.html"
+             target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a>
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Rivastigmine.pdf"
+             target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a>
+          <button onclick="openDataModal('rivastigmine','Rivastigmine')" class="drug-btn" style="flex:none;width:100%;padding:10px 0;border-radius:7px;border:none;font-family:var(--sans);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-align:center;cursor:pointer;background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;transition:all .2s;" onmouseover="this.style.borderColor='rgba(201,168,76,.4)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)';this.style.color='var(--text-2)'">📊 Explore Raw Data</button>
+        </div>
+      </div>
+
+      <!-- Galantamine -->
+      <div class="glass drug-card reveal reveal-d3" data-drug="galantamine">
+        <div class="drug-card-header">
+          <div class="drug-type">Small Molecule · BCS III · Alzheimer's</div>
+          <span class="drug-verdict verdict-good">GOOD</span>
+        </div>
+        <div class="drug-name">Galantamine</div>
+        <div class="drug-indication">AChEI + nicotinic modulator · Mild–moderate AD</div>
+        <div class="bbb-ring">
+          <svg class="ring-svg" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr3)" stroke-width="6"
+              stroke-dasharray="163" stroke-dashoffset="49" stroke-linecap="round"
+              transform="rotate(-90 32 32)"/>
+            <defs><linearGradient id="gr3" x1="0" y1="0" x2="1" y2="1">
+              <stop stop-color="#7C4DFF"/><stop offset="1" stop-color="#A78BFA"/>
+            </linearGradient></defs>
+            <text x="32" y="37" text-anchor="middle" fill="#A78BFA"
+              font-family="Outfit,sans-serif" font-size="13" font-weight="800">70</text>
+          </svg>
+          <div class="ring-info">
+            <div class="label">BBB Score</div>
+            <div class="val">69.5 / 100</div>
+          </div>
+        </div>
+        <div class="drug-meta">
+          <span>LogP <strong>1.83</strong></span>
+          <span>MW <strong>287.4 Da</strong></span>
+        </div>
+        <div class="drug-dds">
+          <div class="label">Optimal DDS</div>
+          <div class="val">Mannose-Functionalized Liposome</div>
+        </div>
+        <div class="drug-actions">
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Galantamine.html"
+             target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a>
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Galantamine.pdf"
+             target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a>
+          <button onclick="openDataModal('galantamine','Galantamine')" class="drug-btn" style="flex:none;width:100%;padding:10px 0;border-radius:7px;border:none;font-family:var(--sans);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-align:center;cursor:pointer;background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;transition:all .2s;" onmouseover="this.style.borderColor='rgba(201,168,76,.4)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)';this.style.color='var(--text-2)'">📊 Explore Raw Data</button>
+        </div>
+      </div>
+
+      <!-- Lecanemab -->
+      <div class="glass drug-card reveal reveal-d1" data-drug="lecanemab">
+        <div class="drug-card-header">
+          <div class="drug-type">Biologic · Monoclonal Antibody · Alzheimer's</div>
+          <span class="drug-verdict verdict-good">GOOD</span>
+        </div>
+        <div class="drug-name">Lecanemab</div>
+        <div class="drug-indication">Anti-Aβ immunotherapy · FDA-approved 2023</div>
+        <div class="bbb-ring">
+          <svg class="ring-svg" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr4)" stroke-width="6"
+              stroke-dasharray="163" stroke-dashoffset="42" stroke-linecap="round"
+              transform="rotate(-90 32 32)"/>
+            <defs><linearGradient id="gr4" x1="0" y1="0" x2="1" y2="1">
+              <stop stop-color="#B89A3F"/><stop offset="1" stop-color="#D4B563"/>
+            </linearGradient></defs>
+            <text x="32" y="37" text-anchor="middle" fill="#C9A84C"
+              font-family="Outfit,sans-serif" font-size="13" font-weight="800">74</text>
+          </svg>
+          <div class="ring-info">
+            <div class="label">BBB Score</div>
+            <div class="val">74.3 / 100</div>
+          </div>
+        </div>
+        <div class="drug-meta">
+          <span>MW <strong>~148 kDa</strong></span>
+          <span>Type <strong>IgG1 mAb</strong></span>
+        </div>
+        <div class="drug-dds">
+          <div class="label">Optimal DDS</div>
+          <div class="val">Transferrin-PEG-Liposome (Tf-PEG)</div>
+        </div>
+        <div class="drug-actions">
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Lecanemab.html"
+             target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a>
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Lecanemab.pdf"
+             target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a>
+          <button onclick="openDataModal('lecanemab','Lecanemab')" class="drug-btn" style="flex:none;width:100%;padding:10px 0;border-radius:7px;border:none;font-family:var(--sans);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-align:center;cursor:pointer;background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;transition:all .2s;" onmouseover="this.style.borderColor='rgba(201,168,76,.4)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)';this.style.color='var(--text-2)'">📊 Explore Raw Data</button>
+        </div>
+      </div>
+
+      <!-- Temozolomide -->
+      <div class="glass drug-card reveal reveal-d2" data-drug="temozolomide">
+        <div class="drug-card-header">
+          <div class="drug-type">Small Molecule · BCS I · Glioblastoma</div>
+          <span class="drug-verdict verdict-good">GOOD</span>
+        </div>
+        <div class="drug-name">Temozolomide</div>
+        <div class="drug-indication">DNA-alkylating agent · GBM standard-of-care</div>
+        <div class="bbb-ring">
+          <svg class="ring-svg" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr5)" stroke-width="6"
+              stroke-dasharray="163" stroke-dashoffset="40" stroke-linecap="round"
+              transform="rotate(-90 32 32)"/>
+            <defs><linearGradient id="gr5" x1="0" y1="0" x2="1" y2="1">
+              <stop stop-color="#F57C00"/><stop offset="1" stop-color="#FFA040"/>
+            </linearGradient></defs>
+            <text x="32" y="37" text-anchor="middle" fill="#FFA040"
+              font-family="Outfit,sans-serif" font-size="13" font-weight="800">77</text>
+          </svg>
+          <div class="ring-info">
+            <div class="label">BBB Score</div>
+            <div class="val">76.8 / 100</div>
+          </div>
+        </div>
+        <div class="drug-meta">
+          <span>LogP <strong>−0.96</strong></span>
+          <span>MW <strong>194.1 Da</strong></span>
+        </div>
+        <div class="drug-dds">
+          <div class="label">Optimal DDS</div>
+          <div class="val">RVG29-PLGA Nanoparticle</div>
+        </div>
+        <div class="drug-actions">
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Temozolomide.html"
+             target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a>
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Temozolomide.pdf"
+             target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a>
+          <button onclick="openDataModal('temozolomide','Temozolomide')" class="drug-btn" style="flex:none;width:100%;padding:10px 0;border-radius:7px;border:none;font-family:var(--sans);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-align:center;cursor:pointer;background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;transition:all .2s;" onmouseover="this.style.borderColor='rgba(201,168,76,.4)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)';this.style.color='var(--text-2)'">📊 Explore Raw Data</button>
+        </div>
+      </div>
+
+      <!-- Nusinersen -->
+      <div class="glass drug-card reveal reveal-d3" data-drug="nusinersen">
+        <div class="drug-card-header">
+          <div class="drug-type">ASO · Nucleic Acid · Spinal Muscular Atrophy</div>
+          <span class="drug-verdict verdict-good">GOOD</span>
+        </div>
+        <div class="drug-name">Nusinersen</div>
+        <div class="drug-indication">Antisense oligonucleotide · SMN2 splice modifier</div>
+        <div class="bbb-ring">
+          <svg class="ring-svg" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr6)" stroke-width="6"
+              stroke-dasharray="163" stroke-dashoffset="46" stroke-linecap="round"
+              transform="rotate(-90 32 32)"/>
+            <defs><linearGradient id="gr6" x1="0" y1="0" x2="1" y2="1">
+              <stop stop-color="#0D6E6E"/><stop offset="1" stop-color="#5BA89B"/>
+            </linearGradient></defs>
+            <text x="32" y="37" text-anchor="middle" fill="#5BA89B"
+              font-family="Outfit,sans-serif" font-size="13" font-weight="800">71</text>
+          </svg>
+          <div class="ring-info">
+            <div class="label">BBB Score</div>
+            <div class="val">71.2 / 100</div>
+          </div>
+        </div>
+        <div class="drug-meta">
+          <span>MW <strong>~7.1 kDa</strong></span>
+          <span>Type <strong>Phosphorothioate</strong></span>
+        </div>
+        <div class="drug-dds">
+          <div class="label">Optimal DDS</div>
+          <div class="val">ApoE-Lipid Nanoparticle (LNP)</div>
+        </div>
+        <div class="drug-actions">
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Nusinersen.html"
+             target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a>
+          <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Nusinersen.pdf"
+             target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a>
+          <button onclick="openDataModal('nusinersen','Nusinersen')" class="drug-btn" style="flex:none;width:100%;padding:10px 0;border-radius:7px;border:none;font-family:var(--sans);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-align:center;cursor:pointer;background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;transition:all .2s;" onmouseover="this.style.borderColor='rgba(201,168,76,.4)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)';this.style.color='var(--text-2)'">📊 Explore Raw Data</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     LIVE DEMO
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="live-demo">
+  <div class="container">
+    <div class="reveal" style="text-align:center">
+      <span class="eyebrow">Interactive Walkthrough</span>
+      <h2 class="display head-lg">Experience the Engine</h2>
+      <p class="lead" style="margin:18px auto 0">
+        A cinematic presentation of how CEREBRO-X thinks — from BBB physics
+        to ranked output. Navigate at your own pace. All 62 principles
+        explained with real methods and references.
+      </p>
+    </div>
+    <div class="demo-wrap reveal">
+      <div class="demo-particle-ring"></div>
+      <div class="demo-frame-outer glass">
+        <div class="demo-header">
+          <div class="demo-dots">
             <span></span><span></span><span></span>
-        </button>
-    </nav>
+          </div>
+          <span class="demo-url">cerebro-x.io / interactive-demo</span>
+          <a href="prezi.html" target="_blank"
+             style="font-family:var(--mono);font-size:.72rem;color:var(--gold);">
+            Open fullscreen ↗
+          </a>
+        </div>
+        <iframe
+          src="prezi.html"
+          class="demo-frame"
+          loading="lazy"
+          allow="fullscreen"
+          title="CEREBRO-X Interactive Demo">
+        </iframe>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <main>
+<!-- ══════════════════════════════════════════════════════════════════════
+     62 PRINCIPLES (WITH POPUP)
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="principles">
+  <div class="container">
+    <div class="reveal" style="text-align:center">
+      <span class="eyebrow">The Framework</span>
+      <h2 class="display head-lg">Powered by 62 Validation Principles</h2>
+      <p class="lead" style="margin:18px auto 0">
+        Every candidate DDS is evaluated against 62 computational principles.
+        Three pipeline classes, eight CNS pharma dimensions, one unified composite score.
+      </p>
+    </div>
 
-        <div class="header-logo-wrap">
-            <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Primary%20Logo.png"
-                 alt="CEREBRO-X Primary Logo" class="header-logo-img" loading="eager">
+    <div class="principles-intro">
+      <div class="reveal">
+        <div class="principle-groups">
+          <div class="glass pg-card">
+            <h4>CNS Delivery</h4>
+            <p>BBB transcytosis, tight junction dynamics, efflux pump interactions, receptor-mediated crossing</p>
+          </div>
+          <div class="glass pg-card">
+            <h4>Release Kinetics</h4>
+            <p>Dissolution profiles, sustained vs burst release, API-DDS compatibility scoring</p>
+          </div>
+          <div class="glass pg-card">
+            <h4>Stability</h4>
+            <p>Protein corona, polymorph transformation, shelf-life under Arrhenius kinetics</p>
+          </div>
+          <div class="glass pg-card">
+            <h4>Safety</h4>
+            <p>hERG, complement activation, microglial neuroinflammation, ADMET off-target toxicity</p>
+          </div>
+          <div class="glass pg-card">
+            <h4>Glymphatic</h4>
+            <p>CSF clearance trap, Stokes-Einstein diffusion, sleep-cycle-dependent drainage</p>
+          </div>
+          <div class="glass pg-card">
+            <h4>Manufacturing</h4>
+            <p>Scale-up shear stress, lyophilisation cycles, sterilisability, QbD compliance</p>
+          </div>
+          <div class="glass pg-card">
+            <h4>Drug-DDS Fit</h4>
+            <p>Ionisation state, encapsulation thermodynamics, ligand-receptor docking (AutoDock Vina)</p>
+          </div>
+          <div class="glass pg-card">
+            <h4>Translational</h4>
+            <p>Pre-IND framework, FTO & patentability scoring, FDA 21 CFR Part 11 audit trail</p>
+          </div>
+        </div>
+      </div>
+      <div class="reveal reveal-d2">
+        <p style="font-size:.9rem;color:var(--text-2);margin-bottom:16px;">
+          Hover any principle to see its class and method.
+        </p>
+        <div class="principle-dots" id="pDots"></div>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:.8rem;color:var(--text-2);">
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--teal);vertical-align:middle;margin-right:5px"></span><strong>56</strong> Surrogate (A)</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--purple);vertical-align:middle;margin-right:5px"></span><strong>1</strong> Deep Physics (B)</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--orange);vertical-align:middle;margin-right:5px"></span><strong>5</strong> Translational (C)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Principle Popup -->
+  <div class="principle-popup" id="principlePopup"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     PRICING
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="pricing">
+  <div class="container">
+    <div class="reveal" style="text-align:center">
+      <span class="eyebrow">Access Tiers</span>
+      <h2 class="display head-lg">Select Your Analysis Tier</h2>
+      <p class="lead" style="margin:18px auto 0">
+        Academic research is always free. Complex industry analyses are affordable.
+        All tiers require co-authorship acknowledgment.
+      </p>
+    </div>
+    <div class="pricing-grid">
+      <div class="glass tier reveal">
+        <div class="tier-name">Academic</div>
+        <div class="tier-price">Free <span>/ analysis</span></div>
+        <div class="tier-desc">For independent academic researchers</div>
+        <ul class="tier-features">
+          <li>1 Drug Molecule</li>
+          <li>Up to 3 DDS formulations</li>
+          <li>Full HTML + PDF Report</li>
+          <li>PBPK digital twin</li>
+          <li>Cinematic visualizations</li>
+          <li class="required">Co-authorship required</li>
+          <li class="required">ORCID: 0000-0002-9171-437X</li>
+        </ul>
+        <a href="#request-form" class="btn-ghost" style="display:block;text-align:center;">Get Started →</a>
+      </div>
+      <div class="glass tier featured reveal reveal-d1">
+        <div class="tier-name">Professional</div>
+        <div class="tier-price">$75 <span>/ analysis</span></div>
+        <div class="tier-desc">For complex formulations and comparative studies</div>
+        <ul class="tier-features">
+          <li>1 Drug Molecule</li>
+          <li><strong style="color:var(--text-1)">4+ DDS formulations</strong></li>
+          <li>Full HTML + PDF Report</li>
+          <li>Priority processing (48h)</li>
+          <li>All 62 principles executed</li>
+          <li>Excel workbook with provenance</li>
+          <li class="required">Co-authorship required</li>
+        </ul>
+        <a href="#request-form" class="btn-gold" style="display:block;text-align:center;">Request Analysis →</a>
+      </div>
+      <div class="glass tier reveal reveal-d2">
+        <div class="tier-name">Enterprise</div>
+        <div class="tier-price">Custom <span>pricing</span></div>
+        <div class="tier-desc">For pharma R&amp;D and large research institutions</div>
+        <ul class="tier-features">
+          <li>Multi-drug comparison</li>
+          <li>Custom DDS libraries</li>
+          <li>White-labeled reports</li>
+          <li>Strict NDA included</li>
+          <li>Closed-database model training</li>
+          <li>Pre-IND regulatory framework</li>
+          <li class="required">Flexible IP arrangement</li>
+        </ul>
+        <a href="mailto:mohamed.talaat@pharma.asu.edu.eg?subject=CEREBRO-X Enterprise"
+           class="btn-ghost" style="display:block;text-align:center;">Contact Us →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     REQUEST FORM
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="request-form">
+  <div class="container">
+    <div class="reveal" style="text-align:center">
+      <span class="eyebrow">Get Started</span>
+      <h2 class="display head-lg">Request Your Analysis</h2>
+      <p class="lead" style="margin:18px auto 0">
+        Three simple steps. Your analysis request will be sent directly to Muhammad Talaat.
+        Academic analyses are free. Professional tier requires payment confirmation before delivery.
+      </p>
+    </div>
+
+    <div class="glass form-wrap reveal">
+      <!-- Step indicator -->
+      <div class="form-steps">
+        <div class="form-step-dot active" data-step="1">
+          <div class="sdot" id="sdot1">1</div>
+          <div class="step-label">Details</div>
+        </div>
+        <div class="form-step-dot" data-step="2">
+          <div class="sdot" id="sdot2">2</div>
+          <div class="step-label">Drug Info</div>
+        </div>
+        <div class="form-step-dot" data-step="3">
+          <div class="sdot" id="sdot3">3</div>
+          <div class="step-label">DDS &amp; Submit</div>
+        </div>
+      </div>
+
+      <!-- Success message -->
+      <div class="form-success" id="formSuccess">
+        <div class="success-icon">✅</div>
+        <h3 class="display" style="font-size:1.6rem;margin-bottom:12px;">Request Sent!</h3>
+        <p style="color:var(--text-2);">
+          Your analysis request has been sent to
+          <strong style="color:var(--gold)">mohamed.talaat@pharma.asu.edu.eg</strong>.
+          You'll receive a confirmation and timeline within 24–48 hours.
+        </p>
+        <a href="#" onclick="location.reload()" class="btn-gold" style="margin-top:24px;display:inline-flex;">
+          Submit Another Request
+        </a>
+      </div>
+
+      <div id="formBody">
+
+        <!-- Step 1: Details & Agreements -->
+        <div class="form-page active" id="step1">
+          <div class="form-group">
+            <label class="form-label">Full Name <span class="req">*</span></label>
+            <input type="text" id="f-name" class="form-input" placeholder="Dr. Jane Smith" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Institutional Email <span class="req">*</span></label>
+            <input type="email" id="f-email" class="form-input" placeholder="jane.smith@university.edu" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Institution / University <span class="req">*</span></label>
+            <input type="text" id="f-inst" class="form-input" placeholder="Harvard Medical School" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Required Agreements</label>
+            <div class="form-check">
+              <input type="checkbox" id="chk-author">
+              <div class="check-text">
+                I agree that <strong>Muhammad Talaat (ORCID: 0000-0002-9171-437X)</strong>
+                will be included as a co-author on any publication resulting from this analysis.
+              </div>
+            </div>
+            <div class="form-check">
+              <input type="checkbox" id="chk-fee">
+              <div class="check-text">
+                I understand that analyses with <strong>4+ DDS formulations</strong> require a
+                <strong>$75 fee</strong> payable before results are delivered.
+              </div>
+            </div>
+          </div>
+          <div class="form-nav">
+            <button class="btn-next" onclick="goStep(2)">Next →</button>
+          </div>
         </div>
 
-        <section id="hero">
-            <span class="hero-tag">AI-Native · Physics-Informed · Molecule-Aware</span>
-            <h1 class="display head-xl hero-title">The Engine That<br><span class="line2">Ends the Guesswork</span></h1>
-            <p class="hero-sub">CEREBRO-X evaluates every candidate drug-delivery system against 62 computational validation principles — from quantum BBB physics to regulatory readiness — before a single experiment is run.</p>
-            <div class="hero-btns"><a href="#sample-outputs" class="btn-gold">Explore Results ↓</a><a href="prezi.html" target="_blank" class="btn-ghost">▶ Watch Demo</a></div>
-            <div class="hero-stats">
-                <div class="hero-stat"><div class="num" style="color:var(--red)">98%</div><div class="lbl">CNS drugs fail<br>to cross the BBB</div></div>
-                <div class="stat-divider"></div>
-                <div class="hero-stat"><div class="num" style="color:var(--gold)">62</div><div class="lbl">Validation principles<br>per candidate DDS</div></div>
-                <div class="stat-divider"></div>
-                <div class="hero-stat"><div class="num" style="color:var(--teal-lt)">6</div><div class="lbl">Validated drugs<br>across 3 classes</div></div>
-                <div class="stat-divider"></div>
-                <div class="hero-stat"><div class="num" style="color:var(--gold)">$0</div><div class="lbl">For academic<br>collaborations</div></div>
-            </div>
-            <div class="hero-scroll">Scroll to explore</div>
-        </section>
-
-        <section id="problem">
-            <div class="container">
-                <div class="prob-grid">
-                    <div class="reveal"><span class="eyebrow">The Challenge</span><div class="prob-big-num">98%</div><h2 class="display head-lg" style="margin-top:16px">Fail to cross the<br>Blood-Brain Barrier</h2><p class="lead" style="margin-top:20px">Over 98% of small molecules and ~100% of large biologics fail to reach the CNS in therapeutic concentrations. Researchers spend months in wet-lab trial-and-error when the answer could be computed in minutes.</p></div>
-                    <div class="reveal reveal-d2"><ul class="prob-items"><li>The BBB actively rejects 95%+ of candidate nanocarriers via efflux pumps and enzymatic degradation</li><li>Protein corona formation silently deactivates 70% of "successful" in-vitro formulations in vivo</li><li>Scale-up from lab to manufacturing introduces shear stress that collapses most nanoparticle architectures</li><li>Drug-DDS compatibility is rarely assessed computationally — leading to encapsulation failures discovered only after synthesis</li><li>Glymphatic clearance removes brain-resident carriers 4–10× faster than researchers assume, negating CNS residence time</li></ul></div>
-                </div>
-            </div>
-        </section>
-
-        <section id="how-it-works">
-            <div class="container">
-                <div class="reveal" style="text-align:center"><span class="eyebrow">The Process</span><h2 class="display head-lg">How CEREBRO-X Works</h2><p class="lead" style="margin:18px auto 0">Physics-informed computation from molecular input to ranked decision report. No wet lab. No waiting. Just answers.</p></div>
-                <div class="steps-grid">
-                    <div class="glass step-card reveal reveal-d1"><div class="step-num">1</div><h3>Submit Your Molecule</h3><p>Provide your drug's SMILES/FASTA sequence and specify your candidate DDS formulations. Download our structured Excel template for precise input.</p><div style="margin-top:16px"><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_Input_Template.xlsx" class="btn-ghost" style="font-size:.82rem;padding:8px 18px;">Download Template</a></div></div>
-                    <div class="glass step-card reveal reveal-d2"><div class="step-num">2</div><h3>62-Principle Analysis</h3><p>The engine evaluates every candidate against 62 computational principles: BBB physics, PBPK kinetics, protein corona, shelf-life, manufacturability, and more. All driven by real equations.</p></div>
-                    <div class="glass step-card reveal reveal-d3"><div class="step-num">3</div><h3>Ranked Decision Report</h3><p>Receive a comprehensive, publication-ready package: interactive HTML dashboards, PDF reports, animated PBPK videos, a ranked DDS leaderboard, and (on request) a Pre-IND regulatory framework.</p></div>
-                </div>
-            </div>
-        </section>
-
-        <section id="case-study">
-            <div class="container">
-                <div class="reveal" style="text-align:center"><span class="eyebrow">Live Case</span><h2 class="display head-lg">Same Disease. Different Carriers.</h2><p class="lead" style="margin:18px auto 0">CEREBRO-X differentiates between APIs with the same indication based purely on molecular properties — no assumptions, no guesswork.</p></div>
-                <div class="reveal" style="margin-top:40px;overflow-x:auto;">
-                    <table class="cs-table">
-                        <thead><tr><th>Drug</th><th>Class</th><th>Key Properties</th><th>Top-1 DDS</th><th>BBB Score</th><th>Key Differentiator</th><th>Verdict</th></tr></thead>
-                        <tbody>
-                            <tr><td><strong>Donepezil</strong></td><td><span class="badge badge-sm">Small Molecule</span></td><td><span class="mono" style="font-size:.8rem">LogP 4.77 · MW 379.5 Da</span></td><td>Solid Lipid Nanoparticle</td><td><strong style="color:var(--gold)">78.4</strong> / 100</td><td>High lipophilicity fits lipid-based matrices perfectly</td><td><span class="badge badge-good">GOOD</span></td></tr>
-                            <tr><td><strong>Rivastigmine</strong></td><td><span class="badge badge-sm">Small Molecule</span></td><td><span class="mono" style="font-size:.8rem">LogP 2.30 · MW 250.3 Da</span></td><td>PLGA Nanoparticle</td><td><strong style="color:var(--gold)">72.1</strong> / 100</td><td>Moderate lipophilicity demands polymeric encapsulation</td><td><span class="badge badge-good">GOOD</span></td></tr>
-                            <tr><td><strong>Galantamine</strong></td><td><span class="badge badge-sm">Small Molecule</span></td><td><span class="mono" style="font-size:.8rem">LogP 1.83 · MW 287.4 Da</span></td><td>Mannose-Liposome</td><td><strong style="color:var(--gold)">69.5</strong> / 100</td><td>Low LogP benefits from surface-modified active targeting</td><td><span class="badge badge-good">GOOD</span></td></tr>
-                            <tr><td><strong>Lecanemab</strong></td><td><span class="badge badge-bio">Biologic (mAb)</span></td><td><span class="mono" style="font-size:.8rem">~148 kDa · IgG1</span></td><td>Tf-PEG-Liposome</td><td><strong style="color:var(--gold)">74.3</strong> / 100</td><td>Transferrin-receptor-mediated transcytosis for large biologics</td><td><span class="badge badge-good">GOOD</span></td></tr>
-                            <tr><td><strong>Temozolomide</strong></td><td><span class="badge badge-sm">Small Molecule</span></td><td><span class="mono" style="font-size:.8rem">LogP −0.96 · MW 194.1 Da</span></td><td>RVG29-PLGA-NP</td><td><strong style="color:var(--gold)">76.8</strong> / 100</td><td>Neuron-specific RVG29 ligand maximises CNS accumulation</td><td><span class="badge badge-good">GOOD</span></td></tr>
-                            <tr><td><strong>Nusinersen</strong></td><td><span class="badge badge-aso">ASO</span></td><td><span class="mono" style="font-size:.8rem">~7.1 kDa · Phosphorothioate</span></td><td>ApoE-LNP</td><td><strong style="color:var(--gold)">71.2</strong> / 100</td><td>ApoE-apolipoprotein coating mimics LDL-receptor pathway</td><td><span class="badge badge-good">GOOD</span></td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="insight-box reveal"><strong>Key Insight:</strong> Six drugs treating three different CNS diseases — six completely different optimal delivery systems, identified from molecular descriptors alone.</div>
-            </div>
-        </section>
-
-        <section id="sample-outputs">
-            <div class="container">
-                <div class="reveal" style="text-align:center"><span class="eyebrow">Live Results</span><h2 class="display head-lg">Explore Sample Outputs</h2><p class="lead" style="margin:18px auto 0">Real pipeline output for six drugs across three molecular classes.</p></div>
-                <div class="drugs-grid" id="drugs-grid">
-                    <!-- Donepezil -->
-                    <div class="glass drug-card reveal reveal-d1" data-drug="donepezil">
-                        <div class="drug-card-header"><div><div class="drug-type">Small Molecule · BCS I · Alzheimer's</div></div><span class="drug-verdict verdict-good">GOOD</span></div>
-                        <div class="drug-name">Donepezil</div><div class="drug-indication">AChEI · First-line therapy for mild–severe AD</div>
-                        <div class="bbb-ring"><svg class="ring-svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/><circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr1)" stroke-width="6" stroke-dasharray="163" stroke-dashoffset="39" stroke-linecap="round" transform="rotate(-90 32 32)"/><defs><linearGradient id="gr1" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#B89A3F"/><stop offset="1" stop-color="#D4B563"/></linearGradient></defs><text x="32" y="37" text-anchor="middle" fill="#C9A84C" font-family="Outfit,sans-serif" font-size="13" font-weight="800">78</text></svg><div class="ring-info"><div class="label">BBB Score</div><div class="val">78.4 / 100</div></div></div>
-                        <div class="drug-meta"><span>LogP <strong>4.77</strong></span><span>MW <strong>379.5 Da</strong></span><span>Composite <strong>81.2</strong></span></div>
-                        <div class="drug-dds"><div class="label">Optimal DDS</div><div class="val">Solid Lipid Nanoparticle (SLN)</div></div>
-                        <div class="drug-actions"><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Donepezil.html" target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Donepezil.pdf" target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a><button onclick="openDataModal('donepezil','Donepezil')" class="drug-btn" style="background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;">📊 Explore Raw Data</button></div>
-                    </div>
-                    <!-- Rivastigmine -->
-                    <div class="glass drug-card reveal reveal-d2" data-drug="rivastigmine">
-                        <div class="drug-card-header"><div class="drug-type">Small Molecule · BCS I · Alzheimer's / PDD</div><span class="drug-verdict verdict-good">GOOD</span></div>
-                        <div class="drug-name">Rivastigmine</div><div class="drug-indication">AChEI · AD and Parkinson's disease dementia</div>
-                        <div class="bbb-ring"><svg class="ring-svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/><circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr2)" stroke-width="6" stroke-dasharray="163" stroke-dashoffset="45" stroke-linecap="round" transform="rotate(-90 32 32)"/><defs><linearGradient id="gr2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0D6E6E"/><stop offset="1" stop-color="#5BA89B"/></linearGradient></defs><text x="32" y="37" text-anchor="middle" fill="#5BA89B" font-family="Outfit,sans-serif" font-size="13" font-weight="800">72</text></svg><div class="ring-info"><div class="label">BBB Score</div><div class="val">72.1 / 100</div></div></div>
-                        <div class="drug-meta"><span>LogP <strong>2.30</strong></span><span>MW <strong>250.3 Da</strong></span><span>Composite <strong>74.7</strong></span></div>
-                        <div class="drug-dds"><div class="label">Optimal DDS</div><div class="val">RVG29-PLGA Nanoparticle</div></div>
-                        <div class="drug-actions"><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Rivastigmine.html" target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Rivastigmine.pdf" target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a><button onclick="openDataModal('rivastigmine','Rivastigmine')" class="drug-btn" style="background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;">📊 Explore Raw Data</button></div>
-                    </div>
-                    <!-- Galantamine -->
-                    <div class="glass drug-card reveal reveal-d3" data-drug="galantamine">
-                        <div class="drug-card-header"><div class="drug-type">Small Molecule · BCS III · Alzheimer's</div><span class="drug-verdict verdict-good">GOOD</span></div>
-                        <div class="drug-name">Galantamine</div><div class="drug-indication">AChEI + nicotinic modulator · Mild–moderate AD</div>
-                        <div class="bbb-ring"><svg class="ring-svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/><circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr3)" stroke-width="6" stroke-dasharray="163" stroke-dashoffset="49" stroke-linecap="round" transform="rotate(-90 32 32)"/><defs><linearGradient id="gr3" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7C4DFF"/><stop offset="1" stop-color="#A78BFA"/></linearGradient></defs><text x="32" y="37" text-anchor="middle" fill="#A78BFA" font-family="Outfit,sans-serif" font-size="13" font-weight="800">70</text></svg><div class="ring-info"><div class="label">BBB Score</div><div class="val">69.5 / 100</div></div></div>
-                        <div class="drug-meta"><span>LogP <strong>1.83</strong></span><span>MW <strong>287.4 Da</strong></span></div>
-                        <div class="drug-dds"><div class="label">Optimal DDS</div><div class="val">Mannose-Functionalized Liposome</div></div>
-                        <div class="drug-actions"><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Galantamine.html" target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Galantamine.pdf" target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a><button onclick="openDataModal('galantamine','Galantamine')" class="drug-btn" style="background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;">📊 Explore Raw Data</button></div>
-                    </div>
-                    <!-- Lecanemab -->
-                    <div class="glass drug-card reveal reveal-d1" data-drug="lecanemab">
-                        <div class="drug-card-header"><div class="drug-type">Biologic · Monoclonal Antibody · Alzheimer's</div><span class="drug-verdict verdict-good">GOOD</span></div>
-                        <div class="drug-name">Lecanemab</div><div class="drug-indication">Anti-Aβ immunotherapy · FDA-approved 2023</div>
-                        <div class="bbb-ring"><svg class="ring-svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/><circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr4)" stroke-width="6" stroke-dasharray="163" stroke-dashoffset="42" stroke-linecap="round" transform="rotate(-90 32 32)"/><defs><linearGradient id="gr4" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#B89A3F"/><stop offset="1" stop-color="#D4B563"/></linearGradient></defs><text x="32" y="37" text-anchor="middle" fill="#C9A84C" font-family="Outfit,sans-serif" font-size="13" font-weight="800">74</text></svg><div class="ring-info"><div class="label">BBB Score</div><div class="val">74.3 / 100</div></div></div>
-                        <div class="drug-meta"><span>MW <strong>~148 kDa</strong></span><span>Type <strong>IgG1 mAb</strong></span></div>
-                        <div class="drug-dds"><div class="label">Optimal DDS</div><div class="val">Transferrin-PEG-Liposome (Tf-PEG)</div></div>
-                        <div class="drug-actions"><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Lecanemab.html" target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Lecanemab.pdf" target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a><button onclick="openDataModal('lecanemab','Lecanemab')" class="drug-btn" style="background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;">📊 Explore Raw Data</button></div>
-                    </div>
-                    <!-- Temozolomide -->
-                    <div class="glass drug-card reveal reveal-d2" data-drug="temozolomide">
-                        <div class="drug-card-header"><div class="drug-type">Small Molecule · BCS I · Glioblastoma</div><span class="drug-verdict verdict-good">GOOD</span></div>
-                        <div class="drug-name">Temozolomide</div><div class="drug-indication">DNA-alkylating agent · GBM standard-of-care</div>
-                        <div class="bbb-ring"><svg class="ring-svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/><circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr5)" stroke-width="6" stroke-dasharray="163" stroke-dashoffset="40" stroke-linecap="round" transform="rotate(-90 32 32)"/><defs><linearGradient id="gr5" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F57C00"/><stop offset="1" stop-color="#FFA040"/></linearGradient></defs><text x="32" y="37" text-anchor="middle" fill="#FFA040" font-family="Outfit,sans-serif" font-size="13" font-weight="800">77</text></svg><div class="ring-info"><div class="label">BBB Score</div><div class="val">76.8 / 100</div></div></div>
-                        <div class="drug-meta"><span>LogP <strong>−0.96</strong></span><span>MW <strong>194.1 Da</strong></span></div>
-                        <div class="drug-dds"><div class="label">Optimal DDS</div><div class="val">RVG29-PLGA Nanoparticle</div></div>
-                        <div class="drug-actions"><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Temozolomide.html" target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Temozolomide.pdf" target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a><button onclick="openDataModal('temozolomide','Temozolomide')" class="drug-btn" style="background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;">📊 Explore Raw Data</button></div>
-                    </div>
-                    <!-- Nusinersen -->
-                    <div class="glass drug-card reveal reveal-d3" data-drug="nusinersen">
-                        <div class="drug-card-header"><div class="drug-type">ASO · Nucleic Acid · Spinal Muscular Atrophy</div><span class="drug-verdict verdict-good">GOOD</span></div>
-                        <div class="drug-name">Nusinersen</div><div class="drug-indication">Antisense oligonucleotide · SMN2 splice modifier</div>
-                        <div class="bbb-ring"><svg class="ring-svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/><circle cx="32" cy="32" r="26" fill="none" stroke="url(#gr6)" stroke-width="6" stroke-dasharray="163" stroke-dashoffset="46" stroke-linecap="round" transform="rotate(-90 32 32)"/><defs><linearGradient id="gr6" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0D6E6E"/><stop offset="1" stop-color="#5BA89B"/></linearGradient></defs><text x="32" y="37" text-anchor="middle" fill="#5BA89B" font-family="Outfit,sans-serif" font-size="13" font-weight="800">71</text></svg><div class="ring-info"><div class="label">BBB Score</div><div class="val">71.2 / 100</div></div></div>
-                        <div class="drug-meta"><span>MW <strong>~7.1 kDa</strong></span><span>Type <strong>Phosphorothioate</strong></span></div>
-                        <div class="drug-dds"><div class="label">Optimal DDS</div><div class="val">ApoE-Lipid Nanoparticle (LNP)</div></div>
-                        <div class="drug-actions"><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Interactive_Nusinersen.html" target="_blank" class="drug-btn drug-btn-dash">View Dashboard ↗</a><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_X_Final_Report_Nusinersen.pdf" target="_blank" class="drug-btn drug-btn-pdf">PDF Report</a><button onclick="openDataModal('nusinersen','Nusinersen')" class="drug-btn" style="background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid rgba(255,255,255,.08);margin-top:8px;">📊 Explore Raw Data</button></div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="live-demo">
-            <div class="container">
-                <div class="reveal" style="text-align:center"><span class="eyebrow">Interactive Walkthrough</span><h2 class="display head-lg">Experience the Engine</h2><p class="lead" style="margin:18px auto 0">A cinematic presentation of how CEREBRO-X thinks.</p></div>
-                <div class="demo-wrap reveal"><div class="demo-particle-ring"></div><div class="demo-frame-outer glass"><div class="demo-header"><div class="demo-dots"><span></span><span></span><span></span></div><span class="demo-url">cerebro-x.io / interactive-demo</span><a href="prezi.html" target="_blank" style="font-family:var(--mono);font-size:.72rem;color:var(--gold);">Open fullscreen ↗</a></div><iframe src="prezi.html" class="demo-frame" loading="lazy" allow="fullscreen" title="CEREBRO-X Interactive Demo"></iframe></div></div>
-            </div>
-        </section>
-
-        <section id="principles">
-            <div class="container">
-                <div class="reveal" style="text-align:center"><span class="eyebrow">The Framework</span><h2 class="display head-lg">Powered by 62 Validation Principles</h2><p class="lead" style="margin:18px auto 0">Every candidate DDS is evaluated against 62 computational principles.</p></div>
-                <div class="principles-intro">
-                    <div class="reveal">
-                        <div class="principle-groups">
-                            <div class="glass pg-card"><h4>CNS Delivery</h4><p>BBB transcytosis, tight junction dynamics, efflux pump interactions, receptor-mediated crossing</p></div>
-                            <div class="glass pg-card"><h4>Release Kinetics</h4><p>Dissolution profiles, sustained vs burst release, API-DDS compatibility scoring</p></div>
-                            <div class="glass pg-card"><h4>Stability</h4><p>Protein corona, polymorph transformation, shelf-life under Arrhenius kinetics</p></div>
-                            <div class="glass pg-card"><h4>Safety</h4><p>hERG, complement activation, microglial neuroinflammation, ADMET off-target toxicity</p></div>
-                            <div class="glass pg-card"><h4>Glymphatic</h4><p>CSF clearance trap, Stokes-Einstein diffusion, sleep-cycle-dependent drainage</p></div>
-                            <div class="glass pg-card"><h4>Manufacturing</h4><p>Scale-up shear stress, lyophilisation cycles, sterilisability, QbD compliance</p></div>
-                            <div class="glass pg-card"><h4>Drug-DDS Fit</h4><p>Ionisation state, encapsulation thermodynamics, ligand-receptor docking (AutoDock Vina)</p></div>
-                            <div class="glass pg-card"><h4>Translational</h4><p>Pre-IND framework, FTO & patentability scoring, FDA 21 CFR Part 11 audit trail</p></div>
-                        </div>
-                    </div>
-                    <div class="reveal reveal-d2">
-                        <p style="font-size:.9rem;color:var(--text-2);margin-bottom:16px;">Hover any principle to see its class and method.</p>
-                        <div class="principle-dots" id="pDots"></div>
-                        <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:.8rem;color:var(--text-2);">
-                            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--teal);vertical-align:middle;margin-right:5px"></span><strong>56</strong> Surrogate (A)</span>
-                            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--purple);vertical-align:middle;margin-right:5px"></span><strong>1</strong> Deep Physics (B)</span>
-                            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--orange);vertical-align:middle;margin-right:5px"></span><strong>5</strong> Translational (C)</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="principle-popup" id="principlePopup"></div>
-        </section>
-
-        <!-- Pricing, form, footer, modal (original) -->
-        <section id="pricing"><div class="container"><div class="reveal" style="text-align:center"><span class="eyebrow">Access Tiers</span><h2 class="display head-lg">Select Your Analysis Tier</h2><p class="lead" style="margin:18px auto 0">Academic research is always free. Complex industry analyses are affordable.</p></div><div class="pricing-grid"><div class="glass tier reveal"><div class="tier-name">Academic</div><div class="tier-price">Free <span>/ analysis</span></div><div class="tier-desc">For independent academic researchers</div><ul class="tier-features"><li>1 Drug Molecule</li><li>Up to 3 DDS formulations</li><li>Full HTML + PDF Report</li><li>PBPK digital twin</li><li class="required">Co-authorship required</li></ul><a href="#request-form" class="btn-ghost" style="display:block;text-align:center;">Get Started →</a></div><div class="glass tier featured reveal reveal-d1"><div class="tier-name">Professional</div><div class="tier-price">$75 <span>/ analysis</span></div><div class="tier-desc">For complex formulations</div><ul class="tier-features"><li>1 Drug Molecule</li><li>4+ DDS formulations</li><li>Full HTML + PDF Report</li><li>Priority processing (48h)</li><li class="required">Co-authorship required</li></ul><a href="#request-form" class="btn-gold" style="display:block;text-align:center;">Request Analysis →</a></div><div class="glass tier reveal reveal-d2"><div class="tier-name">Enterprise</div><div class="tier-price">Custom <span>pricing</span></div><div class="tier-desc">For pharma R&D</div><ul class="tier-features"><li>Multi-drug comparison</li><li>Custom DDS libraries</li><li>White-labeled reports</li><li>Strict NDA included</li></ul><a href="mailto:mohamed.talaat@pharma.asu.edu.eg?subject=CEREBRO-X Enterprise" class="btn-ghost" style="display:block;text-align:center;">Contact Us →</a></div></div></div></section>
-        <section id="request-form"><div class="container"><div class="reveal" style="text-align:center"><span class="eyebrow">Get Started</span><h2 class="display head-lg">Request Your Analysis</h2><p class="lead" style="margin:18px auto 0">Three simple steps. Your analysis request will be sent directly to Muhammad Talaat.</p></div><div class="glass form-wrap reveal"><div class="form-steps"><div class="form-step-dot active" data-step="1"><div class="sdot" id="sdot1">1</div><div class="step-label">Details</div></div><div class="form-step-dot" data-step="2"><div class="sdot" id="sdot2">2</div><div class="step-label">Drug Info</div></div><div class="form-step-dot" data-step="3"><div class="sdot" id="sdot3">3</div><div class="step-label">DDS & Submit</div></div></div><div class="form-success" id="formSuccess"><div class="success-icon">✅</div><h3 class="display" style="font-size:1.6rem;margin-bottom:12px;">Request Sent!</h3><p style="color:var(--text-2);">Your analysis request has been sent to <strong style="color:var(--gold)">mohamed.talaat@pharma.asu.edu.eg</strong>.</p><a href="#" onclick="location.reload()" class="btn-gold" style="margin-top:24px;display:inline-flex;">Submit Another Request</a></div><div id="formBody"><div class="form-page active" id="step1"><div class="form-group"><label class="form-label">Full Name <span class="req">*</span></label><input type="text" id="f-name" class="form-input" placeholder="Dr. Jane Smith" required></div><div class="form-group"><label class="form-label">Institutional Email <span class="req">*</span></label><input type="email" id="f-email" class="form-input" placeholder="jane.smith@university.edu" required></div><div class="form-group"><label class="form-label">Institution / University <span class="req">*</span></label><input type="text" id="f-inst" class="form-input" placeholder="Harvard Medical School" required></div><div class="form-group"><label class="form-label">Required Agreements</label><div class="form-check"><input type="checkbox" id="chk-author"><div class="check-text">I agree that <strong>Muhammad Talaat (ORCID: 0000-0002-9171-437X)</strong> will be included as a co-author.</div></div><div class="form-check"><input type="checkbox" id="chk-fee"><div class="check-text">I understand that analyses with <strong>4+ DDS formulations</strong> require a <strong>$75 fee</strong>.</div></div></div><div class="form-nav"><button class="btn-next" onclick="goStep(2)">Next →</button></div></div><div class="form-page" id="step2"><div class="form-group"><label class="form-label">Drug Name <span class="req">*</span></label><input type="text" id="f-drug" class="form-input" placeholder="e.g. Donepezil" required></div><div class="form-group"><label class="form-label">Molecule Class <span class="req">*</span></label><select id="f-class" class="form-select" required><option value="">-- Select --</option><option>Small Molecule</option><option>Biologic (mAb / protein)</option><option>Peptide</option><option>ASO (Nucleic Acid)</option></select></div><div class="form-group"><label class="form-label">Molecule Input (SMILES / FASTA) <span class="req">*</span></label><textarea id="f-smiles" class="form-textarea" rows="3" placeholder="e.g. CN1CCC2=CC=CC3=C2C1CC3"></textarea></div><div class="form-nav"><button class="btn-back" onclick="goStep(1)">← Back</button><button class="btn-next" onclick="goStep(3)">Next →</button></div></div><div class="form-page" id="step3"><div class="form-group"><label class="form-label">Number of DDS Formulations <span class="req">*</span></label><select id="f-dds" class="form-select" required><option value="">-- Select --</option><option value="1">1 Formulation</option><option value="2">2 Formulations</option><option value="3">3 Formulations (Free Tier max)</option><option value="4+">4+ Formulations (Professional Tier — $75)</option></select></div><div class="form-nav"><button class="btn-back" onclick="goStep(2)">← Back</button><button class="btn-submit" onclick="submitForm()">Submit Request ✓</button></div></div></div></div></div></section>
-
-        <div id="dataModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(3,3,8,.92);backdrop-filter:blur(20px);overflow-y:auto;" role="dialog" aria-modal="true"><div id="dataModalInner" style="max-width:1100px;margin:40px auto;padding:0 20px 60px;animation:fadeUp .4s cubic-bezier(.16,1,.3,1);"><div style="display:flex;align-items:center;justify-content:space-between;padding:24px 0 20px;border-bottom:1px solid rgba(201,168,76,.2);"><div><div id="modalEyebrow" style="font-family:var(--mono);font-size:.7rem;letter-spacing:.25em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;"></div><h2 id="modalTitle" style="font-family:var(--sans);font-weight:800;font-size:1.8rem;letter-spacing:-.03em;"></h2></div><button onclick="closeDataModal()" style="width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:var(--text-1);font-size:1.4rem;display:flex;align-items:center;justify-content:center;cursor:pointer;">✕</button></div><div style="display:flex;gap:4px;margin-top:20px;overflow-x:auto;"><button class="dtab active" onclick="switchTab(0)">🏆 DDS Ranking</button><button class="dtab" onclick="switchTab(1)">📈 PKPD Kinetics</button><button class="dtab" onclick="switchTab(2)">🧠 SHAP XAI</button><button class="dtab" onclick="switchTab(3)">⚗️ ADMET Profile</button><button class="dtab" onclick="switchTab(4)">📊 NCA Results</button></div><div id="tabPane0" class="tpane active" style="margin-top:24px"></div><div id="tabPane1" class="tpane" style="margin-top:24px"></div><div id="tabPane2" class="tpane" style="margin-top:24px"></div><div id="tabPane3" class="tpane" style="margin-top:24px"></div><div id="tabPane4" class="tpane" style="margin-top:24px"></div></div></div>
-    </main>
-
-    <footer>
-        <div class="container">
-            <img src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Primary%20Logo.png" class="foot-logo" alt="CEREBRO-X">
-            <p><strong>CEREBRO-X</strong> — AI-Native Drug-Delivery Design Engine</p>
-            <p style="margin-top:8px;">Built by <strong>Muhammad Talaat</strong>, BPharm · R&D Computational Lead<br>Ain Shams University · Faculty of Pharmacy</p>
-            <div class="foot-links"><a href="https://www.linkedin.com/in/muhammad-talaat" target="_blank">LinkedIn</a><a href="https://orcid.org/0000-0002-9171-437X" target="_blank">ORCID</a><a href="mailto:mohamed.talaat@pharma.asu.edu.eg">Email</a><a href="prezi.html" target="_blank">Interactive Demo</a><a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_Input_Template.xlsx">Download Template</a></div>
-            <p style="margin-top:24px;font-size:.72rem;color:var(--text-3);">CEREBRO-X © 2026 · Muhammad Talaat · Technology patent-pending</p>
+        <!-- Step 2: Drug Details -->
+        <div class="form-page" id="step2">
+          <div class="form-group">
+            <label class="form-label">Drug Name <span class="req">*</span></label>
+            <input type="text" id="f-drug" class="form-input" placeholder="e.g. Donepezil" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Molecule Class <span class="req">*</span></label>
+            <select id="f-class" class="form-select" required>
+              <option value="">-- Select --</option>
+              <option>Small Molecule</option>
+              <option>Biologic (mAb / protein)</option>
+              <option>Peptide</option>
+              <option>ASO (Nucleic Acid)</option>
+              <option>Gene Therapy Vector</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Molecule Input (SMILES / FASTA / PDB) <span class="req">*</span></label>
+            <textarea id="f-smiles" class="form-textarea" rows="3"
+              placeholder="e.g. CN1CCC2=CC=CC3=C2C1CC3 (SMILES) or full FASTA sequence..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Target Indication</label>
+            <input type="text" id="f-indication" class="form-input"
+              placeholder="e.g. Alzheimer's Disease, Glioblastoma, SMA...">
+          </div>
+          <div class="form-nav">
+            <button class="btn-back" onclick="goStep(1)">← Back</button>
+            <button class="btn-next" onclick="goStep(3)">Next →</button>
+          </div>
         </div>
-    </footer>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
-        'use strict';
-        // Three.js background
-        (function() {
-            const canvas = document.getElementById('bg-canvas');
-            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-            camera.position.set(0, 0, 800);
-            const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
-            document.addEventListener('mousemove', e => {
-                mouse.tx = (e.clientX / window.innerWidth - .5) * 2;
-                mouse.ty = (e.clientY / window.innerHeight - .5) * 2;
-            });
-            const N = 120;
-            const positions = [];
-            const nodeGeo = new THREE.SphereGeometry(2.5, 8, 8);
-            const nodeMat = new THREE.MeshBasicMaterial({ color: 0xC9A84C, transparent: true, opacity: .55 });
-            const nodeSmMat = new THREE.MeshBasicMaterial({ color: 0x0D6E6E, transparent: true, opacity: .35 });
-            const nodeMicro = new THREE.MeshBasicMaterial({ color: 0x7C4DFF, transparent: true, opacity: .25 });
-            for (let i = 0; i < N; i++) {
-                const x = (Math.random() - .5) * 1400;
-                const y = (Math.random() - .5) * 1000;
-                const z = (Math.random() - .5) * 600;
-                positions.push(new THREE.Vector3(x, y, z));
-                const mat = i < 15 ? nodeMat : i < 60 ? nodeSmMat : nodeMicro;
-                const size = i < 15 ? 2.5 : i < 60 ? 1.8 : 1.2;
-                const m = new THREE.Mesh(new THREE.SphereGeometry(size, 8, 8), mat);
-                m.position.set(x, y, z);
-                scene.add(m);
+        <!-- Step 3: DDS & Submit -->
+        <div class="form-page" id="step3">
+          <div class="form-group">
+            <label class="form-label">Number of DDS Formulations <span class="req">*</span></label>
+            <select id="f-dds" class="form-select" required>
+              <option value="">-- Select --</option>
+              <option value="1">1 Formulation</option>
+              <option value="2">2 Formulations</option>
+              <option value="3">3 Formulations (Free Tier max)</option>
+              <option value="4+">4+ Formulations (Professional Tier — $75)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">DDS Specifications / Notes</label>
+            <textarea id="f-notes" class="form-textarea" rows="3"
+              placeholder="List your candidate DDS (e.g. PLGA-NP, SLN, Liposome), any specific carrier parameters, or special analysis requirements..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Upload completed template (optional)</label>
+            <p style="font-size:.82rem;color:var(--text-2);margin-bottom:10px;">
+              <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_Input_Template.xlsx" style="color:var(--gold);">
+                Download the structured Excel template →
+              </a>
+            </p>
+          </div>
+          <div class="form-nav">
+            <button class="btn-back" onclick="goStep(2)">← Back</button>
+            <button class="btn-submit" onclick="submitForm()">Submit Request ✓</button>
+          </div>
+        </div>
+
+      </div><!-- /formBody -->
+    </div><!-- /form-wrap -->
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     DATA EXPLORER MODAL
+     ══════════════════════════════════════════════════════════════════════ -->
+<div id="dataModal" style="display:none;position:fixed;inset:0;z-index:1000;
+  background:rgba(3,3,8,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  overflow-y:auto;" role="dialog" aria-modal="true">
+
+  <div id="dataModalInner" style="
+    max-width:1100px;margin:40px auto;padding:0 20px 60px;
+    animation:fadeUp .4s cubic-bezier(.16,1,.3,1);">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      padding:24px 0 20px;border-bottom:1px solid rgba(201,168,76,.2);">
+      <div>
+        <div id="modalEyebrow" style="font-family:var(--mono);font-size:.7rem;
+          letter-spacing:.25em;text-transform:uppercase;color:var(--gold);
+          margin-bottom:8px;"></div>
+        <h2 id="modalTitle" style="font-family:var(--sans);font-weight:800;
+          font-size:1.8rem;letter-spacing:-.03em;"></h2>
+      </div>
+      <button onclick="closeDataModal()" style="
+        width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.12);
+        background:rgba(255,255,255,.06);color:var(--text-1);font-size:1.4rem;
+        display:flex;align-items:center;justify-content:center;cursor:pointer;
+        transition:all .2s;" onmouseover="this.style.borderColor='var(--gold)'"
+        onmouseout="this.style.borderColor='rgba(255,255,255,.12)'">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:4px;margin-top:20px;overflow-x:auto;padding-bottom:4px;">
+      <button class="dtab active" onclick="switchTab(0)" data-tab="0">🏆 DDS Ranking</button>
+      <button class="dtab" onclick="switchTab(1)" data-tab="1">📈 PKPD Kinetics</button>
+      <button class="dtab" onclick="switchTab(2)" data-tab="2">🧠 SHAP XAI</button>
+      <button class="dtab" onclick="switchTab(3)" data-tab="3">⚗️ ADMET Profile</button>
+      <button class="dtab" onclick="switchTab(4)" data-tab="4">📊 NCA Results</button>
+    </div>
+
+    <!-- Tab Panes -->
+    <div id="tabPane0" class="tpane active" style="margin-top:24px"></div>
+    <div id="tabPane1" class="tpane" style="margin-top:24px"></div>
+    <div id="tabPane2" class="tpane" style="margin-top:24px"></div>
+    <div id="tabPane3" class="tpane" style="margin-top:24px"></div>
+    <div id="tabPane4" class="tpane" style="margin-top:24px"></div>
+  </div>
+</div>
+
+<style>
+.dtab {
+  padding:10px 18px;border-radius:8px;border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.04);color:var(--text-2);
+  font-family:var(--body);font-size:.84rem;font-weight:500;
+  cursor:pointer;white-space:nowrap;transition:all .2s;
+}
+.dtab:hover { border-color:var(--gold-thin);color:var(--text-1); }
+.dtab.active {
+  background:rgba(201,168,76,.12);border-color:var(--gold);
+  color:var(--gold);font-weight:600;
+}
+.tpane { display:none; }
+.tpane.active { display:block;animation:fadeUp .35s ease; }
+
+/* Data Table */
+.dt-wrap { overflow-x:auto;border-radius:12px;border:1px solid rgba(201,168,76,.15); }
+.dt {
+  width:100%;border-collapse:collapse;font-size:.8rem;
+  font-family:var(--mono);
+}
+.dt thead th {
+  background:var(--void-03);color:var(--gold);
+  padding:10px 12px;text-align:left;white-space:nowrap;
+  border-bottom:1px solid rgba(201,168,76,.2);
+  cursor:pointer;user-select:none;
+  transition:background .2s;
+  font-family:var(--sans);font-weight:600;font-size:.78rem;letter-spacing:.03em;
+}
+.dt thead th:hover { background:rgba(201,168,76,.12); }
+.dt thead th.sorted-asc::after  { content:' ↑';color:var(--gold); }
+.dt thead th.sorted-desc::after { content:' ↓';color:var(--gold); }
+.dt tbody td {
+  padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);
+  color:var(--text-2);
+}
+.dt tbody tr:hover td { background:rgba(201,168,76,.04); }
+.dt tbody tr:first-child td { color:var(--gold); }
+.rank-badge {
+  display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;border-radius:50%;
+  background:linear-gradient(135deg,var(--gold-dk),var(--gold));
+  color:var(--void-01);font-weight:800;font-size:.7rem;
+}
+
+/* ADMET Property Cards */
+.admet-grid {
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;
+}
+.admet-card {
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;padding:14px;
+  transition:border-color .2s;
+}
+.admet-card:hover { border-color:var(--gold-thin); }
+.admet-card .label {
+  font-size:.65rem;color:var(--text-2);
+  letter-spacing:.14em;text-transform:uppercase;
+  font-family:var(--mono);margin-bottom:6px;
+}
+.admet-card .val {
+  font-family:var(--sans);font-weight:700;font-size:1.1rem;
+  color:var(--text-1);
+}
+.admet-card .unit {
+  font-size:.7rem;color:var(--text-2);margin-top:2px;
+}
+.grade-A { color:var(--teal-lt); }
+.grade-B { color:var(--gold); }
+.grade-C { color:var(--orange); }
+.grade-D,.grade-F { color:var(--red); }
+
+/* Chart container */
+.chart-wrap {
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;padding:24px;
+}
+.chart-wrap h3 {
+  font-family:var(--sans);font-weight:700;font-size:1rem;
+  color:var(--gold);margin-bottom:18px;
+}
+
+/* Loading */
+.loading {
+  text-align:center;padding:60px 20px;color:var(--text-2);
+}
+.loading::before {
+  content:"⟳";display:block;font-size:2rem;margin-bottom:12px;
+  animation:spin 1s linear infinite;color:var(--gold);
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+</style>
+
+</main>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     FOOTER
+     ══════════════════════════════════════════════════════════════════════ -->
+<footer>
+  <div class="container">
+    <img
+      src="https://raw.githubusercontent.com/mohamedtalaat-gif/CEREBRO-X/main/Primary%20Logo.png"
+      class="foot-logo" alt="CEREBRO-X">
+    <p><strong>CEREBRO-X</strong> — AI-Native Drug-Delivery Design Engine</p>
+    <p style="margin-top:8px;">
+      Built by <strong>Muhammad Talaat</strong>, BPharm · R&amp;D Computational Lead<br>
+      Ain Shams University · Faculty of Pharmacy
+    </p>
+    <div class="foot-links">
+      <a href="https://www.linkedin.com/in/muhammad-talaat" target="_blank">LinkedIn</a>
+      <a href="https://orcid.org/0000-0002-9171-437X" target="_blank">ORCID</a>
+      <a href="mailto:mohamed.talaat@pharma.asu.edu.eg">Email</a>
+      <a href="prezi.html" target="_blank">Interactive Demo</a>
+      <a href="https://mohamedtalaat-gif.github.io/CEREBRO-X/CEREBRO_Input_Template.xlsx">Download Template</a>
+    </div>
+    <p style="margin-top:24px;font-size:.72rem;color:var(--text-3);">
+      CEREBRO-X © 2026 · Muhammad Talaat · Technology patent-pending
+    </p>
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     SCRIPTS
+     ══════════════════════════════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+'use strict';
+
+/* ── THREE.JS — Molecular network background ─────────────────────────── */
+(function(){
+  const canvas = document.getElementById('bg-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
+  camera.position.set(0, 0, 800);
+
+  const mouse = { x:0, y:0, tx:0, ty:0 };
+  document.addEventListener('mousemove', e => {
+    mouse.tx = (e.clientX / window.innerWidth  - .5) * 2;
+    mouse.ty = (e.clientY / window.innerHeight - .5) * 2;
+  });
+
+  /* Nodes */
+  const N = 120;
+  const positions = [];
+  const nodeGeo  = new THREE.SphereGeometry(2.5, 8, 8);
+  const nodeMat  = new THREE.MeshBasicMaterial({ color: 0xC9A84C, transparent:true, opacity:.55 });
+  const nodeSmMat= new THREE.MeshBasicMaterial({ color: 0x0D6E6E, transparent:true, opacity:.35 });
+  const nodeMicro= new THREE.MeshBasicMaterial({ color: 0x7C4DFF, transparent:true, opacity:.25 });
+
+  for(let i=0;i<N;i++){
+    const x = (Math.random()-.5)*1400;
+    const y = (Math.random()-.5)*1000;
+    const z = (Math.random()-.5)*600;
+    positions.push(new THREE.Vector3(x,y,z));
+    const mat = i < 15 ? nodeMat : i < 60 ? nodeSmMat : nodeMicro;
+    const size = i < 15 ? 2.5 : i < 60 ? 1.8 : 1.2;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(size,8,8), mat);
+    m.position.set(x,y,z);
+    scene.add(m);
+  }
+
+  /* Edges */
+  const maxDist = 200;
+  const edgeMat = new THREE.LineBasicMaterial({ color:0xC9A84C, transparent:true, opacity:.08 });
+  for(let i=0;i<N;i++){
+    for(let j=i+1;j<N;j++){
+      if(positions[i].distanceTo(positions[j]) < maxDist){
+        const geo = new THREE.BufferGeometry().setFromPoints([positions[i],positions[j]]);
+        scene.add(new THREE.Line(geo, edgeMat));
+      }
+    }
+  }
+
+  /* Floating animation */
+  const vels = positions.map(() => new THREE.Vector3(
+    (Math.random()-.5)*.2,
+    (Math.random()-.5)*.15,
+    (Math.random()-.5)*.1
+  ));
+
+  let frame = 0;
+  function render(){
+    requestAnimationFrame(render);
+    frame++;
+    mouse.x += (mouse.tx - mouse.x) * .04;
+    mouse.y += (mouse.ty - mouse.y) * .04;
+    camera.position.x = mouse.x * 40;
+    camera.position.y = -mouse.y * 30;
+    camera.lookAt(0,0,0);
+
+    if(frame % 3 === 0){
+      scene.children.forEach((obj, idx) => {
+        if(obj.type === 'Mesh' && idx < N){
+          const v = vels[idx];
+          obj.position.add(v);
+          if(Math.abs(obj.position.x) > 700) v.x *= -1;
+          if(Math.abs(obj.position.y) > 500) v.y *= -1;
+          if(Math.abs(obj.position.z) > 300) v.z *= -1;
+        }
+      });
+    }
+    renderer.render(scene, camera);
+  }
+  render();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+})();
+
+/* ── SCROLL REVEAL ───────────────────────────────────────────────────── */
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if(e.isIntersecting){ e.target.classList.add('active'); observer.unobserve(e.target); }
+  });
+}, { threshold:0.1, rootMargin:'0px 0px -60px 0px' });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+/* ── DRUG CARD 3D TILT ───────────────────────────────────────────────── */
+document.querySelectorAll('.drug-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const r = card.getBoundingClientRect();
+    const x = (e.clientX - r.left - r.width/2)  / (r.width/2);
+    const y = (e.clientY - r.top  - r.height/2) / (r.height/2);
+    card.style.transform = `perspective(1000px) rotateX(${-y*6}deg) rotateY(${x*6}deg) translateY(-6px) scale(1.01)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = '';
+  });
+});
+
+/* ── PRINCIPLE DOTS + POPUP ──────────────────────────────────────────── */
+const cMap = {21:'pc',32:'pc',45:'pc',47:'pb',55:'pc',56:'pc'};
+const popup = document.getElementById('principlePopup');
+const dots = document.getElementById('pDots');
+
+// Principles data array
+const principlesData = [];
+for(let i=1;i<=62;i++){
+  let cls = 'A', method = 'Surrogate computational model';
+  if(i === 47){ cls = 'B'; method = 'Deep physics simulation (quantum/molecular)'; }
+  else if([21,32,45,55,56].includes(i)){ cls = 'C'; method = 'Translational/regulatory framework'; }
+  principlesData.push({ id: 'P'+String(i).padStart(2,'0'), class: cls, method });
+}
+
+principlesData.forEach((p, idx) => {
+  const d = document.createElement('div');
+  d.className = 'p-dot ' + (cMap[idx+1] || 'pa');
+  d.textContent = p.id;
+  d.addEventListener('mouseenter', function(e){
+    const classText = p.class === 'A' ? 'Surrogate (A)' : p.class === 'B' ? 'Deep Physics (B)' : 'Translational (C)';
+    popup.innerHTML = '<strong>' + p.id + '</strong><span class="class-badge class-' + p.class + '">' + classText + '</span><br><small>' + p.method + '</small>';
+    popup.classList.add('show');
+    positionPopup(e, popup);
+  });
+  d.addEventListener('mousemove', function(e){ positionPopup(e, popup); });
+  d.addEventListener('mouseleave', function(){ popup.classList.remove('show'); });
+  dots.appendChild(d);
+});
+
+function positionPopup(e, el){
+  let x = e.clientX + 18, y = e.clientY - 70;
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+  const rect = el.getBoundingClientRect();
+  if(rect.right > window.innerWidth - 10)  el.style.left = (x - rect.width - 30) + 'px';
+  if(rect.bottom > window.innerHeight - 10) el.style.top = (y - rect.height - 10) + 'px';
+  if(rect.top < 10) el.style.top = '10px';
+}
+
+/* ── FORM LOGIC ──────────────────────────────────────────────────────── */
+let curStep = 1;
+function goStep(n){
+  // Validate current step
+  if(n > curStep){
+    if(curStep===1){
+      const name  = document.getElementById('f-name').value.trim();
+      const email = document.getElementById('f-email').value.trim();
+      const inst  = document.getElementById('f-inst').value.trim();
+      const auth  = document.getElementById('chk-author').checked;
+      const fee   = document.getElementById('chk-fee').checked;
+      if(!name||!email||!inst){ alert('Please fill in all required fields.'); return; }
+      if(!auth||!fee){ alert('Both agreements must be accepted to continue.'); return; }
+    }
+    if(curStep===2){
+      const drug = document.getElementById('f-drug').value.trim();
+      const cls  = document.getElementById('f-class').value;
+      const mol  = document.getElementById('f-smiles').value.trim();
+      if(!drug||!cls||!mol){ alert('Please fill in all required drug fields.'); return; }
+    }
+  }
+  document.getElementById('step'+curStep).classList.remove('active');
+  document.querySelector('[data-step="'+curStep+'"]').classList.remove('active');
+  if(n < curStep) document.querySelector('[data-step="'+curStep+'"]').classList.remove('done');
+  else document.querySelector('[data-step="'+curStep+'"]').classList.add('done');
+  curStep=n;
+  document.getElementById('step'+curStep).classList.add('active');
+  document.querySelector('[data-step="'+curStep+'"]').classList.add('active');
+}
+
+function submitForm(){
+  const dds = document.getElementById('f-dds').value;
+  if(!dds){ alert('Please select the number of DDS formulations.'); return; }
+
+  const name  = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const inst  = document.getElementById('f-inst').value.trim();
+  const drug  = document.getElementById('f-drug').value.trim();
+  const cls   = document.getElementById('f-class').value;
+  const mol   = document.getElementById('f-smiles').value.trim();
+  const ind   = document.getElementById('f-indication').value.trim();
+  const notes = document.getElementById('f-notes').value.trim();
+
+  const subject = encodeURIComponent('CEREBRO-X Analysis Request — ' + drug);
+  const body = encodeURIComponent(
+'CEREBRO-X Analysis Request\n' +
+'===========================\n' +
+'Researcher: ' + name + '\n' +
+'Email:      ' + email + '\n' +
+'Institution:' + inst + '\n\n' +
+'Drug:       ' + drug + '\n' +
+'Class:      ' + cls + '\n' +
+'Indication: ' + ind + '\n' +
+'Molecule:   ' + mol + '\n\n' +
+'DDS Formulations: ' + dds + '\n' +
+'Notes: ' + notes + '\n\n' +
+'Agreements: Co-authorship \u2713 | Fee \u2713\n');
+
+  window.location.href = 'mailto:mohamed.talaat@pharma.asu.edu.eg?subject=' + subject + '&body=' + body;
+  document.getElementById('formBody').style.display='none';
+  document.getElementById('formSuccess').classList.add('show');
+}
+
+/* ── NAVBAR collapse on mobile ───────────────────────────────────────── */
+document.getElementById('mobileMenuBtn').addEventListener('click', function(){
+  const links = document.querySelector('.nav-links');
+  links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
+  links.style.flexDirection = 'column';
+  links.style.position = 'absolute';
+  links.style.top = '60px'; links.style.left='0'; links.style.right='0';
+  links.style.background = 'rgba(6,6,16,.97)';
+  links.style.padding = '16px 28px 24px';
+  links.style.borderBottom = '1px solid rgba(255,255,255,.07)';
+});
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── DATA EXPLORER ────────────────────────────────────────────────────────
+let activeCharts = {};
+let sortState   = {};
+const BASE = 'https://mohamedtalaat-gif.github.io/CEREBRO-X';
+
+const DRUG_META = {
+  donepezil:    { name:'Donepezil',    admet:'admet_profile_Donepezil.csv' },
+  lecanemab:    { name:'Lecanemab',    admet:null },
+  rivastigmine: { name:'Rivastigmine', admet:null },
+  galantamine:  { name:'Galantamine',  admet:null },
+  temozolomide: { name:'Temozolomide', admet:null },
+  nusinersen:   { name:'Nusinersen',   admet:null },
+};
+
+function openDataModal(slug, drugName) {
+  document.getElementById('dataModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  document.getElementById('modalEyebrow').textContent = 'CEREBRO-X Pipeline Output · ' + slug.toUpperCase();
+  document.getElementById('modalTitle').textContent   = drugName + ' — Data Explorer';
+  // Reset tabs
+  document.querySelectorAll('.dtab').forEach(function(t,i){ t.classList.toggle('active', i===0); });
+  document.querySelectorAll('.tpane').forEach(function(p,i){ p.classList.toggle('active', i===0); });
+  // Destroy old charts
+  Object.values(activeCharts).forEach(function(c){ c.destroy && c.destroy(); });
+  activeCharts = {};
+  sortState = {};
+  // Load all panes
+  loadRanking(slug);
+  loadPKPD(slug);
+  loadSHAP(slug);
+  loadADMET(slug);
+  loadNCA(slug);
+}
+
+function closeDataModal() {
+  document.getElementById('dataModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.getElementById('dataModal').addEventListener('click', function(e){
+  if (e.target === document.getElementById('dataModal')) closeDataModal();
+});
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeDataModal(); });
+
+function switchTab(idx) {
+  document.querySelectorAll('.dtab').forEach(function(t,i){ t.classList.toggle('active', i===idx); });
+  document.querySelectorAll('.tpane').forEach(function(p,i){ p.classList.toggle('active', i===idx); });
+  // Re-render charts after display (they need visible container)
+  if(idx===1 && activeCharts['pkpd']) activeCharts['pkpd'].update();
+  if(idx===2 && activeCharts['shap']) activeCharts['shap'].update();
+}
+
+function fetchCSV(url) {
+  return new Promise(function(resolve, reject){
+    Papa.parse(url, {
+      download:true, header:true, dynamicTyping:true, skipEmptyLines:true,
+      complete: function(r){ resolve(r.data); },
+      error: function(e){ reject(e); }
+    });
+  });
+}
+
+/* ── RANKING TABLE ─────────────────────────────────────────────────────── */
+const RANK_COLS = [
+  ['Rank','Rank'],['Formulation_Name','Name'],['Carrier_Type','Carrier'],
+  ['Surface_Ligand','Ligand'],['size_nm','Size (nm)'],['zeta_potential_mv','Zeta (mV)'],
+  ['pdi','PDI'],['encapsulation_efficiency_pct','EE %'],['BBB_Engineering_Score','BBB Score'],
+  ['ML_Success_Probability','ML Prob'],['PgP_Escape_Coeff','P-gp Esc'],
+  ['Off_Target_Liver_pct','Liver Off-target %'],['ADMET_Overall_Flag','ADMET'],
+];
+
+async function loadRanking(slug) {
+  const pane = document.getElementById('tabPane0');
+  pane.innerHTML = '<div class="loading">Loading DDS ranking\u2026</div>';
+  try {
+    const rows = await fetchCSV(BASE+'/drugs/'+slug+'/formulation_ranking.csv');
+    rows.sort(function(a,b){ return (a.Rank||99) - (b.Rank||99); });
+    renderRankingTable(pane, rows, slug);
+  } catch(e) {
+    pane.innerHTML = '<p style="color:var(--text-2);padding:20px">Data not available for this drug ('+e+')</p>';
+  }
+}
+
+function renderRankingTable(pane, rows, slug) {
+  let thead = '<tr>' + RANK_COLS.map(function(item){
+    return '<th data-key="'+item[0]+'" onclick="sortTable(\'ranking-'+slug+'\',\''+item[0]+'\',this)">'+item[1]+'</th>';
+  }).join('') + '</tr>';
+
+  const rowsHtml = rows.map(function(r,ri){
+    return '<tr>' + RANK_COLS.map(function(item){
+      const k = item[0];
+      let v = r[k] != null ? r[k] : '\u2014';
+      if(k==='Rank') v = ri===0
+        ? '<span class="rank-badge">1</span>'
+        : '<span style="color:var(--text-2)">'+v+'</span>';
+      if(k==='ML_Success_Probability' && typeof v==='number')
+        v = (v*100).toFixed(1)+'%';
+      if(k==='BBB_Engineering_Score' && typeof v==='number')
+        v = '<strong style="color:'+(v>=80?'var(--teal-lt)':v>=60?'var(--gold)':'var(--orange)')+'">'+v.toFixed(1)+'</strong>';
+      if(k==='ADMET_Overall_Flag')
+        v = v==='OK'
+          ? '<span style="color:var(--teal-lt)">\u2713 OK</span>'
+          : '<span style="color:var(--orange)">\u26a0 '+v+'</span>';
+      if(typeof v==='number') v = v%1===0 ? v : v.toFixed(3);
+      return '<td>'+v+'</td>';
+    }).join('') + '</tr>';
+  }).join('');
+
+  pane.innerHTML = '\n    <p style="font-size:.82rem;color:var(--text-2);margin-bottom:14px;">\n      '+rows.length+' candidate DDS formulations ranked by composite 62-principle score.\n      Click any column header to sort.\n    </p>\n    <div class="dt-wrap">\n      <table class="dt" id="ranking-'+slug+'">\n        <thead>'+thead+'</thead>\n        <tbody>'+rowsHtml+'</tbody>\n      </table>\n    </div>';
+}
+
+function sortTable(tableId, key, th) {
+  const tbl = document.getElementById(tableId);
+  if(!tbl) return;
+  const dir = sortState[tableId+key] === 'asc' ? 'desc' : 'asc';
+  sortState[tableId+key] = dir;
+  // Clear other headers
+  tbl.querySelectorAll('th').forEach(function(h){ h.classList.remove('sorted-asc','sorted-desc'); });
+  th.classList.add(dir==='asc' ? 'sorted-asc' : 'sorted-desc');
+  const rows = Array.from(tbl.querySelectorAll('tbody tr'));
+  rows.sort(function(a,b){
+    const aCell = a.cells[Array.from(th.parentNode.cells).indexOf(th)].textContent.replace(/[^\d.\-]/g,'');
+    const bCell = b.cells[Array.from(th.parentNode.cells).indexOf(th)].textContent.replace(/[^\d.\-]/g,'');
+    const av = parseFloat(aCell) || aCell;
+    const bv = parseFloat(bCell) || bCell;
+    return (dir==='asc' ? 1 : -1) * (av > bv ? 1 : av < bv ? -1 : 0);
+  });
+  rows.forEach(function(r){ tbl.querySelector('tbody').appendChild(r); });
+}
+
+/* ── PKPD KINETICS CHART ────────────────────────────────────────────────── */
+async function loadPKPD(slug) {
+  const pane = document.getElementById('tabPane1');
+  pane.innerHTML = '<div class="loading">Loading PKPD kinetics\u2026</div>';
+  try {
+    const rows = await fetchCSV(BASE+'/drugs/'+slug+'/pkpd_kinetics.csv');
+    const days  = rows.map(function(r){ return parseFloat(r.Day || r.day || 0); });
+    const conc  = rows.map(function(r){ return parseFloat(r.Concentration_Pct || r.concentration || 0); });
+    const hl    = rows.length > 0 ? (rows[0].Half_Life_Days || '\u2014') : '\u2014';
+
+    pane.innerHTML = '\n      <div class="chart-wrap">\n        <h3>PKPD Brain Concentration Kinetics</h3>\n        <p style="font-size:.8rem;color:var(--text-2);margin-bottom:16px;">\n          Computed via PBPK digital twin \u00b7 '+rows.length+' time points \u00b7\n          t\u00bd = <strong style="color:var(--gold)">'+hl+' days</strong>\n        </p>\n        <canvas id="pkpdChart-'+slug+'" height="80"></canvas>\n      </div>';
+
+    const ctx = document.getElementById('pkpdChart-'+slug).getContext('2d');
+    activeCharts['pkpd'] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: days,
+        datasets: [{
+          label: 'Brain Conc. (%)',
+          data: conc,
+          borderColor: '#C9A84C',
+          backgroundColor: 'rgba(201,168,76,.08)',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.4,
+        }]
+      },
+      options: {
+        responsive:true,
+        plugins:{
+          legend:{labels:{color:'#9CA3AF',font:{family:'DM Sans'}}},
+          tooltip:{
+            callbacks:{
+              label: function(ctx){ return 'Conc: '+ctx.parsed.y.toFixed(2)+'%'; }
             }
-            const maxDist = 200;
-            const edgeMat = new THREE.LineBasicMaterial({ color: 0xC9A84C, transparent: true, opacity: .08 });
-            for (let i = 0; i < N; i++) {
-                for (let j = i + 1; j < N; j++) {
-                    if (positions[i].distanceTo(positions[j]) < maxDist) {
-                        const geo = new THREE.BufferGeometry().setFromPoints([positions[i], positions[j]]);
-                        scene.add(new THREE.Line(geo, edgeMat));
-                    }
-                }
-            }
-            const vels = positions.map(() => new THREE.Vector3((Math.random() - .5) * .2, (Math.random() - .5) * .15, (Math.random() - .5) * .1));
-            let frame = 0;
-            function render() {
-                requestAnimationFrame(render);
-                frame++;
-                mouse.x += (mouse.tx - mouse.x) * .04;
-                mouse.y += (mouse.ty - mouse.y) * .04;
-                camera.position.x = mouse.x * 40;
-                camera.position.y = -mouse.y * 30;
-                camera.lookAt(0, 0, 0);
-                if (frame % 3 === 0) {
-                    scene.children.forEach((obj, idx) => {
-                        if (obj.type === 'Mesh' && idx < N) {
-                            const v = vels[idx];
-                            obj.position.add(v);
-                            if (Math.abs(obj.position.x) > 700) v.x *= -1;
-                            if (Math.abs(obj.position.y) > 500) v.y *= -1;
-                            if (Math.abs(obj.position.z) > 300) v.z *= -1;
-                        }
-                    });
-                }
-                renderer.render(scene, camera);
-            }
-            render();
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-        })();
+          }
+        },
+        scales:{
+          x:{
+            title:{display:true,text:'Time (Days)',color:'#C9A84C'},
+            ticks:{color:'#9CA3AF',maxTicksLimit:12},
+            grid:{color:'rgba(255,255,255,.06)'}
+          },
+          y:{
+            title:{display:true,text:'Concentration (%)',color:'#C9A84C'},
+            ticks:{color:'#9CA3AF'},
+            grid:{color:'rgba(255,255,255,.06)'}
+          }
+        }
+      }
+    });
+  } catch(e) {
+    pane.innerHTML = '<p style="color:var(--text-2);padding:20px">PKPD data unavailable</p>';
+  }
+}
 
-        // Reveal animations
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('active'); observer.unobserve(e.target); } });
-        }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
-        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+/* ── SHAP XAI ────────────────────────────────────────────────────────────── */
+async function loadSHAP(slug) {
+  const pane = document.getElementById('tabPane2');
+  pane.innerHTML = '<div class="loading">Loading SHAP analysis\u2026</div>';
+  try {
+    const rows = await fetchCSV(BASE+'/drugs/'+slug+'/shap_feature_importance.csv');
+    rows.sort(function(a,b){ return b.SHAP_Importance - a.SHAP_Importance; });
+    const labels = rows.map(function(r){ return r.Feature || r.feature || '?'; });
+    const vals   = rows.map(function(r){ return parseFloat(r.SHAP_Importance || r.importance || 0); });
 
-        // Drug card tilt
-        document.querySelectorAll('.drug-card').forEach(card => {
-            card.addEventListener('mousemove', e => {
-                const r = card.getBoundingClientRect();
-                const x = (e.clientX - r.left - r.width / 2) / (r.width / 2);
-                const y = (e.clientY - r.top - r.height / 2) / (r.height / 2);
-                card.style.transform = `perspective(1000px) rotateX(${-y*6}deg) rotateY(${x*6}deg) translateY(-6px) scale(1.01)`;
-            });
-            card.addEventListener('mouseleave', () => { card.style.transform = ''; });
-        });
+    pane.innerHTML = '\n      <div class="chart-wrap">\n        <h3>SHAP Feature Importance \u2014 ML Model Explainability</h3>\n        <p style="font-size:.8rem;color:var(--text-2);margin-bottom:16px;">\n          Which molecular/carrier features drive the ML success prediction?\n          Higher SHAP = stronger influence on ranking.\n        </p>\n        <canvas id="shapChart-'+slug+'" height="60"></canvas>\n      </div>';
 
-        // Principle dots with popup
-        const cMap = {21:'pc',32:'pc',45:'pc',47:'pb',55:'pc',56:'pc'};
-        const dotsContainer = document.getElementById('pDots');
-        const popup = document.getElementById('principlePopup');
-        const principlesData = [];
-        for (let i = 1; i <= 62; i++) {
-            let className = 'A', method = 'Surrogate computational model';
-            if (i === 47) { className = 'B'; method = 'Deep physics simulation (quantum/molecular)'; }
-            else if ([21,32,45,55,56].includes(i)) { className = 'C'; method = 'Translational/regulatory framework'; }
-            principlesData.push({ id: `P${String(i).padStart(2,'0')}`, class: className, method });
+    const ctx = document.getElementById('shapChart-'+slug).getContext('2d');
+    activeCharts['shap'] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'SHAP Importance',
+          data: vals,
+          backgroundColor: vals.map(function(v,i){
+            return i===0 ? '#C9A84C' : i===1 ? '#0D6E6E' : i===2 ? '#F57C00' : 'rgba(255,255,255,.2)';
+          }),
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive:true,
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{label: function(ctx){ return 'SHAP: '+ctx.parsed.x.toFixed(5); }}}
+        },
+        scales:{
+          x:{ticks:{color:'#9CA3AF'},grid:{color:'rgba(255,255,255,.06)'},
+             title:{display:true,text:'SHAP Value',color:'#C9A84C'}},
+          y:{ticks:{color:'#E0E0E0',font:{size:11}},grid:{display:false}}
         }
-        dotsContainer.innerHTML = '';
-        principlesData.forEach((p, idx) => {
-            const dot = document.createElement('div');
-            dot.className = 'p-dot ' + (cMap[idx+1] || 'pa');
-            dot.textContent = p.id;
-            dot.onmouseenter = (e) => {
-                const classText = p.class === 'A' ? 'Surrogate (A)' : p.class === 'B' ? 'Deep Physics (B)' : 'Translational (C)';
-                popup.innerHTML = `<strong>${p.id}</strong><span class="class-badge class-${p.class}">${classText}</span><br><small>${p.method}</small>`;
-                popup.classList.add('show');
-                positionPopup(e, popup);
-            };
-            dot.onmousemove = (e) => positionPopup(e, popup);
-            dot.onmouseleave = () => popup.classList.remove('show');
-            dotsContainer.appendChild(dot);
-        });
-        function positionPopup(e, el) {
-            let x = e.clientX + 18, y = e.clientY - 70;
-            el.style.left = x + 'px'; el.style.top = y + 'px';
-            const rect = el.getBoundingClientRect();
-            if (rect.right > window.innerWidth - 10) el.style.left = (x - rect.width - 30) + 'px';
-            if (rect.bottom > window.innerHeight - 10) el.style.top = (y - rect.height - 10) + 'px';
-            if (rect.top < 10) el.style.top = '10px';
-        }
+      }
+    });
+  } catch(e) {
+    pane.innerHTML = '<p style="color:var(--text-2);padding:20px">SHAP data unavailable</p>';
+  }
+}
 
-        // Form steps
-        let curStep = 1;
-        function goStep(n) {
-            if (n > curStep) {
-                if (curStep === 1) {
-                    const name = document.getElementById('f-name').value.trim();
-                    const email = document.getElementById('f-email').value.trim();
-                    const inst = document.getElementById('f-inst').value.trim();
-                    if (!name || !email || !inst) { alert('Please fill in all required fields.'); return; }
-                    if (!document.getElementById('chk-author').checked || !document.getElementById('chk-fee').checked) { alert('Both agreements must be accepted.'); return; }
-                }
-                if (curStep === 2) {
-                    if (!document.getElementById('f-drug').value.trim() || !document.getElementById('f-class').value || !document.getElementById('f-smiles').value.trim()) {
-                        alert('Please fill in all required drug fields.'); return;
-                    }
-                }
-            }
-            document.getElementById('step'+curStep).classList.remove('active');
-            document.querySelector(`[data-step="${curStep}"]`).classList.remove('active');
-            if (n < curStep) document.querySelector(`[data-step="${curStep}"]`).classList.remove('done');
-            else document.querySelector(`[data-step="${curStep}"]`).classList.add('done');
-            curStep = n;
-            document.getElementById('step'+curStep).classList.add('active');
-            document.querySelector(`[data-step="${curStep}"]`).classList.add('active');
-        }
-        function submitForm() {
-            const dds = document.getElementById('f-dds').value;
-            if (!dds) { alert('Please select the number of DDS formulations.'); return; }
-            const name = document.getElementById('f-name').value.trim();
-            const email = document.getElementById('f-email').value.trim();
-            const inst = document.getElementById('f-inst').value.trim();
-            const drug = document.getElementById('f-drug').value.trim();
-            const cls = document.getElementById('f-class').value;
-            const mol = document.getElementById('f-smiles').value.trim();
-            const ind = document.getElementById('f-indication')?.value.trim() || '';
-            const notes = document.getElementById('f-notes')?.value.trim() || '';
-            const subject = encodeURIComponent(`CEREBRO-X Analysis Request — ${drug}`);
-            const body = encodeURIComponent(`CEREBRO-X Analysis Request\n===========================\nResearcher: ${name}\nEmail: ${email}\nInstitution: ${inst}\n\nDrug: ${drug}\nClass: ${cls}\nIndication: ${ind}\nMolecule: ${mol}\n\nDDS Formulations: ${dds}\nNotes: ${notes}\n\nAgreements: Co-authorship ✓ | Fee ✓`);
-            window.location.href = `mailto:mohamed.talaat@pharma.asu.edu.eg?subject=${subject}&body=${body}`;
-            document.getElementById('formBody').style.display = 'none';
-            document.getElementById('formSuccess').classList.add('show');
-        }
+/* ── ADMET PROFILE ──────────────────────────────────────────────────────── */
+async function loadADMET(slug) {
+  const pane = document.getElementById('tabPane3');
+  pane.innerHTML = '<div class="loading">Loading ADMET profile\u2026</div>';
+  try {
+    const slug_meta = DRUG_META[slug];
+    const fname = slug_meta?.admet || null;
+    if(!fname) throw new Error('No drug-specific ADMET file');
+    const rows = await fetchCSV(BASE+'/drugs/'+slug+'/'+fname);
+    const r = rows[0];
+    if(!r) throw new Error('Empty ADMET data');
 
-        // Mobile menu
-        document.getElementById('mobileMenuBtn').addEventListener('click', () => {
-            const links = document.querySelector('.nav-links');
-            links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
-            links.style.flexDirection = 'column';
-            links.style.position = 'absolute';
-            links.style.top = '60px'; links.style.left = '0'; links.style.right = '0';
-            links.style.background = 'rgba(6,6,16,.97)';
-            links.style.padding = '16px 28px 24px';
-            links.style.borderBottom = '1px solid rgba(255,255,255,.07)';
-        });
+    const grade = r.ADMET_Grade || '?';
+    const gradeClass = 'grade-'+grade;
+    const cards = [
+      ['LogP', r.logP?.toFixed(3), 'lipophilicity'],
+      ['LogD (pH 6.8)', r.logD?.toFixed(3), 'ionized lipophilicity'],
+      ['Aqueous Solubility', ((r.logSw||0).toFixed(2))+' log S', 'intrinsic'],
+      ['BBB Predicted', ((r.BBB_predicted_pct||0).toFixed(1))+'%', 'permeation %'],
+      ['LogBB', r.LogBB?.toFixed(3), 'blood-brain ratio'],
+      ['P-gp Substrate', r.Pgp_Substrate ? '\u26a0 Yes' : '\u2713 No', 'efflux risk'],
+      ['Plasma Free Fraction', ((r.fu_human_pct||0).toFixed(1))+'%', 'hu plasma'],
+      ['Volume of Dist.', ((r.Vd_human_L||0).toFixed(1))+' L', 'Vd human'],
+      ['Permeability (Peff)', (r.Peff_cm_s||0).toExponential(2)+' cm/s', 'GI epithelium'],
+      ['ADMET Score', r.ADMET_Score, 'composite 0-100'],
+      ['ADMET Grade', '<span class="'+gradeClass+'">'+grade+'</span>', 'A=best, F=worst'],
+      ['Tm Estimated', ((r.Tm_estimated_C||0).toFixed(1))+' \u00b0C', 'melting point'],
+    ];
 
-        // Data modal (simplified)
-        function openDataModal(slug, drugName) {
-            document.getElementById('dataModal').style.display = 'block';
-            document.body.style.overflow = 'hidden';
-            document.getElementById('modalEyebrow').textContent = 'CEREBRO-X Pipeline Output · ' + slug.toUpperCase();
-            document.getElementById('modalTitle').textContent = drugName + ' — Data Explorer';
-            document.querySelectorAll('.tabPane').forEach((p,i) => p.style.display = i===0 ? 'block' : 'none');
-        }
-        function closeDataModal() {
-            document.getElementById('dataModal').style.display = 'none';
-            document.body.style.overflow = '';
-        }
-        function switchTab(idx) {
-            document.querySelectorAll('#dataModal .tpane').forEach((p,i) => p.style.display = i===idx ? 'block' : 'none');
-        }
-        document.getElementById('dataModal').addEventListener('click', e => { if (e.target === document.getElementById('dataModal')) closeDataModal(); });
-        document.addEventListener('keydown', e => { if (e.key==='Escape') closeDataModal(); });
-    </script>
+    pane.innerHTML = '\n      <p style="font-size:.82rem;color:var(--text-2);margin-bottom:20px;">\n        Computed via CEREBRO-X multi-tier property resolver (T1 DB lookup \u2192 T2 ML \u2192 T3 physics).\n      </p>\n      <div class="admet-grid">\n        '+cards.map(function(item){
+          return '\n          <div class="admet-card">\n            <div class="label">'+item[0]+'</div>\n            <div class="val">'+(item[1] != null ? item[1] : '\u2014')+'</div>\n            <div class="unit">'+item[2]+'</div>\n          </div>';
+        }).join('')+'\n      </div>';
+  } catch(e) {
+    // Fall back to toxicity report
+    try {
+      const rows = await fetchCSV(BASE+'/drugs/'+slug+'/admet_toxicity_report.csv');
+      const cols = Object.keys(rows[0]||{});
+      pane.innerHTML = '\n        <p style="font-size:.82rem;color:var(--text-2);margin-bottom:14px;">\n          Toxicity assessment across '+rows.length+' endpoints.\n        </p>\n        <div class="dt-wrap">\n          <table class="dt">\n            <thead><tr>'+cols.slice(0,8).map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr></thead>\n            <tbody>'+rows.map(function(r){return '<tr>'+cols.slice(0,8).map(function(c){return '<td>'+(r[c]||'\u2014')+'</td>';}).join('')+'</tr>';}).join('')+'</tbody>\n          </table>\n        </div>';
+    } catch {
+      pane.innerHTML = '<p style="color:var(--text-2);padding:20px">ADMET data unavailable for this drug</p>';
+    }
+  }
+}
+
+/* ── NCA RESULTS ────────────────────────────────────────────────────────── */
+async function loadNCA(slug) {
+  const pane = document.getElementById('tabPane4');
+  pane.innerHTML = '<div class="loading">Loading NCA results\u2026</div>';
+  try {
+    const rows = await fetchCSV(BASE+'/drugs/'+slug+'/nca_results.csv');
+    if(!rows.length) throw new Error('empty');
+    const r = rows[0];
+    const params = [
+      ['Cmax', r.Cmax?.toFixed(2), 'peak concentration'],
+      ['tmax', (r.tmax_h?.toFixed(2))+' h', 'time to peak'],
+      ['AUC\u2080\u208b\u209c', r.AUC_0_t?.toFixed(2), 'area under curve (partial)'],
+      ['AUC\u2080\u208b\u221e', r.AUC_0_inf?.toFixed(2), 'area under curve (total)'],
+      ['t\u00bd', (r.t_half_h?.toFixed(2))+' h', 'elimination half-life'],
+      ['MRT', (r.MRT_h?.toFixed(2))+' h', 'mean residence time'],
+      ['CL (apparent)', r.CL_apparent?.toFixed(4), 'apparent clearance'],
+      ['Vd (SS)', r.Vd_ss?.toFixed(3), 'volume at steady state'],
+      ['Vd (z)', r.Vd_z?.toFixed(3), 'terminal phase Vd'],
+    ];
+    pane.innerHTML = '\n      <p style="font-size:.82rem;color:var(--text-2);margin-bottom:20px;">\n        Non-Compartmental Analysis (NCA) using linear-log trapezoidal method (FDA 2003).\n        Organ: <strong style="color:var(--gold)">'+(r.Organ||'blood')+'</strong>\n      </p>\n      <div class="admet-grid">\n        '+params.map(function(item){
+          return '\n          <div class="admet-card">\n            <div class="label">'+item[0]+'</div>\n            <div class="val">'+(item[1] != null ? item[1] : '\u2014')+'</div>\n            <div class="unit">'+item[2]+'</div>\n          </div>';
+        }).join('')+'\n      </div>';
+  } catch(e) {
+    pane.innerHTML = '<p style="color:var(--text-2);padding:20px">NCA data not available for this drug</p>';
+  }
+}
+</script>
+
 </body>
 </html>
-```
