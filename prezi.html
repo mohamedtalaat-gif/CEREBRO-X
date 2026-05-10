@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CEREBRO-X — The Story</title>
+<meta name="description" content="A cinematic walk through CEREBRO-X — the AI-native engine for CNS drug delivery design.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --void-base:    #060610;
+  --void-elev:    #0a0a1a;
+  --void-panel:   #0f2040;
+  --gold:         #C9A84C;
+  --gold-glow:    rgba(201,168,76,.55);
+  --gold-light:   #D4B563;
+  --gold-dark:    #B89A3F;
+  --teal:         #0D6E6E;
+  --teal-light:   #5BA89B;
+  --red:          #C62828;
+  --orange:       #F57C00;
+  --purple:       #7C4DFF;
+  --text-1:       #E0E0E0;
+  --text-2:       #9CA3AF;
+  --hairline:     #1F2937;
+  --glass:        rgba(12,18,38,.65);
+  --glass-strong: rgba(6,6,16,.88);
+  --glass-border: rgba(201,168,76,.22);
+  --font-display: 'Syne', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+}
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  height:100%; overflow:hidden;
+  background: var(--void-base);
+  color: var(--text-1);
+  font-family: var(--font-body); line-height:1.6;
+}
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:-1;
+  background:
+    url('Seamless%2C%20tileable%20background%20pattern.png') repeat,
+    radial-gradient(ellipse 70% 60% at 50% 50%, rgba(15,32,64,.4), transparent 70%),
+    var(--void-base);
+  background-size: 600px, cover, cover;
+  opacity: .35;
+  animation: drift 90s linear infinite;
+}
+@keyframes drift { to { background-position: 600px 600px, center, center; } }
+
+img { display:block; max-width:100%; }
+.gold { color: var(--gold); }
+.teal { color: var(--teal-light); }
+.mono { font-family: var(--font-mono); }
+h1,h2,h3,h4 { font-family: var(--font-display); letter-spacing: -.025em; line-height:1.15; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   STAGE & SCENE
+   ════════════════════════════════════════════════════════════════════════ */
+#stage {
+  width:100vw; height:100vh; position:relative;
+  perspective: 2200px;
+  perspective-origin: 50% 50%;
+  overflow:hidden;
+}
+
+.scene {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding: 60px 50px;
+  opacity: 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  transition: opacity .9s cubic-bezier(.16,1,.3,1),
+              transform 1.2s cubic-bezier(.16,1,.3,1);
+}
+.scene.active { opacity:1; pointer-events:auto; transform:translate3d(0,0,0) rotateY(0); }
+.scene.exited-left { opacity:0; transform: translate3d(-60vw,0,-300px) rotateY(45deg); }
+.scene.exited-right{ opacity:0; transform: translate3d(60vw,0,-300px) rotateY(-45deg); }
+.scene.entering-left { opacity:0; transform: translate3d(60vw,0,-300px) rotateY(-45deg); }
+.scene.entering-right{ opacity:0; transform: translate3d(-60vw,0,-300px) rotateY(45deg); }
+
+.scene-inner {
+  width:100%; max-width:1100px;
+  text-align:center;
+  transform-style: preserve-3d;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BOOK OPENING — Scene 0 entrance
+   ════════════════════════════════════════════════════════════════════════ */
+#book-cover {
+  position:absolute; inset:0; z-index:10;
+  display:flex; align-items:center; justify-content:center;
+  background: radial-gradient(ellipse 60% 50% at 50% 50%, var(--void-panel) 0%, var(--void-base) 70%);
+  cursor: pointer;
+  transition: opacity 1.4s cubic-bezier(.16,1,.3,1);
+}
+#book-cover.opened { opacity:0; pointer-events:none; }
+
+.book {
+  width: min(90vw, 720px);
+  height: min(75vh, 560px);
+  position: relative;
+  transform-style: preserve-3d;
+  perspective: 2400px;
+}
+
+.book-spine {
+  position:absolute; inset:0;
+  background: linear-gradient(135deg, #08080F 0%, #0F1830 50%, #06060E 100%);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  box-shadow:
+    0 30px 80px rgba(0,0,0,.7),
+    0 0 50px var(--gold-glow),
+    inset 0 0 60px rgba(201,168,76,.08);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding: 40px;
+  animation: bookFloat 5s ease-in-out infinite;
+}
+@keyframes bookFloat {
+  0%,100% { transform: translateY(0) rotateX(2deg); }
+  50%     { transform: translateY(-12px) rotateX(-2deg); }
+}
+
+.book-spine::before {
+  content:'';
+  position:absolute; top:30px; bottom:30px; left:50%;
+  width:2px; background: linear-gradient(to bottom, transparent, var(--gold) 30%, var(--gold) 70%, transparent);
+  opacity:.35;
+}
+.book-logo {
+  width: 240px; max-width:55%;
+  filter: drop-shadow(0 0 30px rgba(100,140,255,.4));
+  margin-bottom: 24px;
+}
+.book-title {
+  font-family: var(--font-display); font-weight:800;
+  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
+  background: linear-gradient(135deg, var(--gold) 30%, var(--gold-light) 50%, var(--gold) 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+  animation: shimmer 4s ease-in-out infinite;
+  letter-spacing: -.02em;
+}
+@keyframes shimmer { 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
+.book-subtitle {
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: .8rem; color: var(--text-2);
+  letter-spacing:.25em; text-transform:uppercase;
+}
+.book-cta {
+  margin-top: 42px;
+  padding: 14px 32px;
+  background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+  color: var(--void-base);
+  border:none; border-radius:6px;
+  font-family:var(--font-display); font-weight:700; font-size:.95rem;
+  letter-spacing:.08em; text-transform:uppercase;
+  cursor:pointer;
+  transition: transform .25s, box-shadow .25s;
+}
+.book-cta:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 36px var(--gold-glow);
+}
+.book-flicker {
+  position:absolute; inset:0; pointer-events:none;
+  background: radial-gradient(ellipse 40% 30% at 50% 50%, rgba(255,220,140,.08) 0%, transparent 60%);
+  animation: flicker 3s ease-in-out infinite;
+  border-radius: 8px;
+}
+@keyframes flicker {
+  0%,100% { opacity:.5; }
+  50%     { opacity:1; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CONTROLS
+   ════════════════════════════════════════════════════════════════════════ */
+#controls {
+  position: fixed; bottom:24px; left:50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display:flex; align-items:center; gap:18px;
+  padding: 10px 18px;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: 100px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  opacity: 0; pointer-events:none;
+  transition: opacity .8s 1.4s;
+}
+#controls.visible { opacity:1; pointer-events:auto; }
+#controls button {
+  background: transparent; border:none;
+  color: var(--gold); cursor: pointer;
+  width:34px; height:34px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size: 1.2rem; transition: background .25s, transform .25s;
+}
+#controls button:hover { background: rgba(201,168,76,.15); transform:scale(1.1); }
+#controls button:disabled { color: var(--hairline); cursor:default; }
+#controls button:disabled:hover { background:transparent; transform:none; }
+.scene-indicator {
+  font-family: var(--font-mono); font-size:.78rem;
+  color: var(--text-2); letter-spacing:.1em;
+  min-width: 60px; text-align:center;
+}
+#scene-title {
+  font-family: var(--font-display); font-weight:600;
+  font-size: .85rem; color: var(--text-1);
+  letter-spacing:.05em;
+  max-width: 260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+@media(max-width:560px){ #scene-title { display:none; } }
+
+/* Progress bar */
+#progress {
+  position:fixed; top:0; left:0; height:3px;
+  background: linear-gradient(90deg, var(--teal), var(--gold), var(--orange));
+  z-index: 51; transition: width .5s ease;
+  width:0%; box-shadow: 0 0 10px var(--gold-glow);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SCENE CONTENT STYLES
+   ════════════════════════════════════════════════════════════════════════ */
+.eyebrow {
+  font-family: var(--font-mono);
+  text-transform:uppercase; letter-spacing:.3em;
+  font-size:.72rem; color:var(--gold);
+  margin-bottom:14px; display:inline-block;
+}
+.scene h1 { font-size: clamp(2.4rem, 5.5vw, 4.4rem); font-weight:800; margin-bottom:16px; }
+.scene h2 { font-size: clamp(1.8rem, 4vw, 3rem); font-weight:700; margin-bottom:18px; }
+.scene h3 { font-size: 1.2rem; font-weight:600; color: var(--gold); margin-bottom:8px; }
+.scene p.lead { font-size: clamp(1rem, 1.6vw, 1.2rem); color: var(--text-2); max-width:780px; margin:0 auto; }
+.scene em { font-style:normal;
+  background: linear-gradient(135deg, var(--gold) 20%, var(--gold-light) 50%, var(--gold) 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+  animation: shimmer 3.5s ease-in-out infinite;
+}
+
+.big-num {
+  font-family: var(--font-display);
+  font-size: clamp(5rem, 14vw, 9rem);
+  font-weight: 800; line-height:1; letter-spacing:-.05em;
+  background: linear-gradient(135deg, var(--red), var(--orange));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+  margin-bottom: 14px;
+}
+
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 24px;
+}
+
+/* Hero scene grid */
+.hero-stats { display:flex; flex-wrap:wrap; justify-content:center; gap:36px; margin-top:36px; }
+.hero-stat strong { font-size: clamp(2rem, 3.6vw, 2.8rem); font-family:var(--font-display); font-weight:800; display:block; line-height:1; }
+.hero-stat span { display:block; font-size:.72rem; color:var(--text-2); margin-top:8px; letter-spacing:.06em; }
+
+/* Pillar grid (compact for slide) */
+.pillar-grid {
+  display:grid; grid-template-columns: repeat(3, 1fr);
+  gap:14px; margin-top:30px; text-align:left;
+}
+.pillar-card { padding:18px; }
+.pillar-card .num { font-family:var(--font-display); font-weight:800; color:var(--gold); font-size:1.1rem; margin-bottom:6px; }
+.pillar-card h4 { font-size:.95rem; margin-bottom:6px; color:var(--text-1); }
+.pillar-card p { font-size:.78rem; color:var(--text-2); line-height:1.5; }
+@media(max-width:900px) { .pillar-grid { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:600px) { .pillar-grid { grid-template-columns: 1fr; } }
+
+/* Architecture stack */
+.arch-stack {
+  display:flex; flex-direction:column; gap:6px;
+  margin-top:24px; max-width:780px; margin-left:auto; margin-right:auto;
+  text-align:left;
+}
+.arch-row {
+  background: linear-gradient(135deg, rgba(15,32,64,.7), rgba(10,10,26,.85));
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 12px 18px;
+  display:flex; align-items:center; gap:14px;
+  transition: transform .3s, border-color .3s;
+}
+.arch-row:hover { transform: translateX(6px); border-color: var(--gold); }
+.arch-row .n { font-family:var(--font-display); font-weight:800; color:var(--gold); font-size:1.2rem; min-width:32px; }
+.arch-row .body strong { color:var(--text-1); font-size:.9rem; font-family:var(--font-display); }
+.arch-row .body p { color:var(--text-2); font-size:.74rem; margin-top:2px; line-height:1.4; }
+
+/* Principles wheel — compact */
+.pwheel { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin: 20px auto; max-width: 980px; }
+.pwheel .dot {
+  width:32px; height:32px; border-radius:5px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:8px; font-weight:700; font-family:var(--font-mono);
+  color:#fff; cursor:pointer;
+  transition: transform .2s, box-shadow .2s;
+}
+.pwheel .dot:hover { transform:scale(1.3); box-shadow:0 0 12px var(--gold-glow); z-index:2; }
+.pwheel .A { background: var(--teal); }
+.pwheel .B { background: var(--purple); }
+.pwheel .C { background: var(--orange); }
+.legend-row { display:flex; gap:22px; justify-content:center; flex-wrap:wrap; font-size:.85rem; color:var(--text-2); margin-top:8px; }
+.legend-dot { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:middle; margin-right:6px; }
+
+/* Tooltip */
+#ptt {
+  position:fixed; z-index:200;
+  width:340px; max-width:calc(100vw - 32px);
+  background: var(--glass-strong);
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.7), 0 0 24px var(--gold-glow);
+  backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+  pointer-events:none;
+  opacity:0; transform: translateY(8px) scale(.95);
+  transition: opacity .2s, transform .2s;
+  text-align:left;
+}
+#ptt.show { opacity:1; transform:translateY(0) scale(1); }
+#ptt .pid { font-family: var(--font-mono); font-size:.7rem; color:var(--gold); letter-spacing:.1em; }
+#ptt .cls { display:inline-block; padding:1px 6px; border-radius:4px; font-size:.6rem; font-weight:700; margin-left:6px; vertical-align:middle; font-family:var(--font-mono); }
+#ptt .cls.A { background:var(--teal); color:#fff; }
+#ptt .cls.B { background:var(--purple); color:#fff; }
+#ptt .cls.C { background:var(--orange); color:#fff; }
+#ptt h4 { font-family:var(--font-display); font-size:1rem; margin:6px 0 10px; line-height:1.25; }
+#ptt .meth { font-size:.78rem; color:var(--text-1); border-left:2px solid var(--gold); padding-left:10px; margin-bottom:8px; line-height:1.5; }
+#ptt .ref { font-size:.7rem; color:var(--text-2); border-top:1px dashed var(--hairline); padding-top:6px; }
+
+/* Journey strip */
+.journey { display:flex; justify-content:center; gap:0; margin-top:28px; flex-wrap:wrap; }
+.j-step { width:160px; padding: 14px 8px; position:relative; }
+.j-step::after { content:'→'; position:absolute; right:-10px; top:30px; color:var(--gold); font-size:1.1rem; }
+.j-step:last-child::after { display:none; }
+.j-step .icon { font-size:1.8rem; margin-bottom:6px; }
+.j-step h4 { font-size:.78rem; color:var(--gold); margin-bottom:3px; }
+.j-step p { font-size:.7rem; color:var(--text-2); }
+
+/* Case study compact table */
+.cs { width:100%; max-width:820px; margin: 24px auto; border-collapse:collapse; font-size:.86rem; text-align:left; }
+.cs th { background:var(--void-panel); color:var(--gold); padding:10px 14px; font-family:var(--font-display); border-bottom:1px solid var(--glass-border); }
+.cs td { padding:8px 14px; border-bottom: 1px solid rgba(255,255,255,.04); }
+
+/* Roadmap */
+.roadmap { display:flex; gap:0; margin:24px auto; max-width:780px; position:relative; }
+.roadmap::before { content:''; position:absolute; top:50%; left:0; right:0; height:2px; background: linear-gradient(90deg, var(--teal), var(--gold), var(--orange)); z-index:0; }
+.rm-step { flex:1; text-align:center; position:relative; z-index:1; padding:14px 10px; }
+.rm-dot { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 8px; font-size:1.1rem; border:2px solid; }
+.rm-step.active .rm-dot { background:var(--gold); border-color:var(--gold); color:var(--void-base); box-shadow:0 0 18px var(--gold-glow); }
+.rm-step:not(.active) .rm-dot { background:var(--void-panel); border-color:var(--hairline); color:var(--text-2); }
+.rm-step h3 { font-size:.9rem; margin-bottom:4px; }
+.rm-step p { font-size:.7rem; color:var(--text-2); }
+
+/* CTA */
+.cta-btn {
+  display:inline-block; padding:14px 36px;
+  background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+  color: var(--void-base);
+  font-family: var(--font-display); font-weight:700; font-size:.95rem;
+  letter-spacing:.04em;
+  border:none; border-radius:8px;
+  text-decoration:none;
+  transition: transform .25s, box-shadow .25s;
+  margin-top: 18px;
+}
+.cta-btn:hover { transform:translateY(-2px); box-shadow:0 10px 30px var(--gold-glow); }
+
+/* Concerns grid */
+.concern-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:14px; margin-top:24px; text-align:left; max-width:980px; margin-left:auto; margin-right:auto; }
+.concern-card { padding:16px 20px; }
+.concern-card .who { font-family:var(--font-mono); font-size:.65rem; color:var(--gold); text-transform:uppercase; letter-spacing:.18em; margin-bottom:6px; }
+.concern-card h4 { font-size:.95rem; color:var(--text-1); margin-bottom:6px; }
+.concern-card p { font-size:.78rem; color:var(--text-2); line-height:1.5; }
+@media(max-width:760px){ .concern-grid { grid-template-columns:1fr; } }
+
+/* Hero logo for scene 0 */
+.hero-logo { width: clamp(180px, 24vw, 280px); margin: 0 auto 22px; filter: drop-shadow(0 0 50px rgba(100,140,255,.35)); }
+
+/* Hint at bottom */
+.kbd-hint {
+  position:fixed; bottom: 80px; left:50%; transform:translateX(-50%);
+  font-family: var(--font-mono); font-size:.7rem; color: var(--text-2);
+  opacity: 0; transition: opacity .8s 2s;
+  letter-spacing:.08em;
+  pointer-events:none;
+}
+.kbd-hint.visible { opacity: .55; }
+.kbd { display:inline-block; padding: 1px 7px; border:1px solid var(--hairline); border-radius:4px; margin:0 3px; }
+
+/* Footer corner mark */
+.corner-logo {
+  position:fixed; top:18px; left:24px; z-index:40;
+  display:flex; align-items:center; gap:10px;
+  opacity:0; transition: opacity 1s 1.4s;
+}
+.corner-logo.visible { opacity:.8; }
+.corner-logo img { width:28px; }
+.corner-logo span { font-family:var(--font-display); font-weight:700; letter-spacing:.06em; font-size:.85rem; color:var(--text-1); }
+</style>
+</head>
+<body>
+
+<!-- ── Progress bar ──────────────────────────────────────────────────────── -->
+<div id="progress"></div>
+
+<!-- ── Corner logo ───────────────────────────────────────────────────────── -->
+<div class="corner-logo" id="cornerLogo">
+  <img src="Primary%20Logo.png" alt="">
+  <span>CEREBRO-X</span>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     BOOK COVER (Scene 0 — entrance)
+     ════════════════════════════════════════════════════════════════════ -->
+<div id="book-cover">
+  <div class="book">
+    <div class="book-spine">
+      <div class="book-flicker"></div>
+      <img src="Primary%20Logo.png" class="book-logo" alt="CEREBRO-X">
+      <div class="book-title">CEREBRO-X</div>
+      <div class="book-subtitle">The Engine That Ends the Guesswork</div>
+      <button class="book-cta" id="open-book">Open the Book</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     STAGE & SCENES
+     ════════════════════════════════════════════════════════════════════ -->
+<div id="stage">
+
+  <!-- ── SCENE 1: Hero / What is CEREBRO-X ──────────────────────────── -->
+  <section class="scene" data-scene="1" data-title="What is CEREBRO-X">
+    <div class="scene-inner">
+      <img src="Primary%20Logo.png" alt="" class="hero-logo">
+      <span class="eyebrow">AI-Native · Physics-Informed · Molecule-Aware</span>
+      <h1>The Engine That<br><em>Ends the Guesswork</em></h1>
+      <p class="lead" style="margin-top:18px">
+        A computational engine for CNS drug delivery design.
+        62 validation principles. Zero hallucinations. Built for researchers, pharma R&amp;D,
+        and academic collaborators who need answers — not interpretations.
+      </p>
+      <div class="hero-stats">
+        <div class="hero-stat"><strong class="gold">98%</strong><span>OF CNS DRUGS<br>FAIL TO REACH THE BRAIN</span></div>
+        <div class="hero-stat"><strong class="teal">62</strong><span>FAILURE-MODE PRINCIPLES<br>SIMULATED PRE-SYNTHESIS</span></div>
+        <div class="hero-stat"><strong style="color:var(--orange)">$700B+</strong><span>INVESTED IN CNS M&amp;A<br>BBB IS THE BOTTLENECK</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SCENE 2: The Challenge ─────────────────────────────────────── -->
+  <section class="scene" data-scene="2" data-title="The Challenge">
+    <div class="scene-inner">
+      <span class="eyebrow">The problem</span>
+      <div class="big-num">98%</div>
+      <h2>Of CNS drugs <span class="gold">never reach the brain</span></h2>
+      <p class="lead">
+        The molecule is rarely the problem. <strong style="color:var(--text-1)">The delivery system is.</strong>
+        Researchers spend months designing nanocarriers that collapse, get protein-coated,
+        or simply cannot cross the BBB. Each failure costs hundreds of thousands.
+      </p>
+      <p class="lead" style="margin-top:18px">
+        What if you could simulate every failure mode <em>before synthesis?</em>
+      </p>
+    </div>
+  </section>
+
+  <!-- ── SCENE 3: Why it's not another LLM ──────────────────────────── -->
+  <section class="scene" data-scene="3" data-title="Not Another LLM">
+    <div class="scene-inner">
+      <span class="eyebrow">What makes it different</span>
+      <h2><span class="gold">AI-Native</span> by Design</h2>
+      <p class="lead" style="margin-top:14px">
+        Not a chatbot. Not an LLM wrapper. CEREBRO-X is the reverse of legacy platforms:
+        <strong style="color:var(--text-1)">remove the AI and the engine stops.</strong>
+      </p>
+      <div class="pillar-grid">
+        <div class="glass pillar-card"><div class="num">01</div><h4>Surrogate Models</h4><p>57 ML models predict drug-DDS properties in milliseconds. Heavy physics is invoked only on uncertainty.</p></div>
+        <div class="glass pillar-card"><div class="num">02</div><h4>Active Learning</h4><p>Every run improves the next. Models retrain on validated outcomes — they sharpen with use.</p></div>
+        <div class="glass pillar-card"><div class="num">03</div><h4>Intelligent Ranking</h4><p>Gradient Boosting ranker scores all candidate DDS by predicted clinical success.</p></div>
+        <div class="glass pillar-card"><div class="num">04</div><h4>Graph Neural Networks</h4><p>Molecules ingested as graphs — captures hidden structure-property relationships.</p></div>
+        <div class="glass pillar-card"><div class="num">05</div><h4>First-Principles Fallback</h4><p>Missing property? Computed from quantum mechanics. No <span class="mono">None</span>. Real values, with provenance.</p></div>
+        <div class="glass pillar-card"><div class="num">06</div><h4>Cloud-Ready</h4><p>FastAPI + Docker + MLOps. 100 models concurrent on a GPU cluster — configuration, not engineering.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SCENE 4: Architecture ──────────────────────────────────────── -->
+  <section class="scene" data-scene="4" data-title="Architecture">
+    <div class="scene-inner">
+      <span class="eyebrow">Under the hood</span>
+      <h2>The <span class="gold">Six-Layer</span> Architecture</h2>
+      <p class="lead" style="margin-top:8px">
+        Six independent computational layers, each with a single responsibility.
+        Replaceable, scalable, isolated. A mesh of specialists — not a monolith.
+      </p>
+      <div class="arch-stack">
+        <div class="arch-row"><div class="n">01</div><div class="body"><strong>Ingestion &amp; Standardisation</strong><p>SMILES/FASTA validation, canonicalisation, multi-drug parsing, property tier-resolution.</p></div></div>
+        <div class="arch-row"><div class="n">02</div><div class="body"><strong>Surrogate ML Layer</strong><p>57 XGBoost / GNN / QSAR models — each predicts properties + uncertainty for one principle.</p></div></div>
+        <div class="arch-row"><div class="n">03</div><div class="body"><strong>Physics Engines (on demand)</strong><p>AutoDock Vina docking, PBPK 3-compartment integrator, FEP+, protein-corona solver, glymphatic clearance.</p></div></div>
+        <div class="arch-row"><div class="n">04</div><div class="body"><strong>62-Principle Orchestrator</strong><p>DAG executor coordinating principle execution, weight aggregation, group rollups, composite scoring.</p></div></div>
+        <div class="arch-row"><div class="n">05</div><div class="body"><strong>Output &amp; Reporting</strong><p>Interactive HTML5, publication-ready PDFs, MP4 videos, Excel with provenance, FDA Pre-IND drafts.</p></div></div>
+        <div class="arch-row"><div class="n">06</div><div class="body"><strong>API &amp; MLOps</strong><p>FastAPI gateway, Celery queue, Redis cache, Postgres metadata, active-learning loop, Prometheus monitoring.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SCENE 5: 62 Principles ─────────────────────────────────────── -->
+  <section class="scene" data-scene="5" data-title="62 Principles">
+    <div class="scene-inner">
+      <span class="eyebrow">The framework</span>
+      <h2>The <span class="gold">62-Principle</span> Framework</h2>
+      <p class="lead" style="margin-top:10px">
+        Hover any principle to read its method, references, and class.
+        Three classes &mdash; one unified score.
+      </p>
+      <div class="pwheel" id="pwheel"></div>
+      <div class="legend-row">
+        <span><span class="legend-dot" style="background:var(--teal)"></span><strong>56</strong> Class A &mdash; Surrogate</span>
+        <span><span class="legend-dot" style="background:var(--purple)"></span><strong>1</strong> Class B &mdash; Deep Physics</span>
+        <span><span class="legend-dot" style="background:var(--orange)"></span><strong>5</strong> Class C &mdash; Translational</span>
+      </div>
+      <p style="margin-top:18px;font-size:.8rem;color:var(--text-2);">
+        From quantum tunnelling to glymphatic clearance, protein corona to FDA Pre-IND.
+        Eight CNS pharma dimensions, 62 mathematical models, one composite verdict.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── SCENE 6: Digital Twin ──────────────────────────────────────── -->
+  <section class="scene" data-scene="6" data-title="Digital Twin">
+    <div class="scene-inner">
+      <span class="eyebrow">Time-resolved CNS PBPK</span>
+      <h2>Brain-First, <span class="gold">Body-Aware</span> Digital Twin</h2>
+      <p class="lead" style="margin-top:10px">
+        A CNS-specific PBPK model simulates the drug's full journey. Output: time-resolved
+        concentrations in every compartment, every hour.
+      </p>
+      <div class="journey">
+        <div class="j-step"><div class="icon">🩸</div><h4>Blood</h4><p>IV/SC/oral kinetics</p></div>
+        <div class="j-step"><div class="icon">🧱</div><h4>BBB</h4><p>Tight-junction crossing</p></div>
+        <div class="j-step"><div class="icon">🧠</div><h4>Parenchyma</h4><p>Target engagement</p></div>
+        <div class="j-step"><div class="icon">💧</div><h4>Glymphatic</h4><p>CSF clearance</p></div>
+        <div class="j-step"><div class="icon">🚿</div><h4>Excretion</h4><p>Hepatic + renal</p></div>
+      </div>
+      <div class="glass" style="max-width:680px;margin:22px auto 0;font-family:var(--font-mono);font-size:.85rem;color:var(--gold-light);text-align:left;">
+        <strong style="color:var(--gold)">Sample output:</strong><br>
+        Hour 2 → 45% crossed BBB · Hour 5 → hippocampus Cmax<br>
+        Hour 8 → 62% target engagement · Hour 12 → 80% cleared
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SCENE 7: Case Study ────────────────────────────────────────── -->
+  <section class="scene" data-scene="7" data-title="Case Study">
+    <div class="scene-inner">
+      <span class="eyebrow">Live case</span>
+      <h2>Same Disease, <span class="gold">Different Carriers</span></h2>
+      <p class="lead" style="margin-top:10px">
+        Two Alzheimer's drugs, same indication. CEREBRO-X identified completely different
+        optimal delivery systems &mdash; from molecular properties alone.
+      </p>
+      <table class="cs">
+        <thead><tr><th>Property</th><th>Donepezil</th><th>Rivastigmine</th></tr></thead>
+        <tbody>
+          <tr><td>Molecular Weight</td><td>379.5 Da</td><td>250.3 Da</td></tr>
+          <tr><td>LogP</td><td>4.77 (lipophilic)</td><td>2.30 (hydrophilic)</td></tr>
+          <tr><td><strong style="color:var(--gold)">Optimal DDS</strong></td><td style="color:var(--gold)">SLN (Solid Lipid NP)</td><td style="color:var(--teal-light)">PLGA Nanoparticle</td></tr>
+          <tr><td>BBB Score</td><td>78.4 / 100</td><td>72.1 / 100</td></tr>
+          <tr><td>Composite Score</td><td>81.2 / 100</td><td>74.7 / 100</td></tr>
+          <tr><td>Verdict</td><td style="color:var(--teal-light);font-weight:700">GOOD</td><td style="color:var(--teal-light);font-weight:700">GOOD</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── SCENE 8: Concerns ──────────────────────────────────────────── -->
+  <section class="scene" data-scene="8" data-title="Common Concerns">
+    <div class="scene-inner">
+      <span class="eyebrow">For PIs · Pharma · R&amp;D · Funders</span>
+      <h2>What You're <span class="gold">Probably Wondering</span></h2>
+      <div class="concern-grid">
+        <div class="glass concern-card"><div class="who">Principal Investigators</div><h4>Is this just an LLM wrapper?</h4><p>No. Zero LLMs in the prediction path. Every score is a mathematical model — DEs, ML regressors, ab-initio physics. LLMs only narrate reports.</p></div>
+        <div class="glass concern-card"><div class="who">Computational Pharmacists</div><h4>What if a property isn't anywhere?</h4><p>4-tier resolver computes from first principles — QM, group-contribution, atomistic. Output carries provenance (T1/T2/T3/T4).</p></div>
+        <div class="glass concern-card"><div class="who">R&amp;D Directors</div><h4>How does this fit our pipeline?</h4><p>Service mode (request/receive), Software mode (workstation), Platform mode (cloud + custom-trained on your library).</p></div>
+        <div class="glass concern-card"><div class="who">IP &amp; Compliance</div><h4>What about proprietary compounds?</h4><p>NDA before sharing. Isolated infrastructure — your data never reaches a third-party cloud. On-prem deployment available.</p></div>
+        <div class="glass concern-card"><div class="who">Funders &amp; Investors</div><h4>Is this validated?</h4><p>Applied to FDA-approved CNS drugs (Donepezil, Rivastigmine, Lecanemab). Each principle cites peer-reviewed literature.</p></div>
+        <div class="glass concern-card"><div class="who">Pharma Innovation</div><h4>How fast does it run?</h4><p>1 drug × 100 DDS × 62 principles ≈ 4–8 minutes. Pure surrogate run finishes in under 60 seconds.</p></div>
+        <div class="glass concern-card"><div class="who">Computational Chemists</div><h4>What descriptors?</h4><p>RDKit + GNN graph embeddings + Henderson-Hasselbalch ionisation profiles + SoM heuristics + 3D conformer shape descriptors.</p></div>
+        <div class="glass concern-card"><div class="who">Regulatory Strategists</div><h4>Does it speak FDA?</h4><p>Pre-IND CTD-mapped framework, FTO landscape, 21 CFR Part 11 audit trail, Patentability Score Engine — months → days.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SCENE 9: Roadmap & Collaboration ───────────────────────────── -->
+  <section class="scene" data-scene="9" data-title="Roadmap">
+    <div class="scene-inner">
+      <span class="eyebrow">Where we are, where we're going</span>
+      <h2>Engine Today &mdash; <span class="gold">Platform Tomorrow</span></h2>
+      <div class="roadmap">
+        <div class="rm-step active"><div class="rm-dot">⚙️</div><h3>Engine</h3><p>Today. 62-principle pipeline, validated. Local Docker deploy. Excel → reports.</p></div>
+        <div class="rm-step"><div class="rm-dot">🖥️</div><h3>Software</h3><p>Next. Web UI for researchers. SMILES in, dashboards out. No Excel needed.</p></div>
+        <div class="rm-step"><div class="rm-dot">🌐</div><h3>Platform</h3><p>Vision. Multi-tenant cloud. Custom-trained models on private libraries.</p></div>
+      </div>
+      <div class="glass" style="max-width:760px;margin:24px auto 0;text-align:left;">
+        <h3 style="margin-bottom:10px;font-size:1.05rem;">The Collaboration Multiplier</h3>
+        <p style="color:var(--text-2);font-size:.86rem;">
+          Trained on public databases today. When trained on an institution's <strong style="color:var(--text-1)">proprietary
+          compound libraries</strong>, accuracy increases dramatically — because the models learn
+          structure-property relationships that simply do not exist in public data.
+        </p>
+        <p style="margin-top:12px;color:var(--text-2);font-size:.86rem;">
+          <strong style="color:var(--gold-light)">You bring the data, we bring the engine.</strong>
+          A custom-calibrated system that speaks your chemistry — and publishes with your name on it.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SCENE 10: Workflow + CTA ───────────────────────────────────── -->
+  <section class="scene" data-scene="10" data-title="Request an Analysis">
+    <div class="scene-inner">
+      <span class="eyebrow">Get started</span>
+      <h2>How to <span class="gold">Request an Analysis</span></h2>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;max-width:880px;margin:24px auto 0;text-align:left;">
+        <div class="glass" style="padding:16px;"><strong style="color:var(--gold);font-family:var(--font-display);">1 · Submit</strong><p style="font-size:.82rem;color:var(--text-2);margin-top:6px;">Fill the request form: SMILES/FASTA, indication, candidate DDS list.</p></div>
+        <div class="glass" style="padding:16px;"><strong style="color:var(--gold);font-family:var(--font-display);">2 · Consult</strong><p style="font-size:.82rem;color:var(--text-2);margin-top:6px;">Email scope discussion. Mutual NDA if proprietary data is involved.</p></div>
+        <div class="glass" style="padding:16px;"><strong style="color:var(--gold);font-family:var(--font-display);">3 · Compute</strong><p style="font-size:.82rem;color:var(--text-2);margin-top:6px;">62-principle pipeline runs on isolated infrastructure. No third-party cloud.</p></div>
+        <div class="glass" style="padding:16px;"><strong style="color:var(--gold);font-family:var(--font-display);">4 · Deliver</strong><p style="font-size:.82rem;color:var(--text-2);margin-top:6px;">Dashboards · PDF reports · Excel · videos · Pre-IND framework.</p></div>
+      </div>
+      <a href="mailto:mohamed.talaat@pharma.asu.edu.eg?subject=CEREBRO-X%20Analysis%20Request" class="cta-btn">
+        Request Your Analysis →
+      </a>
+      <p style="margin-top:14px;color:var(--text-2);font-size:.82rem;">
+        Academic collaborations welcome &middot; Co-authorship available for validated results
+      </p>
+    </div>
+  </section>
+
+  <!-- ── SCENE 11: Closing ──────────────────────────────────────────── -->
+  <section class="scene" data-scene="11" data-title="Thank you">
+    <div class="scene-inner">
+      <img src="Primary%20Logo.png" class="hero-logo" alt="" style="margin-bottom:24px;">
+      <h1 style="font-size:clamp(2rem,4vw,3.4rem);">Thank you for <em>seeing the vision.</em></h1>
+      <p class="lead" style="margin:24px auto 0;">
+        Built by <strong style="color:var(--text-1)">Muhammad Talaat</strong> &middot; BPharm, R&amp;D Computational Lead<br>
+        Ain Shams University &middot; Faculty of Pharmacy
+      </p>
+      <p style="margin-top:30px;">
+        <a href="mailto:mohamed.talaat@pharma.asu.edu.eg" style="color:var(--gold);font-family:var(--font-display);font-weight:700;font-size:1.1rem;">
+          mohamed.talaat@pharma.asu.edu.eg
+        </a>
+      </p>
+      <p style="margin-top:30px;font-family:var(--font-mono);font-size:.7rem;color:var(--hairline);letter-spacing:.15em;">
+        © 2024–2026 MUHAMMAD TALAAT &middot; PATENT-PENDING TECHNOLOGY
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<!-- ── Tooltip ───────────────────────────────────────────────────────────── -->
+<div id="ptt"></div>
+
+<!-- ── Controls ──────────────────────────────────────────────────────────── -->
+<div id="controls">
+  <button id="prev" title="Previous (←)" aria-label="Previous">‹</button>
+  <span class="scene-indicator" id="indicator">1 / 11</span>
+  <button id="next" title="Next (→)" aria-label="Next">›</button>
+  <span style="width:1px;height:18px;background:var(--hairline);"></span>
+  <span id="scene-title">What is CEREBRO-X</span>
+</div>
+
+<!-- ── Keyboard hint ─────────────────────────────────────────────────────── -->
+<div class="kbd-hint" id="kbdHint">
+  use <span class="kbd">←</span> <span class="kbd">→</span> &nbsp;or&nbsp; <span class="kbd">space</span> &nbsp;to navigate
+</div>
+
+<!-- ── Principles data ──────────────────────────────────────────────────── -->
+<script id="principles-data" type="application/json">{"P01":{"t":"Adversarial Stress-Testing Engine","c":"A","m":"Score = mean of stability under 6 worst-case scenarios (pH 4.5/2.0/8.5, 42°C, presence of antibodies, oxidative stress). Each scenario tested via Arrhenius + ionization + carrier-class robustness tabl","r":"Anchordoquy TJ et al (2017) ACS Nano 11:12-18","cns":false,"dds":true},"P02":{"t":"Cross-Species PK Scaling (Allometric)","c":"A","m":"Body-weight^0.75 allometric scaling. Mouse → human: dose_h = dose_m × (BW_h/BW_m)^0.75; CNS-specific BBB permeability scaling factor.","r":"Mahmood I (2007) Eur J Drug Metab Pharmacokinet 32:25","cns":true,"dds":false},"P03":{"t":"Competitive DDS Landscape Radar","c":"A","m":"Tanimoto similarity to benchmark CNS DDS in ClinicalTrials.gov. Score = 100 × (1 - max_similarity_to_active_competitor) — encourages novelty over crowded landscape.","r":"ClinicalTrials.gov API; Bento AP et al ChEMBL Nucleic Acids Res 42:D1083","cns":true,"dds":true},"P04":{"t":"Quantum Coherence Transport Model","c":"A","m":"WKB tunneling probability for small drugs (<500 Da) crossing lipid bilayer. P_tunnel ≈ exp(-2·a·sqrt(2m(V-E))/ℏ). Surrogate uses pre-computed barrier height from LogP.","r":"Cao J et al (2020) Sci Adv 6:eaaz4888 (quantum biology)","cns":true,"dds":false},"P05":{"t":"In-Silico Patient Subgroup Stratifier","c":"A","m":"Stratifies virtual patients by age (3 bins), CYP genotype (EM/IM/PM), CNS disease stage (early/mid/late). Score = % subgroups expected to respond.","r":"Whirl-Carrillo M et al (2012) Clin Pharmacol Ther 92:414","cns":true,"dds":false},"P06":{"t":"Lysosomal Trafficking Predictor","c":"A","m":"P(escape lysosome) = f(endosomal_escape_eff, surface_charge, pH-trigger). Score = endosomal_escape × (1 - lysosome_trap_prob).","r":"Smith SA et al (2019) Trends Biotechnol 37:1077","cns":true,"dds":true},"P07":{"t":"Real-Time Literature Mining (PubMed)","c":"A","m":"PubMed E-utilities: count of papers matching (carrier + CNS + indication). Score = log10(hit_count + 1) × 20, capped at 100.","r":"NCBI E-utilities API","cns":false,"dds":true},"P08":{"t":"Degradation Kinetics Under Oxidative Stress","c":"A","m":"k_ox = A·exp(-Ea/RT) at [ROS]=10µM. Score = 100 × exp(-k_ox × t_target). Carrier-specific Ea table (liposome 80 kJ/mol, PLGA 110, etc.)","r":"Halliwell B & Gutteridge JMC (2015) Free Radicals in Biology and Medicine","cns":true,"dds":true},"P09":{"t":"Digital Pharmacovigilance Engine","c":"A","m":"Predicts metabolite organ accumulation: liver, kidney, lung. Score = 100 × (1 - max_accumulation_risk). Uses SMILES SoM (Site of Metabolism) heuristics.","r":"Djoumbou-Feunang Y et al (2019) J Cheminform 11:2","cns":false,"dds":false},"P10":{"t":"LNP Ionization State Predictor","c":"A","m":"Henderson-Hasselbalch: charge_at_pH = f(pKa, pH). Compartments: plasma (7.4), endosome (5.5), lysosome (4.5). Score = ionization_optimal_for_endosomal_escape.","r":"Hafez IM et al (2001) Adv Drug Deliv Rev 47:139","cns":true,"dds":true},"P11":{"t":"Formulation Instability Fingerprint","c":"A","m":"Identifies weakest bond from SMILES. Score = activation energy of weakest bond (kcal/mol) normalized 0-100. RDKit BondGetBondType + bond dissociation energy table.","r":"Luo YR (2007) Comprehensive Handbook of Chemical Bond Energies","cns":false,"dds":true},"P12":{"t":"CNS Disease-Stage-Aware Dosing","c":"A","m":"Adjusts effective BBB permeability by stage: Stage1 (intact), Stage2 (-15%), Stage3 (-40%), Stage4 (-60%). Score = 100 × (cns_concentration_target / cns_concentration_predicted).","r":"Sweeney MD et al (2018) Nat Rev Neurol 14:133","cns":true,"dds":true},"P13":{"t":"PBPK Digital Twin","c":"A","m":"3-compartment PBPK: blood, brain, peripheral. Estimates AUC_brain/AUC_plasma from BBB permeability + clearance. Score = 100 × min(1.0, AUC_ratio / 0.05).","r":"Hammarlund-Udenaes M et al (2008) Pharm Res 25:1737","cns":true,"dds":true},"P14":{"t":"In-silico Dissolution & Release Profile","c":"A","m":"Carrier-kinetics lookup: t50 from (carrier × release_kinetics). Score = 100 if 12h ≤ t50 ≤ 72h, decay outside.","r":"Costa P & Lobo JM (2001) Eur J Pharm Sci 13:123","cns":false,"dds":true},"P15":{"t":"Shelf-life & Degradation Predictor","c":"A","m":"Arrhenius extrapolation: shelf25C = baseline × (0.7 + 0.3·EE). Carrier baselines (months): liposome 18, PLGA 36, polymer 36.","r":"Kennon L (1964) J Pharm Sci 53:815; ICH Q1A(R2)","cns":false,"dds":true},"P16":{"t":"Scale-up & Manufacturability","c":"A","m":"Scale-up readiness lookup (lab/pilot/clinical/commercial) × shear-stress tolerance from carrier elasticity. Score 0-100.","r":"am Ende DJ (2011) Chemical Engineering in the Pharmaceutical Industry","cns":false,"dds":true},"P17":{"t":"Nanotoxicity & Immunogenicity Screening","c":"A","m":"Composite: hemolysis_risk (zeta), complement_activation (PEG), RES_uptake (size), oxidative_stress (surface). Score = 100 - composite_risk.","r":"Nel A et al (2006) Science 311:622","cns":true,"dds":true},"P18":{"t":"Active Targeting & Receptor Binding","c":"A","m":"Ligand-affinity table for BBB receptors (Tf, RVG29, ApoE, LRP1, insulin, leptin) × ligand density per nm². Score 0-100.","r":"Pardridge WM (2020) Fluids Barriers CNS 17:62","cns":true,"dds":true},"P19":{"t":"QbD - Quality by Design Engine","c":"A","m":"Design-space coverage: how many CQAs (size, zeta, EE, PDI) fall within ICH Q8 acceptance ranges. Score = % within spec.","r":"ICH Q8(R2) Pharmaceutical Development","cns":false,"dds":true},"P20":{"t":"Cost-Efficiency Engine","c":"A","m":"Estimates manufacturing $/dose from carrier_class + ligand (Tf=$$, RVG29=$$$, none=$). Score = 100 × (1 - cost/upper_bound).","r":"Cost-of-goods analysis frameworks (Pharm Eng J 2019)","cns":false,"dds":true},"P21":{"t":"Pre-IND Regulatory Reports","c":"C","m":"Auto-generates FDA Pre-IND Word document for Top-1","r":"FDA 21 CFR 312.23 (IND content)","cns":false,"dds":false},"P22":{"t":"Protein Corona Predictor","c":"A","m":"Corona thickness ∝ |zeta| + size + hydrophobicity. Score = 100 × exp(-thickness_nm/5). PEG > 5% protects (×1.3 boost).","r":"Tenzer S et al (2013) Nat Nanotechnol 8:772","cns":true,"dds":true},"P23":{"t":"Dynamic Crystal Polymorphism","c":"A","m":"Number of rotatable bonds + H-bond pattern → polymorph risk score. RDKit RotatableBondCount + HBD/HBA. Score = 100 - risk_pct.","r":"Bernstein J (2020) Polymorphism in Molecular Crystals","cns":false,"dds":false},"P24":{"t":"Shear-Stress & Scale-Up Collapse","c":"A","m":"Critical shear rate (s⁻¹): liposome=10⁴, PLGA=10⁶, polymer=10⁵. Score = log10(critical_shear/operating_shear) × 30, capped 100.","r":"Maa YF & Hsu CC (1996) Biotechnol Bioeng 51:458","cns":false,"dds":true},"P25":{"t":"Extractables & Leachables","c":"A","m":"Container compatibility lookup (glass=safest, PE=med, PVC=risk for lipophilic). Score from carrier-LogP × packaging.","r":"USP <1663>/<1664> Extractables/Leachables","cns":false,"dds":true},"P26":{"t":"Microbiome-Excipient Interactions","c":"A","m":"Excipient-degradability index: PEG (low), chitosan (high), PLGA (low), lactose (high). Score = 100 - mean_degradability.","r":"Zimmermann M et al (2019) Nature 570:462","cns":false,"dds":true},"P27":{"t":"Lyophilization Cycle Optimizer","c":"A","m":"Tg' lookup by carrier + excipient (sucrose +cryo, trehalose +cryo). Score = 100 - cake_collapse_risk based on carrier_Tg'.","r":"Pikal MJ (2002) Pharmaceutical Lyophilization","cns":false,"dds":true},"P28":{"t":"3D-Printed Polypill Rheology","c":"A","m":"Printability index = f(viscosity, shear-thinning, recovery). Carrier-class lookup. Score 0-100.","r":"Trenfield SJ et al (2019) Adv Drug Deliv Rev 138:139","cns":false,"dds":true},"P29":{"t":"Biomimetic & Exosome Engineering","c":"A","m":"Stealth-from-macrophages score. RBC-coated +30, exosome +40, tumor-cell-coated +25, bare -20.","r":"Hu CMJ et al (2011) Proc Natl Acad Sci 108:10980","cns":true,"dds":true},"P30":{"t":"QM/MM Stimuli-Responsive Cleavage","c":"A","m":"Bond cleavage E_a estimation by RDKit bond order + pH-trigger. Score = 100 × selectivity (target_pH vs blood_pH).","r":"Senn HM & Thiel W (2009) Angew Chem Int Ed 48:1198","cns":false,"dds":true},"P31":{"t":"In-Silico Biodistribution","c":"A","m":"Organ-uptake fractions from size + zeta + ligand. Brain%, liver%, spleen%, kidney%. Score = 100 × brain_fraction (target ≥ 5% for CNS).","r":"Wilhelm S et al (2016) Nat Rev Mater 1:16014","cns":true,"dds":true},"P32":{"t":"Automated FTO & IP Evader","c":"C","m":"Patent landscape search via Lens.org / Google Patents API","r":"Lens.org open patent database","cns":false,"dds":false},"P33":{"t":"BBB Quantum Breaker (Trojan-Horse Design)","c":"A","m":"Tf-receptor docking score from ligand identity × density × size compatibility (50-150 nm window). Score 0-100.","r":"Pardridge WM (2020) Fluids Barriers CNS 17:62","cns":true,"dds":true},"P34":{"t":"DNA Logic Gates & Bio-computing","c":"A","m":"Logic-gate compatibility score: DNA-based carriers get +50, polymer-based +20, lipid -10. Score reflects programmability.","r":"Douglas SM et al (2012) Science 335:831","cns":false,"dds":true},"P35":{"t":"Microgravity Formulation Engine","c":"A","m":"Sedimentation Péclet number proxy: Pe = (ρ-ρ₀)·g·r²/(kT). Score reflects gravity-independence (smaller = better).","r":"Reichert B et al (2019) NPJ Microgravity 5:18","cns":false,"dds":true},"P36":{"t":"Geopolitical Supply-Chain Resilience","c":"A","m":"Carrier-supplier diversity index. Common materials (lipids, PEG, PLGA) score high; rare/single-source materials score low.","r":"FDA Drug Shortage Database analysis","cns":false,"dds":true},"P37":{"t":"Eco-Destructible Pharma","c":"A","m":"Biodegradability index from carrier identity + UV-sensitive bonds. PLGA 90, polymer 70, lipid 95, metallic 5.","r":"Boxall ABA (2004) EMBO Rep 5:1110","cns":false,"dds":true},"P38":{"t":"Glymphatic Clearance Trap","c":"A","m":"Stokes-Einstein in CSF: D = kT/(6πηr). Score for retention balance: too-small = washed out, too-large = stuck in vessel. Optimum 80-150 nm.","r":"Iliff JJ et al (2012) Sci Transl Med 4:147ra111","cns":true,"dds":true},"P39":{"t":"Microglial Activation & Neuroinflammation","c":"A","m":"Inflammation risk: PEG ≥5% → +30 stealth. Cationic surface → -40 (TLR4 activation). Score = 100 - inflammation_risk.","r":"Hickman SE et al (2018) Nat Neurosci 21:1359","cns":true,"dds":true},"P40":{"t":"Intranasal-to-Brain Delivery","c":"A","m":"Mucoadhesion + thermo-responsive index. Score boosted for chitosan, poloxamer 407, hydroxyethyl cellulose. Cap 100.","r":"Illum L (2003) J Pharm Pharmacol 56:3","cns":true,"dds":true},"P41":{"t":"Exosome Cargo Loading Thermodynamics","c":"A","m":"Sonication/electroporation efficiency lookup by exosome size + drug MW. Score reflects loading yield 0-100%.","r":"Alvarez-Erviti L et al (2011) Nat Biotechnol 29:341","cns":true,"dds":true},"P42":{"t":"Region-Specific Spatiotemporal Navigation","c":"A","m":"Region-specific receptor targeting: Hippocampus (NMDA, α7-nAChR), Substantia Nigra (DA D2), Cortex (mAChR). Score = ligand-region match × density.","r":"Nutt DJ & Need AC (2014) Lancet Psychiatry 1:78","cns":true,"dds":true},"P43":{"t":"FUS-Responsive Nanocarriers","c":"A","m":"FUS-responsiveness: microbubble-conjugated +50, gas-filled liposome +30, solid carriers 0. Threshold-frequency match.","r":"Hynynen K & Jolesz FA (1998) Ultrasound Med Biol 24:275","cns":true,"dds":true},"P44":{"t":"CNS-Specific PBPK Time-Machine","c":"A","m":"Time-course estimate: t10 (10% to brain), t50, t90 from BBB perm + clearance. Score = AUC over therapeutic window.","r":"Bies RR et al (2019) Annu Rev Pharmacol Toxicol 59:131","cns":true,"dds":true},"P45":{"t":"FDA 21 CFR Part 11 Compliance","c":"C","m":"Audit trail + e-signature + tamper-proof logging","r":"21 CFR Part 11 (FDA)","cns":false,"dds":false},"P46":{"t":"Polypharmacy & DDI Simulator","c":"A","m":"CYP-inhibition risk from SMILES (CYP3A4, CYP2D6, CYP2C9). Score = 100 × (1 - max_inhibition_risk).","r":"Jamei M et al (2009) Br J Clin Pharmacol 67:472","cns":true,"dds":false},"P47":{"t":"Free Energy Perturbation (FEP+)","c":"B","m":"Surrogate: docking score (AutoDock Vina) for top-1 ligand-receptor pair. Class B promotes to FEP+ for confirmation.","r":"Wang L et al (2015) J Am Chem Soc 137:2695","cns":true,"dds":true},"P48":{"t":"Off-Target Toxicity & QSAR (50-receptor)","c":"A","m":"QSAR vs hERG (cardiac), 5HT2B (cardiac), AhR (hepato), MAO. Score = 100 - max_off_target_risk.","r":"Bowes J et al (2012) Nat Rev Drug Discov 11:909","cns":true,"dds":false},"P49":{"t":"Organ-on-a-Chip Simulator","c":"A","m":"Microphysiological compatibility: shear stress (DDS robust?), cell-uptake (size match?), oxygen consumption proxy. Score 0-100.","r":"Bhatia SN & Ingber DE (2014) Nat Biotechnol 32:760","cns":true,"dds":true},"P50":{"t":"Cryo-Chain Thermal Excursion Predictor","c":"A","m":"Lipid phase-transition margin: |37 − Tm|. LNP threshold tolerance lookup. Score reflects survival under -20°C × 4h.","r":"Crommelin DJA et al (2021) Int J Pharm 593:120163","cns":false,"dds":true},"P51":{"t":"Terminal Sterilization Survivability","c":"A","m":"Carrier-radiation tolerance: liposome 10kGy (low), PLGA 25kGy (med), polymer 25kGy. Score reflects gamma/autoclave survival.","r":"Reid BD (1995) J Pharm Sci Technol 49:83","cns":false,"dds":true},"P52":{"t":"Continuous Manufacturing Digital Twin","c":"A","m":"Continuous-process readiness lookup: lipid NPs (ready), PLGA (ready), exosomes (challenging), dendrimers (lab-only). 0-100.","r":"Lee SL et al (2015) J Pharm Innov 10:191","cns":false,"dds":true},"P53":{"t":"Dark Data & Negative Results Vault","c":"A","m":"Failure-pattern matching against known failed CNS DDS in database (size/zeta/ligand combos with documented failure). Score = 100 - similarity_to_failed.","r":"Begley CG & Ellis LM (2012) Nature 483:531","cns":false,"dds":true},"P54":{"t":"Pharmacogenomic-Guided Targeting","c":"A","m":"CYP2D6/CYP3A4 metabolism + indication-specific gene panel. Score = % patient variants well-served.","r":"Whirl-Carrillo M et al (2012) Clin Pharmacol Ther 92:414","cns":true,"dds":false},"P55":{"t":"Automated Grant & NIH Proposal Generator","c":"C","m":"Auto-generates NIH R01 Word document for Top-1","r":"NIH SF424 Application Guide","cns":false,"dds":false},"P56":{"t":"Patentability Score Engine","c":"C","m":"USPTO + Lens.org search + novelty score 0-100","r":"USPTO patent novelty criteria","cns":false,"dds":false},"P57":{"t":"Microfluidics & LNP Synthesis Digital Twin","c":"A","m":"Microfluidics-readiness for target size 50-150 nm. Carrier-specific flow-rate-window estimation.","r":"Belliveau NM et al (2012) Mol Ther Nucleic Acids 1:e37","cns":false,"dds":true},"P58":{"t":"Impurity Cascade Predictor","c":"A","m":"Common impurity-drug reactivity matrix. Carrier-residual metals (PLGA Sn-traces, polymer initiators). Score 0-100.","r":"ICH Q3D Elemental Impurities","cns":false,"dds":true},"P59":{"t":"4D Shape-Shifting Carriers","c":"A","m":"Stimuli-responsive polymer index. pH-responsive +50, temp-responsive +40, redox-responsive +30, none = 0.","r":"Stuart MAC et al (2010) Nat Mater 9:101","cns":false,"dds":true},"P60":{"t":"Swarm Nanorobotics Intelligence","c":"A","m":"Cooperativity score from chemoattractant carrier. Most carriers score 0; specialized swarm carriers +60-100.","r":"Servant A et al (2015) Sci Robot 1:eaaq1155","cns":false,"dds":true},"P61":{"t":"Synthetic Clinical Trials & Virtual Humans","c":"A","m":"Virtual phase-1 efficacy estimate from PBPK + variability. Cohort: 100 virtual patients (age, weight, CYP, BBB integrity). Score = % responders ≥ therapeutic threshold.","r":"Polasek TM & Rostami-Hodjegan A (2020) AAPS J 22:97","cns":true,"dds":true},"P62":{"t":"Biobetter / Supergeneric Generator","c":"A","m":"Novelty distance from on-market reference DDS. Tanimoto-based if SMILES + carrier-class fingerprint different from references.","r":"Ekins S et al (2019) Drug Discov Today 24:2104","cns":false,"dds":true}}</script>
+
+<script>
+'use strict';
+
+const scenes = Array.from(document.querySelectorAll('.scene'));
+const total = scenes.length;
+let current = 0;
+let bookOpened = false;
+
+const cover = document.getElementById('book-cover');
+const openBtn = document.getElementById('open-book');
+const controls = document.getElementById('controls');
+const cornerLogo = document.getElementById('cornerLogo');
+const kbdHint = document.getElementById('kbdHint');
+const prevBtn = document.getElementById('prev');
+const nextBtn = document.getElementById('next');
+const indicator = document.getElementById('indicator');
+const titleEl = document.getElementById('scene-title');
+const progress = document.getElementById('progress');
+
+function openBook() {
+  if (bookOpened) return;
+  bookOpened = true;
+  cover.classList.add('opened');
+  setTimeout(() => {
+    showScene(0);
+    controls.classList.add('visible');
+    cornerLogo.classList.add('visible');
+    kbdHint.classList.add('visible');
+    setTimeout(()=>kbdHint.classList.remove('visible'), 6000);
+  }, 700);
+}
+
+openBtn.addEventListener('click', openBook);
+cover.addEventListener('click', (e) => { if(e.target === cover) openBook(); });
+
+function showScene(idx, direction) {
+  if (idx < 0 || idx >= total) return;
+  scenes.forEach((s, i) => {
+    s.classList.remove('active', 'exited-left', 'exited-right', 'entering-left', 'entering-right');
+    if (i === idx) {
+      // Entry direction
+      if (direction === 'next' && current !== idx)
+        s.classList.add('entering-right');
+      else if (direction === 'prev' && current !== idx)
+        s.classList.add('entering-left');
+      // Force reflow then activate
+      void s.offsetWidth;
+      s.classList.remove('entering-left','entering-right');
+      s.classList.add('active');
+    } else if (i < idx) {
+      s.classList.add('exited-left');
+    } else {
+      s.classList.add('exited-right');
+    }
+  });
+  current = idx;
+  indicator.textContent = (idx + 1) + ' / ' + total;
+  titleEl.textContent = scenes[idx].dataset.title;
+  progress.style.width = (((idx + 1) / total) * 100) + '%';
+  prevBtn.disabled = idx === 0;
+  nextBtn.disabled = idx === total - 1;
+}
+
+function next() { if (current < total - 1) showScene(current + 1, 'next'); }
+function prev() { if (current > 0) showScene(current - 1, 'prev'); }
+
+prevBtn.addEventListener('click', prev);
+nextBtn.addEventListener('click', next);
+
+// Keyboard
+document.addEventListener('keydown', (e) => {
+  if (!bookOpened) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openBook(); }
+    return;
+  }
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+  else if (e.key === 'Home') showScene(0);
+  else if (e.key === 'End') showScene(total - 1);
+});
+
+// Wheel — debounced
+let wheelLock = false;
+document.addEventListener('wheel', (e) => {
+  if (!bookOpened || wheelLock) return;
+  if (Math.abs(e.deltaY) < 30) return;
+  wheelLock = true;
+  if (e.deltaY > 0) next(); else prev();
+  setTimeout(() => wheelLock = false, 900);
+}, { passive: true });
+
+// Touch swipe
+let touchStartX = null;
+document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', (e) => {
+  if (!bookOpened || touchStartX === null) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) { dx < 0 ? next() : prev(); }
+  touchStartX = null;
+});
+
+// ── Build the 62-principle wheel with tooltip ─────────────────────────────
+const principles = JSON.parse(document.getElementById('principles-data').textContent);
+const wheel = document.getElementById('pwheel');
+const ptt = document.getElementById('ptt');
+
+for (let i = 1; i <= 62; i++) {
+  const pid = 'P' + String(i).padStart(2, '0');
+  const p = principles[pid];
+  if (!p) continue;
+  const dot = document.createElement('div');
+  dot.className = 'dot ' + p.c;
+  dot.textContent = pid;
+  dot.tabIndex = 0;
+  const show = (e) => positionTip(e, pid, p);
+  dot.addEventListener('mouseenter', show);
+  dot.addEventListener('mousemove', (e) => positionTip(e, pid, p, true));
+  dot.addEventListener('focus', show);
+  dot.addEventListener('mouseleave', hideTip);
+  dot.addEventListener('blur', hideTip);
+  wheel.appendChild(dot);
+}
+
+function positionTip(evt, pid, p, moveOnly) {
+  if (!moveOnly) {
+    ptt.innerHTML = `
+      <span class="pid">${pid}</span><span class="cls ${p.c}">Class ${p.c}</span>
+      <h4>${escapeHtml(p.t)}</h4>
+      ${p.m ? `<div class="meth">${escapeHtml(p.m)}</div>` : ''}
+      ${p.r ? `<div class="ref">${escapeHtml(p.r)}</div>` : ''}
+    `;
+    ptt.classList.add('show');
+  }
+  const rect = ptt.getBoundingClientRect();
+  const w = rect.width || 340, h = rect.height || 180;
+  let x = evt.clientX + 14, y = evt.clientY + 14;
+  if (x + w > window.innerWidth - 14) x = evt.clientX - w - 14;
+  if (y + h > window.innerHeight - 14) y = evt.clientY - h - 14;
+  ptt.style.left = Math.max(8, x) + 'px';
+  ptt.style.top  = Math.max(8, y) + 'px';
+}
+
+function hideTip() { ptt.classList.remove('show'); }
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+}
+</script>
+</body>
+</html>
