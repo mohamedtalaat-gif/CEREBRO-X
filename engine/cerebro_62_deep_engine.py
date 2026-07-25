@@ -41,6 +41,12 @@ from cerebro_resolved_bundles import b_value
 
 log = logging.getLogger("CEREBRO-DEEP")
 
+try:
+    from src.core.real_docking_engine import run_autodock_vina as _run_vina
+    _HAS_DOCKING_ENGINE = True
+except ImportError:
+    _HAS_DOCKING_ENGINE = False
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # Bundle-aware extractors — CONTRACT: bundles required, not optional
@@ -421,45 +427,64 @@ def deep_P38(drug_bundle: dict, dds_bundle: dict,
 # ──────────────────────────────────────────────────────────────────────────
 def deep_P47(drug_bundle: dict, dds_bundle: dict,
               combo_bundle: dict, surrogate: dict) -> dict:
-    """FEP+ binding ΔG with hydration + H-bond corrections."""
+    """Binding affinity via real AutoDock Vina docking (src/core/real_docking_engine.py),
+    with a graceful, honestly-labeled fallback to the LIE approximation
+    (Aqvist 1994) when a receptor PDB ID isn't available or the `vina`
+    package isn't installed. Real Vina docking activates automatically once
+    both are available — no further code change needed here."""
     d = _bundle_drug_specs(drug_bundle)
-    mw   = float(d["mw"])
-    logp = float(d["logp"])
-    hbd  = float(d["hbd"])
-    hba  = float(d["hba"])
+    mw    = float(d["mw"])
+    logp  = float(d["logp"])
+    tpsa  = float(d.get("tpsa") or 60)
+    hbd   = float(d["hbd"])
+    hba   = float(d["hba"])
+    smiles = d.get("smiles") or ""
+    # No PDB ID is threaded through the bundle pipeline yet (tracked as
+    # follow-up work) — passing None makes run_autodock_vina take its
+    # documented LIE fallback path deterministically, without attempting a
+    # network fetch or importing `vina`.
+    pdb_id = d.get("pdb_id") or None
 
-    if   mw < 200: dg_vina = -4.5
-    elif mw < 500: dg_vina = -8.0
-    elif mw < 800: dg_vina = -9.0
-    else:          dg_vina = -7.0
+    if _HAS_DOCKING_ENGINE:
+        docking = _run_vina(
+            smiles=smiles, pdb_id=pdb_id,
+            output_dir="CEREBRO_RESULTS/docking_cache",
+            mol_profile={"MW_Da": mw, "LogP": logp, "TPSA_A2": tpsa,
+                         "HBD": hbd, "HBA": hba,
+                         "molecule_class": d.get("drug_type", "small_molecule")},
+        )
+    else:
+        # src/core/real_docking_engine.py unavailable (e.g. src/ not on
+        # sys.path in this invocation) — same LIE formula, computed inline.
+        alpha, beta = 0.181, 0.137
+        dg = -(alpha * logp + beta * (50 - tpsa / 5) + 0.5 * (hbd + hba) * 0.3)
+        dg = max(-20, min(-1, dg))
+        docking = {"docking_method": "LIE approximation (real_docking_engine import failed)",
+                   "delta_G_kcal_mol": round(dg, 2), "confidence": "LOW — LIE approximation only",
+                   "reference": "Aqvist 1994 (LIE)"}
 
-    if   logp > 5: dg_vina += 1.8
-    elif logp < 1: dg_vina += 1.2
-
-    dg_hbond = -0.5 * min(4, hbd + hba/2)
-    dg_total = dg_vina + dg_hbond
+    dg_total = float(docking["delta_G_kcal_mol"])
     score = min(100.0, abs(dg_total) * 11)
     validated = abs(dg_total) >= 7.0
+    is_real_vina = docking.get("docking_method", "").startswith("AutoDock Vina")
 
     return {
         "validated": validated,
         "value": round(dg_total, 2),
         "score": round(score, 2),
-        "method": ("Enhanced FEP+: Vina baseline + hydration correction "
-                   "(LogP-driven) + H-bond contribution (HBD/HBA from bundle). "
-                   "Full FEP+ deferred to v23 HPC pipeline."),
-        "reference": "Wang L et al (2015) JACS 137:2695",
-        "confidence": "MODERATE",
+        "method": docking.get("docking_method", "LIE approximation"),
+        "reference": docking.get("reference", "Aqvist 1994 (LIE)"),
+        "confidence": docking.get("confidence", "LOW — LIE approximation only"),
         "improvement_over_surrogate":
             f"Surrogate ΔG: {surrogate.get('value','?')} → "
-            f"Deep ΔG: {dg_total:.2f} kcal/mol with explicit corrections.",
+            f"Deep ΔG: {dg_total:.2f} kcal/mol via "
+            f"{'real AutoDock Vina docking' if is_real_vina else 'LIE approximation (no receptor PDB ID resolved yet)'}.",
         "narrative": (f"Predicted ΔG_binding = {dg_total:.2f} kcal/mol "
-                      f"(Vina {dg_vina:+.1f} + H-bond {dg_hbond:+.1f}). "
+                      f"({docking.get('docking_method','LIE approximation')}). "
                       f"{'STRONG' if abs(dg_total)>=8 else 'MODERATE'} affinity."),
         "raw": {"mw": mw, "logp": logp, "hbd": hbd, "hba": hba,
-                "dg_vina_baseline": round(dg_vina, 2),
-                "dg_hbond_correction": round(dg_hbond, 2),
-                "dg_total_kcal_mol": round(dg_total, 2)},
+                **{k: v for k, v in docking.items()
+                   if k not in ("docking_method", "reference", "confidence")}},
         "_provenance": _collect_provenance(
             drug_bundle, dds_bundle, combo_bundle,
             drug_keys=["drug_mw","drug_logp","drug_hbd","drug_hba"],
