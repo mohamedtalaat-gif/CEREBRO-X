@@ -98,6 +98,7 @@ from fastapi import (
     FastAPI,
     HTTPException,
     Query,
+    Request,
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
@@ -291,6 +292,30 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# Application-layer rate limiting — audit finding (§6 Medium): rate limiting
+# only existed in nginx.conf, which the simpler docker-compose.yml (the one
+# most likely to be run first, e.g. local dev) never fronts the API with,
+# leaving /auth/login and /auth/register fully unthrottled in that config.
+# In-memory limiter by default (no Redis dependency required); set
+# RATE_LIMIT_STORAGE_URI to a redis:// URL for multi-worker deployments
+# where per-process in-memory counters would under-count.
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.util import get_remote_address
+
+    limiter = Limiter(
+        key_func=get_remote_address,
+        storage_uri=os.environ.get("RATE_LIMIT_STORAGE_URI"),  # None -> in-memory
+    )
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    _HAS_RATE_LIMIT = True
+except ImportError:
+    log.warning("[RATE-LIMIT] slowapi not installed — /auth endpoints unthrottled "
+                "at the application layer (pip install slowapi)")
+    _HAS_RATE_LIMIT = False
+
 # CORS — wildcard origin ("*") combined with allow_credentials=True is a
 # well-known unsafe combination (any site can make credentialed requests on
 # a logged-in user's behalf); only enable credentials when explicit origins
@@ -331,7 +356,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 
 @_auth.post("/register", response_model=UserResponse)
-async def register(user_data: UserRegister, db: Session = Depends(get_db)):
+@(limiter.limit("3/minute") if _HAS_RATE_LIMIT else (lambda f: f))
+async def register(request: Request, user_data: UserRegister, db: Session = Depends(get_db)):
     # UserRegister has no `role` field — every self-registered account is
     # forced to READONLY here. Elevation requires an authenticated admin
     # via PUT /users/{id}/role (see the Admin section below).
@@ -349,7 +375,9 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
         raise HTTPException(status.HTTP_409_CONFLICT, str(e))
 
 @_auth.post("/login", response_model=TokenResponse)
+@(limiter.limit("5/minute") if _HAS_RATE_LIMIT else (lambda f: f))
 async def login(
+    request: Request,
     form: OAuth2PasswordRequestForm = Depends(),
     db:   Session = Depends(get_db),
 ):

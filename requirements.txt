@@ -77,6 +77,7 @@ fastapi>=0.110,<0.120
 uvicorn[standard]>=0.29,<0.40
 pydantic>=2.6,<3.0
 python-multipart>=0.0.9,<1.0
+slowapi>=0.1.9,<0.2  # application-layer rate limiting on /auth/* (audit §6)
 
 # ── Authentication ───────────────────────────────────────────────────────────
 python-jose[cryptography]>=3.3,<4.0

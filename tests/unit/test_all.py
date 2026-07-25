@@ -847,3 +847,34 @@ class TestPDBResolver:
         assert result["pdb_id"] == "2NAO"
         assert result["source"] == "User-provided (Excel input)"
         assert result["confidence"] == "HIGH"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 13. APPLICATION-LAYER RATE LIMITING (src/api/app.py, /auth/*)
+# ═════════════════════════════════════════════════════════════════════════════
+
+class TestRateLimiting:
+    """Audit finding (§6 Medium): rate limiting only existed in nginx.conf,
+    which docker-compose.yml (the simpler config, most likely run first)
+    never fronts the API with — /auth/login and /auth/register were fully
+    unthrottled at the application layer in that config. Fixed via slowapi
+    in Task 6; this hits the real endpoint repeatedly through a real
+    TestClient and checks a 429 actually appears, not just that a decorator
+    is present in the source."""
+
+    def test_login_endpoint_rate_limited_after_repeated_attempts(self, test_client):
+        from src.api.app import _HAS_RATE_LIMIT
+        if not _HAS_RATE_LIMIT:
+            pytest.skip("slowapi not installed in this environment")
+
+        statuses = []
+        for _ in range(7):  # limit is 5/minute
+            r = test_client.post("/auth/login", data={
+                "username": "nonexistent_rl_test_user",
+                "password": "wrong",
+            })
+            statuses.append(r.status_code)
+        assert 429 in statuses, f"Expected a 429 among {statuses} after 7 rapid attempts"
+        # Everything before the limit kicks in should be a real auth
+        # response (401 for bad creds), not silently dropped.
+        assert 401 in statuses[:5]
