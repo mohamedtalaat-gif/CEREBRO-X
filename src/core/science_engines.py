@@ -1011,7 +1011,23 @@ class PBPKEngine:
       dC_tissue/dt = Q_i/V_i · (C_blood - C_tissue/Kp_i)
       dC_blood/dt  = Σ Q_i · (C_tissue_i/Kp_i - C_blood) / V_blood
 
-    where Kp_i = tissue:plasma partition coefficient (computed from logP).
+    where Kp_i = tissue:plasma partition coefficient, estimated via the
+    Poulin-Theil method (Rowland et al., J Pharm Sci 100:929, 2011).
+
+    Relationship to pbbm_engine.PBBMOrchestrator (8-compartment): these are
+    two independently-parametrized PBPK implementations that both run in
+    the same trial (see run.py's `_run_science_and_viz` and its "Step 11:
+    PBBM suite"), feeding different downstream consumers — this engine's
+    output drives the 3D visualisation/video pipeline
+    (VisualisationOrchestrator), PBBMOrchestrator's drives the ADMET
+    profile and final report narrative. They use different, both-legitimate
+    Kp-estimation methods (Poulin-Theil here vs. Rodgers-Rowland 2006 in
+    PBBMOrchestrator) rather than being a silent duplicate of the same
+    model — flagged here explicitly so a reader doesn't mistake the
+    difference for citation drift. Unifying them into a single PBPK
+    computation feeding both consumers is tracked as follow-up work, not
+    done in this pass since it touches report/visualisation schemas on
+    both sides.
     """
 
     # Human physiological parameters (70 kg)

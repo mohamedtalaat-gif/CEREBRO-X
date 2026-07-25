@@ -145,6 +145,13 @@ class PBBMEngine:
     ACAT = Advanced Compartmental Absorption and Transit model
     (Yu & Amidon 1999, Pharm Res).
 
+    Kp (tissue:plasma) is estimated via Rodgers-Rowland (Rodgers & Rowland,
+    J Pharm Sci 95:1113, 2006) — distinct from science_engines.PBPKEngine's
+    Poulin-Theil-based 7-compartment model, which runs in the same trial
+    but feeds the visualisation/video pipeline rather than this engine's
+    ADMET/report output. See PBPKEngine's docstring for the full note on
+    why both exist rather than one being a stale duplicate of the other.
+
     GI compartments: Stomach → Duodenum → Jejunum(×2) → Ileum(×2) → Colon
     Each segment:
       dA_GI/dt = -ka·A_GI - ktr·A_GI + ktr·A_GI_prev
