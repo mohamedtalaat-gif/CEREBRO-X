@@ -851,15 +851,40 @@ def h20_bootstrap(df_dds_data: list[dict]) -> str:
         from src.viz._dds_metrics import get_score
     scores = [get_score(d)                            for d in df_dds_data[:20]]
     names  = [d.get("Formulation_Name","?")[:18]      for d in df_dds_data[:20]]
-    # Bootstrap CI (simplified: ± 2*std/sqrt(n) per formulation)
-    import random; random.seed(42)
-    ci_lo = [max(0, s - random.uniform(1.5, 4)) for s in scores]
-    ci_hi = [s + random.uniform(1.5, 4) for s in scores]
+
+    # Real bootstrap: each formulation's composite score is a weighted rollup of
+    # 8 real principle-group scores (G1_CNS_Delivery_Score … G8_Translational_Score,
+    # each itself an average of several real P01-P62 principle evaluations —
+    # see engine/cerebro_62_orchestrator.py). We resample those 8 real values
+    # WITH replacement 1000x per formulation and take the 2.5th/97.5th percentile
+    # of the resampled means as a genuine bootstrap 95% CI — not a fabricated jitter.
+    import random
+    rng = random.Random(42)
+    GROUP_COLS = ["G1_CNS_Delivery_Score", "G2_Release_Kinetics_Score",
+                  "G3_Stability_Score", "G4_Safety_Score", "G5_Glymphatic_BBB_Score",
+                  "G6_Manufacturability_Score", "G7_DrugDDS_Fit_Score",
+                  "G8_Translational_Score"]
+    ci_lo, ci_hi = [], []
+    for d, s in zip(df_dds_data[:20], scores):
+        group_vals = [float(d[c]) for c in GROUP_COLS
+                      if d.get(c) is not None and str(d.get(c)) not in ("nan", "")]
+        if len(group_vals) >= 3:
+            means = sorted(
+                sum(rng.choice(group_vals) for _ in group_vals) / len(group_vals)
+                for _ in range(1000)
+            )
+            ci_lo.append(round(means[int(0.025 * len(means))], 1))
+            ci_hi.append(round(means[int(0.975 * len(means)) - 1], 1))
+        else:
+            # Not enough real sub-scores to bootstrap — report the point estimate
+            # with no fabricated interval, rather than inventing a band.
+            ci_lo.append(round(s, 1))
+            ci_hi.append(round(s, 1))
 
     body = f"""
 <div class="card">
   <div class="title">H20 · Bootstrap Validation — 95% Confidence Intervals</div>
-  <div class="subtitle">1000 bootstrap resamples per formulation | Uncertainty quantification for score ranking</div>
+  <div class="subtitle">1000 resamples of each formulation's 8 real principle-group scores | Uncertainty quantification for score ranking</div>
   <canvas id="bootChart" height="140"></canvas>
 </div>
 <script>
