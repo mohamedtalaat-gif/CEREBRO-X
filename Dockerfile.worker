@@ -1,0 +1,36 @@
+FROM python:3.13-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ gfortran libffi-dev libssl-dev \
+    libopenblas-dev liblapack-dev curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Core packages (guaranteed to install)
+RUN pip install --no-cache-dir \
+    numpy pandas matplotlib seaborn scipy \
+    scikit-learn xgboost joblib requests \
+    openpyxl pyyaml python-dotenv \
+    fastapi "uvicorn[standard]" apscheduler \
+    prometheus-client reportlab pillow
+
+# Chemistry packages (install individually — skip failures)
+RUN pip install --no-cache-dir rdkit       || echo "rdkit skipped"
+RUN pip install --no-cache-dir biopython   || echo "biopython skipped"
+RUN pip install --no-cache-dir pubchempy   || echo "pubchempy skipped"
+RUN pip install --no-cache-dir mordredcommunity || echo "mordred skipped"
+RUN pip install --no-cache-dir thermo pint mendeleev molmass || echo "thermo skipped"
+
+# DB + infra
+RUN pip install --no-cache-dir \
+    sqlalchemy psycopg2-binary redis celery \
+    plotly bokeh
+
+# Video (optional)
+RUN pip install --no-cache-dir imageio imageio-ffmpeg || echo "video skipped"
+
+COPY . /app/
+
+EXPOSE 8000 8001
+CMD ["python", "run.py", "--headless"]

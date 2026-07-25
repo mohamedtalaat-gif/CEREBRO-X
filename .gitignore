@@ -1,0 +1,52 @@
+# CEREBRO-X .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment & secrets
+.env
+*.pem
+*.key
+
+# Results (generated, not tracked)
+CEREBRO_RESULTS/
+*.db
+*.sqlite3
+
+# Logs
+*.log
+cerebro_run.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker
+docker
+docker-compose
+
+# Archives
+*.zip
+*.rar
+*.tar.gz
+
+# Office temp
+~$*.xlsx

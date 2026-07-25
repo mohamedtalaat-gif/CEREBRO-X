@@ -1,0 +1,101 @@
+# =============================================================================
+# CEREBRO-X  |  .dockerignore  v22.1
+# =============================================================================
+# Files NOT copied into the Docker build context.
+# Reduces image size + build time, prevents secrets leaking into image.
+# =============================================================================
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Build artifacts
+*.egg-info/
+build/
+dist/
+*.egg
+.eggs/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git (don't bake commit history into image)
+.git/
+.gitignore
+.gitattributes
+
+# Backups
+*.bak
+*.backup
+*.bak.*
+Dockerfile.bak
+
+# Old transcripts / archives
+.transcripts/
+*.rar
+
+# Pipeline outputs (mounted at runtime via docker-compose volume)
+CEREBRO_RESULTS/
+
+# Environment secrets (loaded via docker-compose env_file)
+.env
+.env.*
+!.env.example
+
+# Generated configs (regenerated per run)
+config/dds_config.yaml
+
+# Temporary trial directories
+trial_*/
+/tmp/
+
+# Documentation source files (not needed at runtime)
+docs/
+*.md
+!README.md
+
+# CI / test configs
+.github/
+.gitlab-ci.yml
+tests/
+
+# Legacy v18-v21 directories (kept on host for reference)
+CEREBRO_X_v18/
+CEREBRO_X_v19/
+CEREBRO_X_v20/
+CEREBRO_X_v21/
+final_zip/
+V21_CHECK/
+
+# Skill files (not used at runtime)
+SKILL.md
+.skills/
+
+# Large binaries that shouldn't be in image
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.tar.bz2
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker itself
+docker-compose.override.yml

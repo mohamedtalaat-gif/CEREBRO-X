@@ -1,0 +1,128 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  CEREBRO-X  —  requirements.txt
+# ════════════════════════════════════════════════════════════════════════════
+#
+#  Last updated  :  2026-05-08
+#  Python target :  3.11 ≤ v ≤ 3.14   (recommended: 3.13.x)
+#  Status        :  Production-validated stack
+#
+#  ── Compatibility matrix (verified with SPEC-0 / NEP-29) ──────────────────
+#    Python     numpy       scipy        pandas        scikit-learn
+#    3.11   →   1.26 - 2.4  1.13 - 1.17  2.1  - 3.0    1.4  - 1.8
+#    3.12   →   1.26 - 2.4  1.13 - 1.17  2.1  - 3.0    1.4  - 1.8
+#    3.13   →   2.1  - 2.4  1.15 - 1.17  2.2  - 3.0    1.6  - 1.8   ★ rec.
+#    3.14   →   2.2  - 2.4  1.16 - 1.17  2.2  - 3.0    1.7  - 1.8
+#
+#  ── Pinning policy ────────────────────────────────────────────────────────
+#    • Lower bound  =  oldest version with the features the project uses,
+#                       which also has wheels for Python 3.11.
+#    • Upper bound  =  one minor *above* the latest stable as of the date
+#                       above, allowing patch releases to flow through but
+#                       blocking breaking major bumps until tested.
+#
+#  Install:  pip install -r requirements.txt
+#  Or:       uv pip install -r requirements.txt           (≈10× faster)
+# ════════════════════════════════════════════════════════════════════════════
+
+
+# ── Core scientific stack ────────────────────────────────────────────────────
+# numpy 2.x is the new norm; 1.26 still works for Python 3.11/3.12 sites.
+# Code uses np.trapezoid (canonical name); np.trapz still aliased through 2.4.
+numpy>=1.26,<2.5
+scipy>=1.13,<1.18
+pandas>=2.1,<3.1
+scikit-learn>=1.4,<1.9
+matplotlib>=3.8,<3.11
+seaborn>=0.13,<0.14
+
+# ── ML & explainability ──────────────────────────────────────────────────────
+xgboost>=2.0,<3.1
+shap>=0.44,<0.48
+joblib>=1.3,<2.0
+
+# ── Cheminformatics & bioinformatics ─────────────────────────────────────────
+# rdkit 2024.9.x is the most recent quarterly release with Python 3.13 wheels.
+rdkit>=2024.3,<2026.0
+biopython>=1.83,<2.0
+chembl-webresource-client>=0.10.8
+pubchempy>=1.0.4
+MDAnalysis>=2.7,<3.0
+
+# ── First-principles computation libraries (cerebro_value_resolver Tier 5-7) ─
+mendeleev>=1.0,<2.0           # atomic properties: EN, ionization, polarizability
+thermo>=0.4.2,<0.5             # group-contribution Joback/Riedel/Antoine
+chemicals>=1.3,<2.0            # Wilke-Chang, Hayduk-Laudie, LJ correlations
+pint>=0.23,<1.0                # SI ↔ CGS ↔ pharma unit conversions
+periodictable>=1.6,<2.0        # nuclear properties, isotope masses
+molmass>=2023.10,<2027.0       # molecular formula mass calculation
+qcelemental>=0.26,<1.0         # QM data validation, atomic/molecular reference
+
+# ── Network & graph algorithms ───────────────────────────────────────────────
+networkx>=3.2,<4.0
+
+# ── Visualization ────────────────────────────────────────────────────────────
+plotly>=5.20,<7.0              # 6.x landed Q4-2025 with a few API tweaks
+bokeh>=3.4,<4.0
+imageio>=2.34,<3.0
+imageio-ffmpeg>=0.4.9,<1.0     # pulls a static ffmpeg — avoids OS install
+pillow>=10.2,<12.0             # 11.x is current; supports Python 3.13
+
+# ── Output generation (PDF, Excel) ───────────────────────────────────────────
+reportlab>=4.1,<5.0
+openpyxl>=3.1,<4.0
+xlsxwriter>=3.2,<4.0           # used by Excel writer brand-styling pass
+
+# ── Web framework ────────────────────────────────────────────────────────────
+fastapi>=0.110,<0.120
+uvicorn[standard]>=0.29,<0.40
+pydantic>=2.6,<3.0
+python-multipart>=0.0.9,<1.0
+
+# ── Authentication ───────────────────────────────────────────────────────────
+python-jose[cryptography]>=3.3,<4.0
+passlib[bcrypt]>=1.7.4,<2.0
+# passlib 1.7.4 (last release, unmaintained) reads bcrypt.__about__.__version__
+# to detect the backend; bcrypt>=4.1 removed that attribute, which breaks
+# password hashing with "password cannot be longer than 72 bytes" even for
+# short passwords. Pin bcrypt to the last version passlib 1.7.4 understands.
+bcrypt>=4.0.1,<4.1
+
+# ── Database ─────────────────────────────────────────────────────────────────
+sqlalchemy>=2.0,<3.0
+psycopg2-binary>=2.9.9,<3.0
+alembic>=1.13,<2.0
+
+# ── Task queue & scheduling ──────────────────────────────────────────────────
+celery[redis]>=5.3,<6.0
+redis>=5.0,<7.0
+flower>=2.0,<3.0
+apscheduler>=3.10,<4.0
+
+# ── Monitoring ───────────────────────────────────────────────────────────────
+prometheus-client>=0.20,<1.0
+psutil>=5.9,<8.0
+
+# ── Utilities ────────────────────────────────────────────────────────────────
+python-dotenv>=1.0,<2.0
+pyyaml>=6.0,<7.0
+requests>=2.31,<3.0
+
+# ── OPTIONAL (uncomment if you need them; each adds 5-15 min to Docker build)
+# ase>=3.22,<4.0                  # atomic simulation environment
+# pymatgen>=2024.2,<2027.0        # materials project integration
+# mordredcommunity>=2.0.6,<3.0    # extra molecular descriptors
+# pennylane>=0.36,<0.45           # quantum PBPK module — NOT recommended, see
+#                                  # src/core/quantum_pbpk_engine.py's module
+#                                  # docstring: whole-molecule quantum tunneling
+#                                  # is not an accepted BBB-crossing mechanism.
+
+# ── BBB permeability DNN (engine/cerebro_bbb_dnn.py) ────────────────────────
+# Real DNN trained on the public BBBP dataset (MoleculeNet/Martins et al.
+# 2012, ~2039 compounds) — feeds cerebro_value_resolver's bbb_permeability
+# Tier 3. Needs RDKit (already required above) + tensorflow.
+# On Python <=3.12 you can also install `deepchem>=2.7,<3.0` and swap in
+# dc.models.MultitaskClassifier as an alternative to the raw tf.keras model —
+# on Python 3.13, DeepChem 2.5.0 (the newest version with 3.13 wheels as of
+# this writing) has a real KerasModel/TensorFlow incompatibility
+# (AttributeError in _create_inputs), so this project uses tf.keras directly.
+# tensorflow>=2.15,<3.0

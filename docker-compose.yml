@@ -1,0 +1,126 @@
+# =============================================================================
+# CEREBRO-X v22.1  —  docker-compose.yml
+# Created by: Muhammad Talaat — CEREBRO Therapeutics
+# =============================================================================
+# Usage:
+#   docker compose up --build -d          # first run (builds Docker image)
+#   docker compose up -d                  # subsequent runs (no rebuild needed)
+#   docker compose logs -f cerebro-core   # watch pipeline logs live
+#   docker compose down                   # stop everything
+#
+# Input Excel:  drop CEREBRO_Input_<DrugName>.xlsx into ./inputs/
+# Results:      appear in ./CEREBRO_RESULTS/ on your host machine
+# =============================================================================
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres_db:
+    image: postgres:15-alpine
+    # container_name: removed — v18 FIX-3 (conflicts with Swarm / multi-replica mode)
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cerebro_secure_2024}
+      POSTGRES_DB:       cerebro_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis_cache:
+    image: redis:7-alpine
+    # container_name: removed — v18 FIX-3 (conflicts with Swarm / multi-replica mode)
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── CEREBRO-X Core Pipeline ─────────────────────────────────────────────────
+  cerebro-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # container_name: removed — v18 FIX-3 (conflicts with Swarm / multi-replica mode)
+    # on-failure:5 — stops after 5 consecutive crashes instead of looping forever.
+    # Use 'docker compose up -d' to restart manually after fixing the issue.
+    restart: on-failure:5
+    ports:
+      - "8000:8000"      # FastAPI REST API  → http://localhost:8000/docs
+      - "8001:8001"      # Prometheus metrics
+    volumes:
+      # Results: host reads outputs immediately as they're written
+      - ./CEREBRO_RESULTS:/app/CEREBRO_RESULTS
+      # Source: code edits take effect on next pipeline run (no rebuild)
+      # Excel files placed here are picked up automatically
+      - ./:/app/
+      # Pip cache: speeds up any fallback installs
+      - pip_cache:/root/.cache/pip
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-cerebro_secure_2024}@postgres_db:5432/cerebro_db
+      - REDIS_URL=redis://redis_cache:6379/0
+      - CELERY_BROKER=redis://redis_cache:6379/0
+      - CELERY_BACKEND=redis://redis_cache:6379/1
+      - CEREBRO_PIPELINE_INTERVAL_HOURS=1
+      - FASTAPI_HOST=0.0.0.0
+      - FASTAPI_PORT=8000
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    command: ["python", "run.py", "--headless"]
+
+  # ── Celery worker (optional — enable with: docker compose --profile celery up)
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # container_name: removed — v18 FIX-3 (conflicts with Swarm / multi-replica mode)
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-cerebro_secure_2024}@postgres_db:5432/cerebro_db
+      - REDIS_URL=redis://redis_cache:6379/0
+      - CELERY_BROKER=redis://redis_cache:6379/0
+      - CELERY_BACKEND=redis://redis_cache:6379/1
+    volumes:
+      - ./CEREBRO_RESULTS:/app/CEREBRO_RESULTS
+      - ./:/app/
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    command: >
+      sh -c "celery -A cerebro_enterprise_infra.celery_app worker
+             --loglevel=info --concurrency=2 --queues=cerebro"
+    profiles:
+      - celery
+
+# ── Named volumes ─────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pip_cache:
+    driver: local

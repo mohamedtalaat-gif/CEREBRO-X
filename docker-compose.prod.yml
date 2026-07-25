@@ -1,0 +1,429 @@
+version: '3.8'
+
+# =============================================================================
+# CEREBRO-X v22.1  —  docker-compose.prod.yml
+# =============================================================================
+#
+# Microservices architecture:
+#
+#   ┌─────────┐    ┌──────────────┐    ┌──────────────────────────────────┐
+#   │  Nginx  │───→│  API Gateway │───→│  Celery Workers                  │
+#   │   LB    │    │  (FastAPI)   │    │  ├── ml_training (GPU queue)     │
+#   │  :80    │    │  :8000 ×N    │    │  ├── data_fetch  (IO queue)      │
+#   └─────────┘    └──────┬───────┘    │  ├── reporting   (CPU queue)     │
+#                         │            │  └── critical     (priority)     │
+#                         ▼            └──────────────────────────────────┘
+#                  ┌──────────────┐           │
+#                  │  PostgreSQL  │◄──────────┘
+#                  │    :5432     │
+#                  └──────────────┘
+#                  ┌──────────────┐
+#                  │    Redis     │◄── Broker + Cache + Rate Limiter
+#                  │    :6379     │
+#                  └──────────────┘
+#                  ┌──────────────┐
+#                  │  Prometheus  │◄── Metrics scraping (:8001)
+#                  │    :9090     │
+#                  └──────────────┘
+#                  ┌──────────────┐
+#                  │   Grafana    │◄── Dashboards (:3000)
+#                  │    :3000     │
+#                  └──────────────┘
+#
+# Usage:
+#   # Full production stack:
+#   docker-compose -f docker-compose.prod.yml up --build -d
+#
+#   # Scale API servers:
+#   docker-compose -f docker-compose.prod.yml up --scale cerebro-api=4 -d
+#
+#   # Scale ML workers:
+#   docker-compose -f docker-compose.prod.yml up --scale celery-ml=3 -d
+#
+#   # View logs:
+#   docker-compose -f docker-compose.prod.yml logs -f cerebro-api
+#
+# =============================================================================
+
+# ── SHARED CONFIGS ───────────────────────────────────────────────────────────
+# POSTGRES_PASSWORD / JWT_SECRET_KEY / CEREBRO_ADMIN_PASSWORD have NO fallback
+# default here on purpose: `${VAR:?message}` makes `docker compose` refuse to
+# start this stack at all if they aren't set in the environment/.env, instead
+# of silently booting with a publicly-known default. src/api/auth.py enforces
+# the same rule again at the application layer via ENVIRONMENT=production.
+x-common-env: &common-env
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  ENVIRONMENT: "production"
+  DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see .env.example}@postgres_db:5432/cerebro_db"
+  REDIS_URL: "redis://redis_cache:6379/0"
+  CELERY_BROKER: "redis://redis_cache:6379/0"
+  CELERY_BACKEND: "redis://redis_cache:6379/1"
+  JWT_SECRET_KEY: "${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set — generate with: python -c \"import secrets; print(secrets.token_hex(32))\"}"
+  JWT_ACCESS_EXPIRE_MINUTES: "30"
+  JWT_REFRESH_EXPIRE_DAYS: "7"
+  CEREBRO_ADMIN_PASSWORD: "${CEREBRO_ADMIN_PASSWORD:?CEREBRO_ADMIN_PASSWORD must be set — see .env.example}"
+  MLOPS_DB_PATH: "/app/CEREBRO_RESULTS/mlops_registry.db"
+  MODEL_STORE_DIR: "/app/CEREBRO_RESULTS/model_store"
+
+x-common-volumes: &common-volumes
+  - cerebro_results:/app/CEREBRO_RESULTS
+  - pip_cache:/root/.cache/pip
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 15s
+  timeout: 5s
+  retries: 5
+  start_period: 30s
+
+# =============================================================================
+services:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 1. NGINX REVERSE PROXY + LOAD BALANCER
+  # ═══════════════════════════════════════════════════════════════════════════
+  nginx:
+    image: nginx:1.25-alpine
+    # container_name: removed — v18 FIX-3 (conflicts with Swarm / multi-replica mode)
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro          # TLS certs (optional)
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      cerebro-api:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/healthz"]
+    networks:
+      - cerebro_net
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 2. API GATEWAY (FastAPI — scalable replicas)
+  # ═══════════════════════════════════════════════════════════════════════════
+  cerebro-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # container_name omitted to allow scaling (docker-compose --scale)
+    restart: unless-stopped
+    expose:
+      - "8000"                       # internal only (Nginx fronts)
+      - "8001"                       # Prometheus metrics
+    environment:
+      <<: *common-env
+      FASTAPI_HOST: "0.0.0.0"
+      FASTAPI_PORT: "8000"
+      METRICS_PORT: "8001"
+      API_WORKERS: "2"               # uvicorn workers per container
+      CORS_ORIGINS: "${CORS_ORIGINS:-*}"
+    env_file:
+      - .env
+    volumes: *common-volumes
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+    deploy:
+      replicas: ${API_REPLICAS:-2}
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    command: >
+      python -m uvicorn src.api.app:app
+        --host 0.0.0.0 --port 8000
+        --workers 2 --log-level info
+    networks:
+      - cerebro_net
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 3. CELERY WORKERS (separated by queue / resource class)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── ML Training Worker (CPU/GPU intensive) ─────────────────────────────
+  celery-ml:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      WORKER_TYPE: "ml_training"
+    env_file:
+      - .env
+    volumes: *common-volumes
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    deploy:
+      replicas: ${ML_WORKERS:-1}
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    command: >
+      celery -A src.workers.orchestrator:celery_app worker
+        --loglevel=info
+        --concurrency=1
+        --queues=ml_training,critical
+        --hostname=ml@%h
+        --max-tasks-per-child=20
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "celery", "-A", "src.workers.orchestrator:celery_app", "inspect", "ping", "--timeout", "5"]
+    networks:
+      - cerebro_net
+
+  # ── Data Fetch Worker (IO-bound, higher concurrency) ───────────────────
+  celery-io:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      WORKER_TYPE: "data_fetch"
+    env_file:
+      - .env
+    volumes: *common-volumes
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    deploy:
+      replicas: ${IO_WORKERS:-1}
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+    command: >
+      celery -A src.workers.orchestrator:celery_app worker
+        --loglevel=info
+        --concurrency=4
+        --queues=data_fetch,default
+        --hostname=io@%h
+        --max-tasks-per-child=100
+    networks:
+      - cerebro_net
+
+  # ── Reporting Worker (CPU-bound, low priority) ─────────────────────────
+  celery-report:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      WORKER_TYPE: "reporting"
+    env_file:
+      - .env
+    volumes: *common-volumes
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    deploy:
+      replicas: ${REPORT_WORKERS:-1}
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    command: >
+      celery -A src.workers.orchestrator:celery_app worker
+        --loglevel=info
+        --concurrency=2
+        --queues=reporting
+        --hostname=report@%h
+    networks:
+      - cerebro_net
+
+  # ── Celery Beat (periodic task scheduler) ──────────────────────────────
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    # container_name: removed — v18 FIX-3 (conflicts with Swarm / multi-replica mode)
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+    env_file:
+      - .env
+    volumes: *common-volumes
+    depends_on:
+      redis_cache:
+        condition: service_healthy
+    command: >
+      celery -A src.workers.orchestrator:celery_app beat
+        --loglevel=info
+        --schedule=/app/CEREBRO_RESULTS/celerybeat-schedule.db
+    networks:
+      - cerebro_net
+
+  # ── Flower (Celery monitoring UI) ──────────────────────────────────────
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    # container_name: removed — v18 FIX-3 (conflicts with Swarm / multi-replica mode)
+    restart: unless-stopped
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    environment:
+      <<: *common-env
+    command: >
+      celery -A src.workers.orchestrator:celery_app flower
+        --port=5555 --broker_api=redis://redis_cache:6379/0
+    depends_on:
+      redis_cache:
+        condition: service_healthy
+    profiles:
+      - monitoring
+    networks:
+      - cerebro_net
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 4. DATA STORES
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  postgres_db:
+    image: postgres:16-alpine
+    # container_name: removed — v18 FIX-3 (conflicts with Swarm / multi-replica mode)
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see .env.example}
+      POSTGRES_DB:       cerebro_db
+      PGDATA:            /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    networks:
+      - cerebro_net
+
+  redis_cache:
+    image: redis:7-alpine
+    # container_name: removed — v18 FIX-3 (conflicts with Swarm / multi-replica mode)
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+        --maxmemory 256mb
+        --maxmemory-policy allkeys-lru
+        --appendonly yes
+        --save 60 1000
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - cerebro_net
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 5. MONITORING STACK
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    # container_name: removed — v18 FIX-3 (conflicts with Swarm / multi-replica mode)
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring_config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    profiles:
+      - monitoring
+    networks:
+      - cerebro_net
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    # container_name: removed — v18 FIX-3 (conflicts with Swarm / multi-replica mode)
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER:     ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set — see .env.example}
+      GF_INSTALL_PLUGINS:         grafana-clock-panel,grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+    networks:
+      - cerebro_net
+
+# ═════════════════════════════════════════════════════════════════════════════
+# NAMED VOLUMES
+# ═════════════════════════════════════════════════════════════════════════════
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  cerebro_results:
+    driver: local
+  pip_cache:
+    driver: local
+  nginx_logs:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ═════════════════════════════════════════════════════════════════════════════
+# NETWORKS
+# ═════════════════════════════════════════════════════════════════════════════
+networks:
+  cerebro_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

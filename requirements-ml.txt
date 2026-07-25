@@ -1,0 +1,25 @@
+# =============================================================================
+# CEREBRO-X v22.1  |  ML Worker Requirements (additive on top of requirements.txt)
+# =============================================================================
+# Install with: pip install -r requirements.txt -r requirements-ml.txt
+#
+# Everything already pinned in requirements.txt (numpy, scipy, pandas,
+# scikit-learn, xgboost, shap, rdkit, biopython, chembl-webresource-client,
+# pubchempy, mendeleev, pint, ...) is NOT repeated here — a previous version
+# of this file redeclared 6 of those packages with looser/inconsistent
+# version bounds than requirements.txt, which could silently drift out of
+# sync over time. This file now only adds packages requirements.txt doesn't
+# already pin.
+# =============================================================================
+
+-r requirements.txt
+
+# ── Graph Neural Networks (optional — install if GPU available) ──────────────
+# torch>=2.2.0
+# torch-geometric>=2.5.0
+# torch-scatter>=2.1.0
+# torch-sparse>=0.6.0
+
+# ── Additional Chemistry (optional) ─────────────────────────────────────────
+# deepchem>=2.7.0
+# mordred>=1.2.0

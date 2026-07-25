@@ -1,0 +1,2 @@
+# Add this line to crontab (crontab -e):
+0 * * * *  cd /app && /usr/local/bin/python /app/cerebro_enterprise_infra.py --headless >> /app/src/dds/CEREBRO_RESULTS/logs/infra.log 2>&1

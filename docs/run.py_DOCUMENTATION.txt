@@ -1,0 +1,55 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : run.py
+  Version   : 2.0.0 (Excel-driven, trial-versioned)
+  Generated : 2026-07-25  06:04:13
+  OS        : Darwin | Python: 3.13.13
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Master entry point — the ONLY file you need to run.
+All inputs come from CEREBRO_Input*.xlsx — nothing is hardcoded.
+
+──────────────────────────────────────────────────────────────────────
+  TRIAL VERSIONING
+──────────────────────────────────────────────────────────────────────
+Each Excel file is hashed (SHA-256). Unknown hash → new Trial_N/.
+  Trial_0/  → first Excel processed
+  Trial_1/  → second distinct Excel (or modified version)
+  ...and so on indefinitely
+trial_index.db tracks: hash, drug name, timestamp, output path.
+
+──────────────────────────────────────────────────────────────────────
+  CACHE INVALIDATION
+──────────────────────────────────────────────────────────────────────
+Before each trial, molecule cache is wiped for the new drug name:
+  1. JSON cache files deleted from molecule_cache/
+  2. SQLite drug_records rows deleted (→ fresh upsert)
+  3. In-memory cache is auto-cleared (new process per run)
+This guarantees fresh API fetch every time — no stale data.
+
+──────────────────────────────────────────────────────────────────────
+  PIPELINE FLOW
+──────────────────────────────────────────────────────────────────────
+  Excel → YAML (excel_to_yaml)
+  Cache invalidation (invalidate_molecule_cache)
+  MoleculeEngine (SMILES/FASTA/name → live API fetch)
+  CascadeDataEngine.build_mab_dataset([drug_name])
+  AdvancedMLEngine.train() [leakage-free scaler]
+  ADMETEngine.run()
+  PK/PD simulation
+  DDSEngine (100 formulations from Excel → BBB scored)
+  Static PNG figures (no GIFs, no 3D sim figures)
+  Merged PDF report
+  trial_index.db registration
+
+──────────────────────────────────────────────────────────────────────
+  COMMAND-LINE FLAGS
+──────────────────────────────────────────────────────────────────────
+  python run.py                → full mode
+  python run.py --headless     → no API, scheduler only
+  python run.py --pipeline-only→ run once, exit
+  python run.py --force        → force re-run latest Excel
+======================================================================

@@ -1,0 +1,7 @@
+drug:
+  name: Unknown_Drug
+formulation_settings:
+  force_refresh: true
+  input_excel: CEREBRO_Input_Template.xlsx
+  sim_iterations: 100
+  target_tissue: CNS
