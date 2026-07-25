@@ -326,9 +326,19 @@ def resolve_drug_smiles(name: str = "", smiles: str = "",
             pass
         db_misses.append("thermo.Chemical")
 
-    # Tier 7: sanitize raw input as last resort
-    raw = smiles or name
-    cleaned = _smiles_t7_sanitize(raw) if raw else None
+    # Tier 7: sanitize raw input as last resort.
+    # NOTE: only `smiles` is a candidate here — never fall back to `name`.
+    # A drug's plain name is not a SMILES string; _smiles_t7_sanitize's
+    # heuristic (checks for any of C/N/O/S/P/H/F/c/n/o/s/l) is loose enough
+    # that ordinary English words routinely contain one of those letters
+    # (e.g. "Lecanemab" passes on its lowercase 'c'/'n'), so falling back to
+    # `name` here caused biologics with no real SMILES to silently pass
+    # their bare name into RDKit as if it were a structure — either a noisy
+    # parse failure, or worse, a syntactically-valid-but-meaningless
+    # molecule for names that happen to parse, corrupting downstream
+    # descriptors. Biologics correctly have no SMILES; they resolve via
+    # FASTA/PDB/HELM elsewhere.
+    cleaned = _smiles_t7_sanitize(smiles) if smiles else None
     if cleaned:
         return _resolved(
             value=cleaned, tier=7,

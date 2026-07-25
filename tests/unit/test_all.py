@@ -878,3 +878,41 @@ class TestRateLimiting:
         # Everything before the limit kicks in should be a real auth
         # response (401 for bad creds), not silently dropped.
         assert 401 in statuses[:5]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 14. DRUG_SMILES RESOLVER — NAME MUST NEVER BE USED AS A SMILES FALLBACK
+# ═════════════════════════════════════════════════════════════════════════════
+
+class TestDrugSmilesResolver:
+    """Found during the Task 13 no-hardcode audit: a real Lecanemab (mAb)
+    pipeline run logged 30 RDKit 'SMILES Parse Error' failures for the
+    literal string 'Lecanemab'. Root cause: resolve_drug_smiles's Tier 7
+    last-resort sanitizer did `raw = smiles or name`, so any drug with no
+    real SMILES (i.e. every biologic — mAbs, oligonucleotides, peptides)
+    fell back to passing its own NAME into RDKit as if it were a chemical
+    structure. The sanitizer's heuristic (checks for any of
+    C/N/O/S/P/H/F/c/n/o/s/l) is loose enough that ordinary English words
+    routinely contain one of those letters, so this wasn't Lecanemab-
+    specific — it silently affected any drug name for which real SMILES
+    resolution failed. Fixed by never falling back to `name` in Tier 7.
+    These tests use several distinct made-up names to confirm the fix is
+    generic, not a special case for one drug."""
+
+    def test_biologic_with_no_smiles_does_not_leak_name_as_smiles(self):
+        from cerebro_value_resolver.categories.drug_identifiers import (
+            resolve_drug_smiles,
+        )
+        for name in ["Lecanemab", "Nusinersen", "SomeRandomAntibodyXYZ"]:
+            result = resolve_drug_smiles(name=name, smiles="")
+            assert result["value"] is None, (
+                f"{name}: expected no fabricated SMILES, got {result['value']!r}"
+            )
+
+    def test_small_molecule_with_real_smiles_still_resolves(self):
+        from cerebro_value_resolver.categories.drug_identifiers import (
+            resolve_drug_smiles,
+        )
+        result = resolve_drug_smiles(
+            name="Aspirin", smiles="CC(=O)Oc1ccccc1C(=O)O")
+        assert result["value"] == "CC(=O)Oc1ccccc1C(=O)O"
