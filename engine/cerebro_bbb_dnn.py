@@ -77,11 +77,11 @@ log = logging.getLogger("CEREBRO-BBB-DNN")
 BBBP_URL = "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv"
 _MODEL_DIR = Path(
     os.environ.get("CEREBRO_BBB_MODEL_DIR",
-                    Path(__file__).resolve().parent.parent / "CEREBRO_RESULTS" / "models" / "bbb_dnn")
+                    Path(__file__).resolve().parent.parent / "outputs" / "models" / "bbb_dnn")
 )
 _DATA_CACHE = Path(
     os.environ.get("CEREBRO_BBB_DATA_DIR",
-                    Path(__file__).resolve().parent.parent / "CEREBRO_RESULTS" / "data_cache")
+                    Path(__file__).resolve().parent.parent / "outputs" / "data_cache")
 )
 
 try:

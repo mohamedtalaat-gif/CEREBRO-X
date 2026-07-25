@@ -145,7 +145,7 @@ except ImportError:
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.  OUTPUT FOLDER STRUCTURE  (single root — nothing written outside it)
 # ─────────────────────────────────────────────────────────────────────────────
-OUTPUT_ROOT = Path(SCRIPT_DIR) / "CEREBRO_RESULTS"
+OUTPUT_ROOT = Path(SCRIPT_DIR) / "outputs"
 PATHS: dict[str, Path] = {
     "data":        OUTPUT_ROOT / "data",
     "models":      OUTPUT_ROOT / "models",
@@ -1709,7 +1709,7 @@ Generated  : {config["Generated"]}
 
 5. OUTPUT STRUCTURE
 {"─"*70}
-   CEREBRO_RESULTS/
+   outputs/
    +-- data/          CSV datasets (cascade-validated)
    +-- models/        Ensemble .pkl, GNN .pt, SHAP, feature importance
    +-- figures/       All PNG charts

@@ -40,7 +40,7 @@ CEREBRO_WORK_V10/
 ├── config/
 │   ├── dds_config.yaml                 # Auto-generated from Excel
 │   └── init.sql                        # SQLite schema
-└── CEREBRO_RESULTS/                    # All trial outputs
+└── outputs/                    # All trial outputs
     └── Trial_N/
         ├── CEREBRO_X_Final_Report_*.pdf
         ├── html5/*.html

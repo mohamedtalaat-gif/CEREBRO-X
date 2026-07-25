@@ -114,7 +114,7 @@ EXCEL_GLOB_PATTERNS = [
     "cerebro_input*.xlsx",
 ]
 INPUTS_DIR     = SCRIPT_DIR / "inputs"
-RESULTS_ROOT   = SCRIPT_DIR / "CEREBRO_RESULTS"
+RESULTS_ROOT   = SCRIPT_DIR / "outputs"
 TRIAL_INDEX_DB = RESULTS_ROOT / "trial_index.db"
 CONFIG_DIR     = SCRIPT_DIR / "config"
 
@@ -291,13 +291,34 @@ def register_trial(excel_path: Path, excel_hash: str,
     return trial_id
 
 
-def next_trial_dir() -> Path:
-    """Return the next Trial_N directory (auto-incremented)."""
+def next_trial_dir(excel_path: "Path | None" = None) -> Path:
+    """
+    Return the output directory for a trial, named after the drug rather
+    than an auto-incremented Trial_N — outputs/Donepezil/ instead of
+    outputs/Trial_0/, so results are discoverable by name instead of by
+    an opaque counter. Derived from the input Excel's filename
+    (CEREBRO_Input_<DrugName>.xlsx -> <DrugName>) since the drug name
+    itself isn't parsed yet at the point this is called. Falls back to
+    Trial_N only if no usable name can be derived (e.g. no excel_path,
+    or a filename that doesn't match the expected pattern).
+    """
     _init_trial_db()
-    conn = sqlite3.connect(TRIAL_INDEX_DB)
-    n = conn.execute("SELECT COUNT(*) FROM trials").fetchone()[0]
-    conn.close()
-    d = RESULTS_ROOT / f"Trial_{n}"
+    name = None
+    if excel_path is not None:
+        stem = Path(excel_path).stem
+        for prefix in ("CEREBRO_Input_", "cerebro_input_"):
+            if stem.startswith(prefix):
+                stem = stem[len(prefix):]
+                break
+        safe = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in stem).strip("_")
+        if safe:
+            name = safe
+    if name is None:
+        conn = sqlite3.connect(TRIAL_INDEX_DB)
+        n = conn.execute("SELECT COUNT(*) FROM trials").fetchone()[0]
+        conn.close()
+        name = f"Trial_{n}"
+    d = RESULTS_ROOT / name
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -669,7 +690,7 @@ def invalidate_molecule_cache(drug_names: list, trial_dir: Path) -> None:
     Wipe any cached molecule profiles for the given drug names.
     The molecule engine caches to:
       - In-memory dict (cleared automatically per process)
-      - CEREBRO_RESULTS/molecule_cache/*.json  (persistent)
+      - outputs/molecule_cache/*.json  (persistent)
       - SQLite drug_records table (force upsert, not read)
 
     After this call, analyze_molecule() will fetch fresh from APIs.
@@ -2726,7 +2747,7 @@ def _write_trial_doc(trial_dir: Path, excel_path: Path,
            f"{'─'*70}\n  REPRODUCIBILITY\n{'─'*70}\n"
            f"  To reproduce this exact trial:\n"
            f"  1. Place the same Excel file (same content) in SCRIPT_DIR\n"
-           f"  2. Delete its entry from CEREBRO_RESULTS/trial_index.db\n"
+           f"  2. Delete its entry from outputs/trial_index.db\n"
            f"  3. python run.py --pipeline-only\n\n"
            f"{sep}\n")
     with open(trial_dir / "TRIAL_DOCUMENTATION.txt", "w", encoding="utf-8") as f:
@@ -2776,7 +2797,7 @@ def run_once(force: bool = False) -> bool:
         if not xlsx_path.exists():
             log.warning(f"[LOOP] File not found: {xlsx_path}")
             continue
-        trial_dir = next_trial_dir()
+        trial_dir = next_trial_dir(xlsx_path)
         ok = run_pipeline_from_excel(xlsx_path, xlsx_hash, trial_dir, force=force)
         if not ok:
             success = False

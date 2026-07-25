@@ -9,7 +9,7 @@
 #   docker compose down                   # stop everything
 #
 # Input Excel:  drop CEREBRO_Input_<DrugName>.xlsx into ./inputs/
-# Results:      appear in ./CEREBRO_RESULTS/ on your host machine
+# Results:      appear in ./outputs/ on your host machine
 # =============================================================================
 
 services:
@@ -63,7 +63,7 @@ services:
       - "8001:8001"      # Prometheus metrics
     volumes:
       # Results: host reads outputs immediately as they're written
-      - ./CEREBRO_RESULTS:/app/CEREBRO_RESULTS
+      - ./outputs:/app/outputs
       # Source: code edits take effect on next pipeline run (no rebuild)
       # Excel files placed here are picked up automatically
       - ./:/app/
@@ -103,7 +103,7 @@ services:
       - CELERY_BROKER=redis://redis_cache:6379/0
       - CELERY_BACKEND=redis://redis_cache:6379/1
     volumes:
-      - ./CEREBRO_RESULTS:/app/CEREBRO_RESULTS
+      - ./outputs:/app/outputs
       - ./:/app/
     depends_on:
       postgres_db:

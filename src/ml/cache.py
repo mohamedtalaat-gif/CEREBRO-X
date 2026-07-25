@@ -53,7 +53,7 @@ except ImportError:
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 REDIS_URL       = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-CACHE_DB_PATH   = Path(os.environ.get("CACHE_DB_PATH", "CEREBRO_RESULTS/cache.db"))
+CACHE_DB_PATH   = Path(os.environ.get("CACHE_DB_PATH", "outputs/cache.db"))
 CACHE_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # Default TTLs (seconds)

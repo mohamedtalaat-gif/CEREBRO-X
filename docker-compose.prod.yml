@@ -63,11 +63,11 @@ x-common-env: &common-env
   JWT_ACCESS_EXPIRE_MINUTES: "30"
   JWT_REFRESH_EXPIRE_DAYS: "7"
   CEREBRO_ADMIN_PASSWORD: "${CEREBRO_ADMIN_PASSWORD:?CEREBRO_ADMIN_PASSWORD must be set — see .env.example}"
-  MLOPS_DB_PATH: "/app/CEREBRO_RESULTS/mlops_registry.db"
-  MODEL_STORE_DIR: "/app/CEREBRO_RESULTS/model_store"
+  MLOPS_DB_PATH: "/app/outputs/mlops_registry.db"
+  MODEL_STORE_DIR: "/app/outputs/model_store"
 
 x-common-volumes: &common-volumes
-  - cerebro_results:/app/CEREBRO_RESULTS
+  - cerebro_results:/app/outputs
   - pip_cache:/root/.cache/pip
 
 x-healthcheck-defaults: &healthcheck-defaults
@@ -274,7 +274,7 @@ services:
     command: >
       celery -A src.workers.orchestrator:celery_app beat
         --loglevel=info
-        --schedule=/app/CEREBRO_RESULTS/celerybeat-schedule.db
+        --schedule=/app/outputs/celerybeat-schedule.db
     networks:
       - cerebro_net
 

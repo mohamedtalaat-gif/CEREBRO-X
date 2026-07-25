@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent  # tools/ -> project root
 
 TEXT_EXTS = {".py", ".md", ".txt", ".html", ".htm", ".yml", ".yaml"}
-SKIP_DIRS = {".git", "__pycache__", "CEREBRO_RESULTS"}
+SKIP_DIRS = {".git", "__pycache__", "outputs"}
 SKIP_FILES = {"normalize_project_version.py", "normalize_module_banners.py",
               "cleanup_duplicate_versions.py", "_version.py"}
 

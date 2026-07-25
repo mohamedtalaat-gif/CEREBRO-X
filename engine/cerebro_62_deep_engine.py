@@ -448,7 +448,7 @@ def deep_P47(drug_bundle: dict, dds_bundle: dict,
     if _HAS_DOCKING_ENGINE:
         docking = _run_vina(
             smiles=smiles, pdb_id=pdb_id,
-            output_dir="CEREBRO_RESULTS/docking_cache",
+            output_dir="outputs/docking_cache",
             mol_profile={"MW_Da": mw, "LogP": logp, "TPSA_A2": tpsa,
                          "HBD": hbd, "HBA": hba,
                          "molecule_class": d.get("drug_type", "small_molecule")},

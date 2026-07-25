@@ -36,7 +36,7 @@ TEXT_EXTS = {
     ".sh", ".ps1", ".dockerfile", ".env", ".example",
 }
 SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", "node_modules",
-             ".venv", "venv", "CEREBRO_RESULTS", ".mypy_cache"}
+             ".venv", "venv", "outputs", ".mypy_cache"}
 SKIP_FILES = {"normalize_project_version.py", "_version.py"}
 
 

@@ -120,7 +120,7 @@ class JSONFormatter(logging.Formatter):
 
 
 def setup_structured_logging(
-    log_file: str = "CEREBRO_RESULTS/logs/cerebro_structured.jsonl",
+    log_file: str = "outputs/logs/cerebro_structured.jsonl",
     console_json: bool = False,
 ):
     """
@@ -384,7 +384,7 @@ class HealthChecker:
             )
 
     @staticmethod
-    def check_model_loaded(model_dir: str = "CEREBRO_RESULTS/model_store"
+    def check_model_loaded(model_dir: str = "outputs/model_store"
                            ) -> HealthCheckResult:
         from pathlib import Path
         p = Path(model_dir)

@@ -128,7 +128,7 @@ def _register_aliases() -> None:
                         # Also patch OUTPUT_ROOT and PATHS which are derived from SCRIPT_DIR
                         # at module import time (before our patch runs).
                         if hasattr(mod, "OUTPUT_ROOT"):
-                            new_root = PROJECT_ROOT / "CEREBRO_RESULTS"
+                            new_root = PROJECT_ROOT / "outputs"
                             mod.OUTPUT_ROOT = new_root
                             # Patch DB_PATH and MISSING_DATA_LOG (pipeline.py)
                             if hasattr(mod, "DB_PATH"):
@@ -166,7 +166,7 @@ def _register_aliases() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 # Runtime directories (created here, not inside sub-modules)
 # ─────────────────────────────────────────────────────────────────────────────
-RESULTS_ROOT = PROJECT_ROOT / "CEREBRO_RESULTS"
+RESULTS_ROOT = PROJECT_ROOT / "outputs"
 CONFIG_DIR   = PROJECT_ROOT / "config"
 DATA_DIR     = PROJECT_ROOT / "data"
 

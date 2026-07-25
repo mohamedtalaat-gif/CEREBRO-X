@@ -297,7 +297,7 @@ def patched_train(cls, df: pd.DataFrame, feature_cols: list[str],
     # ── Resolve output directory FIRST — used by both SHAP and model save ──────
     run_id = run_id or datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     import sys as _sys
-    _model_dir = Path("CEREBRO_RESULTS") / "models"
+    _model_dir = Path("outputs") / "models"
     try:
         _cp = _sys.modules.get("CEREBRO_Pipeline") or _sys.modules.get("src.core.pipeline")
         if _cp and hasattr(_cp, "PATHS") and "models" in _cp.PATHS:
@@ -364,7 +364,7 @@ class InferenceEngine:
     Uses .transform() ONLY — never re-fits the scaler.
 
     Usage:
-        engine = InferenceEngine.load("CEREBRO_RESULTS/models/ensemble_20240101_120000.pkl")
+        engine = InferenceEngine.load("outputs/models/ensemble_20240101_120000.pkl")
         new_profile = {"MW_Da": 379.49, "LogP": 4.34, "Half_Life_Days": 3.0,
                        "Docking_Affinity_kcal": -8.5}
         score = engine.predict_single(new_profile)

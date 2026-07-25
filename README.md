@@ -133,7 +133,7 @@ docker compose logs -f cerebro-core
 docker exec -it $(docker compose ps -q cerebro-core) \
     python run.py --pipeline-only --force
 
-# Outputs appear in ./CEREBRO_RESULTS/ on your host
+# Outputs appear in ./outputs/ on your host
 ```
 
 ### Option 2 — Native Python (development)
@@ -282,7 +282,7 @@ formula — implemented in
   bit-identical results even with a fixed seed) but land consistently
   around **~90-93% accuracy, ~0.97 ROC-AUC** on ~204 held-out compounds —
   the authoritative numbers for any given trained model are written to
-  `CEREBRO_RESULTS/models/bbb_dnn/metrics.json` by that run, not hardcoded
+  `outputs/models/bbb_dnn/metrics.json` by that run, not hardcoded
   anywhere in the code.
 - **Known limitation, stated plainly**: this is a passive-permeability
   fingerprint classifier. It cannot capture active efflux transport (e.g.

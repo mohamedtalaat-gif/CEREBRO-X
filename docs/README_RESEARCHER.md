@@ -120,7 +120,7 @@ cp CEREBRO_Input_FINAL_Template.xlsx CEREBRO_Input_YourDrug.xlsx
 
 # Stop any previous run
 docker compose down
-rm -f CEREBRO_RESULTS/trial_index.db
+rm -f outputs/trial_index.db
 
 # Start fresh
 docker compose up --build -d
@@ -133,7 +133,7 @@ docker compose logs -f cerebro-core
 
 ## Step 3 — Get Your Results
 
-Results appear in `CEREBRO_RESULTS/Trial_N/`:
+Results appear in `outputs/Trial_N/`:
 
 | File/Folder | Contents |
 |-------------|----------|

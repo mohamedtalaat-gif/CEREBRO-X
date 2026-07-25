@@ -149,7 +149,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
-    "sqlite:///CEREBRO_RESULTS/cerebro_enterprise.db"
+    "sqlite:///outputs/cerebro_enterprise.db"
 )
 
 try:
@@ -162,7 +162,7 @@ try:
 except Exception:
     # SQLite fallback
     engine = create_engine(
-        "sqlite:///CEREBRO_RESULTS/cerebro_enterprise.db",
+        "sqlite:///outputs/cerebro_enterprise.db",
         connect_args={"check_same_thread": False},
     )
 
@@ -510,7 +510,7 @@ async def dds_ranking(
 ):
     """Return DDS formulation ranking."""
     import pandas as pd
-    p = Path("CEREBRO_RESULTS/dds_analysis/formulation_ranking.csv")
+    p = Path("outputs/dds_analysis/formulation_ranking.csv")
     if not p.exists():
         raise HTTPException(404, "Run /dds/run first")
     df = pd.read_csv(p)
@@ -666,13 +666,13 @@ async def build_knowledge_graph(
     kg = CerebroKnowledgeGraph()
 
     # Load available data
-    ranking_path = Path("CEREBRO_RESULTS/dds_analysis/formulation_ranking.csv")
+    ranking_path = Path("outputs/dds_analysis/formulation_ranking.csv")
     if ranking_path.exists() and req.include_formulations:
         df = pd.read_csv(ranking_path)
         kg.build_from_pipeline_data(formulation_df=df)
 
     # Export
-    out_path = "CEREBRO_RESULTS/knowledge_graph.json"
+    out_path = "outputs/knowledge_graph.json"
     export_kg_to_json(kg, out_path)
 
     # Analytics
@@ -695,7 +695,7 @@ async def suggest_combinations(
     """Suggest new drug-carrier combinations via link prediction."""
     import pandas as pd
     kg = CerebroKnowledgeGraph()
-    ranking_path = Path("CEREBRO_RESULTS/dds_analysis/formulation_ranking.csv")
+    ranking_path = Path("outputs/dds_analysis/formulation_ranking.csv")
     if ranking_path.exists():
         df = pd.read_csv(ranking_path)
         kg.build_from_pipeline_data(formulation_df=df)
@@ -761,7 +761,7 @@ async def metrics_summary(
 @app.get("/results", tags=["Results"])
 async def list_results(user: UserModel = Depends(get_current_user)):
     """List all output files."""
-    out = Path("CEREBRO_RESULTS")
+    out = Path("outputs")
     files = []
     if out.exists():
         for p in out.rglob("*"):
@@ -780,7 +780,7 @@ async def download_result(
     user: UserModel = Depends(get_current_user),
 ):
     """Download a result file."""
-    full = Path("CEREBRO_RESULTS") / filepath
+    full = Path("outputs") / filepath
     if not full.exists():
         raise HTTPException(404, f"File not found: {filepath}")
     return FileResponse(str(full))

@@ -214,7 +214,7 @@ except ImportError:
 # 4.  PATHS
 # ─────────────────────────────────────────────────────────────────────────────
 CONFIG_DIR  = Path(SCRIPT_DIR) / "config"
-OUTPUT_ROOT = Path(SCRIPT_DIR) / "CEREBRO_RESULTS"
+OUTPUT_ROOT = Path(SCRIPT_DIR) / "outputs"
 DDS_CONFIG  = CONFIG_DIR / "dds_config.yaml"
 DDS_RESULTS = OUTPUT_ROOT / "dds_analysis"
 INFRA_LOG   = OUTPUT_ROOT / "logs" / "infra.log"
@@ -929,7 +929,7 @@ if _HAS_FASTAPI:
             # Blocking run via BackgroundTasks (for simple deployments)
             bg.add_task(_blocking_pipeline_run)
             return {"status": "started", "mode": "background_task",
-                    "message": "Pipeline running — check CEREBRO_RESULTS/"}
+                    "message": "Pipeline running — check outputs/"}
 
     @app.post("/run-dds", tags=["DDS"])
     def run_dds(req: DDSRequest, bg: BackgroundTasks):
@@ -1578,7 +1578,7 @@ try:
         conn.execute(__import__("sqlalchemy").text("SELECT 1"))
     log.info(f"[DB] PostgreSQL connected: {DATABASE_URL.split('@')[-1]}")
 except Exception as _db_err:
-    _sqlite_path = str(Path(SCRIPT_DIR) / "CEREBRO_RESULTS" / "cerebro_postgres_fallback.db")
+    _sqlite_path = str(Path(SCRIPT_DIR) / "outputs" / "cerebro_postgres_fallback.db")
     log.warning(f"[DB] PostgreSQL unavailable ({_db_err}). Falling back to SQLite: {_sqlite_path}")
     DATABASE_URL = f"sqlite:///{_sqlite_path}"
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})

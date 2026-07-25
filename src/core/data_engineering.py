@@ -24,11 +24,11 @@ Architecture (zero external services required):
 
 Integration:
   Called from run.py after every trial.
-  Reads from:   CEREBRO_RESULTS/Trial_N/  (any CSV/JSON output)
-  Writes to:    CEREBRO_RESULTS/lakehouse/ (Parquet partitions)
-                CEREBRO_RESULTS/lineage/   (SQLite + JSONL)
-                CEREBRO_RESULTS/observability/ (quality reports)
-                CEREBRO_RESULTS/drift/     (drift reports)
+  Reads from:   outputs/Trial_N/  (any CSV/JSON output)
+  Writes to:    outputs/lakehouse/ (Parquet partitions)
+                outputs/lineage/   (SQLite + JSONL)
+                outputs/observability/ (quality reports)
+                outputs/drift/     (drift reports)
 ================================================================================
 """
 
@@ -54,7 +54,7 @@ warnings.filterwarnings("ignore")
 log = logging.getLogger("CEREBRO-DE")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PATHS (all relative to CEREBRO_RESULTS/)
+# PATHS (all relative to outputs/)
 # ─────────────────────────────────────────────────────────────────────────────
 def _get_de_paths(results_root: Path) -> dict[str, Path]:
     paths = {

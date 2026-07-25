@@ -71,7 +71,7 @@ except ImportError:
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 COMPLIANCE_DB = Path(os.environ.get(
-    "COMPLIANCE_DB", "CEREBRO_RESULTS/compliance_audit.db"
+    "COMPLIANCE_DB", "outputs/compliance_audit.db"
 ))
 COMPLIANCE_DB.parent.mkdir(parents=True, exist_ok=True)
 

@@ -113,14 +113,14 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt || \
 COPY . /app/
 
 RUN mkdir -p \
-        /app/CEREBRO_RESULTS/logs \
-        /app/CEREBRO_RESULTS/lineage \
-        /app/CEREBRO_RESULTS/quarantine \
+        /app/outputs/logs \
+        /app/outputs/lineage \
+        /app/outputs/quarantine \
         /app/config \
         /app/data \
         /app/inputs \
         /app/clinical_pk_data \
-    && chmod -R 755 /app/CEREBRO_RESULTS
+    && chmod -R 755 /app/outputs
 
 # engine/ holds the flat cerebro_*.py modules (moved out of the project root
 # for a cleaner layout); set PYTHONPATH here, before the build-check RUN

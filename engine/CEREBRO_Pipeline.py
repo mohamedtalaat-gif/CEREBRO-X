@@ -31,7 +31,7 @@ try:
     # Patch SCRIPT_DIR so derived paths point to project root
     _pl.SCRIPT_DIR = str(_ROOT)
     if hasattr(_pl, "OUTPUT_ROOT"):
-        _new_root = _ROOT / "CEREBRO_RESULTS"
+        _new_root = _ROOT / "outputs"
         _pl.OUTPUT_ROOT = _new_root
         _pl.DB_PATH = str(_new_root / "cerebro_knowledge.db")
         _pl.MISSING_DATA_LOG = str(_new_root / "Missing_Data_Log.txt")

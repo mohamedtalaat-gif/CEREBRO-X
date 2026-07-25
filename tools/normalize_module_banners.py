@@ -27,7 +27,7 @@ CANONICAL = "CEREBRO-X v22.1"
 TEXT_EXTS = {".py", ".md", ".txt", ".html", ".htm", ".yml", ".yaml",
              ".json", ".sql", ".ini", ".cfg", ".sh", ".ps1"}
 SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", "node_modules",
-             ".venv", "venv", "CEREBRO_RESULTS", ".mypy_cache"}
+             ".venv", "venv", "outputs", ".mypy_cache"}
 SKIP_FILES = {"normalize_project_version.py", "normalize_module_banners.py",
               "_version.py"}
 

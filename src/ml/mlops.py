@@ -77,13 +77,13 @@ except ImportError:
 # ─────────────────────────────────────────────────────────────────────────────
 MLOPS_DB_PATH = Path(os.environ.get(
     "MLOPS_DB_PATH",
-    "CEREBRO_RESULTS/mlops_registry.db"
+    "outputs/mlops_registry.db"
 ))
 MLOPS_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 MODEL_STORE_DIR = Path(os.environ.get(
     "MODEL_STORE_DIR",
-    "CEREBRO_RESULTS/model_store"
+    "outputs/model_store"
 ))
 MODEL_STORE_DIR.mkdir(parents=True, exist_ok=True)
 
