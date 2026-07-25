@@ -146,11 +146,20 @@ class PBBMEngine:
     (Yu & Amidon 1999, Pharm Res).
 
     Kp (tissue:plasma) is estimated via Rodgers-Rowland (Rodgers & Rowland,
-    J Pharm Sci 95:1113, 2006) — distinct from science_engines.PBPKEngine's
-    Poulin-Theil-based 7-compartment model, which runs in the same trial
-    but feeds the visualisation/video pipeline rather than this engine's
-    ADMET/report output. See PBPKEngine's docstring for the full note on
-    why both exist rather than one being a stale duplicate of the other.
+    J Pharm Sci 95:1113, 2006).
+
+    CORRECTION (2026-07-25): an earlier pass through this audit remediation
+    described science_engines.PBPKEngine as a second, independently-live
+    7-compartment PBPK model feeding the visualisation pipeline in parallel
+    with this engine. That was wrong — PBPKEngine's only caller
+    (ScienceOrchestrator, itself only called by a function with zero
+    callers of its own) turned out to be fully dead code and has been
+    removed (see science_engines.py's module docstring). The real
+    visualisation/video-feeding PBPK computation is
+    cerebro_science_modules.run_all_science_modules(), a third, separate
+    implementation — this engine (feeding ADMET/report output) and that
+    one are the two implementations actually worth reconciling, not this
+    engine and the now-deleted PBPKEngine.
 
     GI compartments: Stomach → Duodenum → Jejunum(×2) → Ileum(×2) → Colon
     Each segment:
