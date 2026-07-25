@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_completed_excel_writer.py
@@ -48,10 +47,10 @@ DESIGN PRINCIPLES
 ================================================================================
 """
 from __future__ import annotations
+
 import logging
-from pathlib import Path
-from typing import Dict, List, Any, Optional
 from datetime import datetime
+from pathlib import Path
 
 log = logging.getLogger("CEREBRO-COMPLETED-WRITER")
 
@@ -111,7 +110,7 @@ _PROPERTY_CATALOG = [
 # ──────────────────────────────────────────────────────────────────────────
 # Data extraction helpers
 # ──────────────────────────────────────────────────────────────────────────
-def _get_tier_info(mol_profile: Dict, prop_key: str) -> Dict:
+def _get_tier_info(mol_profile: dict, prop_key: str) -> dict:
     """
     Extract tier / confidence / source for a property from mol_profile.
 
@@ -143,12 +142,12 @@ def _get_tier_info(mol_profile: Dict, prop_key: str) -> Dict:
     }
 
 
-def _flatten_principles(principles: Dict, prefix: str = "") -> List[tuple]:
+def _flatten_principles(principles: dict, prefix: str = "") -> list[tuple]:
     """
     Flatten a nested principles dict into [(key_path, value), ...] pairs.
     Skip non-numeric, non-string scalars (lists, complex objects → skipped).
     """
-    out: List[tuple] = []
+    out: list[tuple] = []
     if not isinstance(principles, dict):
         return out
     for k, v in principles.items():
@@ -168,9 +167,9 @@ def _flatten_principles(principles: Dict, prefix: str = "") -> List[tuple]:
 # ──────────────────────────────────────────────────────────────────────────
 # Excel writer
 # ──────────────────────────────────────────────────────────────────────────
-def write_completed_excel(drug_results: List[Dict],
+def write_completed_excel(drug_results: list[dict],
                            output_path: Path,
-                           pipeline_metadata: Optional[Dict] = None) -> Path:
+                           pipeline_metadata: dict | None = None) -> Path:
     """
     Emit a completed-data Excel workbook for a list of processed drug results.
 
@@ -184,7 +183,7 @@ def write_completed_excel(drug_results: List[Dict],
     Returns: the output Path written.
     """
     import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
 
     output_path = Path(output_path)
@@ -310,8 +309,8 @@ _TIER_DESCRIPTIONS = {
 # ──────────────────────────────────────────────────────────────────────────
 # Per-drug sheet writers
 # ──────────────────────────────────────────────────────────────────────────
-def _write_drug_properties_sheet(wb, idx: int, dr: Dict) -> None:
-    from openpyxl.styles import Font, PatternFill, Alignment
+def _write_drug_properties_sheet(wb, idx: int, dr: dict) -> None:
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
 
     drug_name = dr["drug_name"]
@@ -386,7 +385,7 @@ def _write_drug_properties_sheet(wb, idx: int, dr: Dict) -> None:
     ws.row_dimensions[2].height = 28
 
 
-def _write_drug_principles_sheet(wb, idx: int, dr: Dict) -> None:
+def _write_drug_principles_sheet(wb, idx: int, dr: dict) -> None:
     """
     Flat 62-principle view (v22): every principle from every C+ Flow class
     listed in one sheet — Class A surrogate (all 57 for Top-1), Class B deep
@@ -394,7 +393,7 @@ def _write_drug_principles_sheet(wb, idx: int, dr: Dict) -> None:
     Each row carries: principle ID, class, score, value, method, reference,
     confidence, narrative.
     """
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
 
     drug_name = dr["drug_name"]
@@ -519,8 +518,8 @@ def _write_drug_principles_sheet(wb, idx: int, dr: Dict) -> None:
     ws.freeze_panes = "A5"
 
 
-def _write_drug_dds_sheet(wb, idx: int, dr: Dict) -> None:
-    from openpyxl.styles import Font, PatternFill, Alignment
+def _write_drug_dds_sheet(wb, idx: int, dr: dict) -> None:
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
 
     drug_name = dr["drug_name"]
@@ -565,8 +564,8 @@ def _write_drug_dds_sheet(wb, idx: int, dr: Dict) -> None:
         ws.column_dimensions[get_column_letter(j)].width = w
 
 
-def _write_audit_trail_sheet(wb, drug_results: List[Dict]) -> None:
-    from openpyxl.styles import Font, PatternFill, Alignment
+def _write_audit_trail_sheet(wb, drug_results: list[dict]) -> None:
+    from openpyxl.styles import Font, PatternFill
 
     ws = wb.create_sheet("Audit_Trail")
     ws["A1"] = "Provenance Audit Trail"
@@ -607,7 +606,7 @@ def _write_audit_trail_sheet(wb, drug_results: List[Dict]) -> None:
 # ──────────────────────────────────────────────────────────────────────────
 # v21 ADDITIONS — Per-DDS principle matrix + breakdown narrative + textbook
 # ──────────────────────────────────────────────────────────────────────────
-def _write_drug_dds_principle_matrix_sheet(wb, idx: int, dr: Dict) -> None:
+def _write_drug_dds_principle_matrix_sheet(wb, idx: int, dr: dict) -> None:
     """
     Full DDS × Principle matrix sheet.
 
@@ -619,7 +618,7 @@ def _write_drug_dds_principle_matrix_sheet(wb, idx: int, dr: Dict) -> None:
     Cell color-graded: green (>=80), yellow-green (60-80), yellow (40-60),
     orange (20-40), red (<20).
     """
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
 
     drug_name = dr["drug_name"]
@@ -709,7 +708,7 @@ def _write_drug_dds_principle_matrix_sheet(wb, idx: int, dr: Dict) -> None:
     ws.freeze_panes = "C5"
 
 
-def _write_drug_dds_breakdown_sheet(wb, idx: int, dr: Dict) -> None:
+def _write_drug_dds_breakdown_sheet(wb, idx: int, dr: dict) -> None:
     """
     Top-10 DDS narrative breakdown sheet.
 
@@ -718,8 +717,7 @@ def _write_drug_dds_breakdown_sheet(wb, idx: int, dr: Dict) -> None:
       • Top 3 strengths with explanation
       • Weak spots with improvement hints
     """
-    from openpyxl.styles import Font, PatternFill, Alignment
-    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment, Font, PatternFill
 
     drug_name = dr["drug_name"]
     safe_name = "".join(c for c in drug_name if c.isalnum())[:18]
@@ -815,11 +813,10 @@ def _write_principle_explanations_sheet(wb) -> None:
 
     Researcher can refer to this any time they're confused about a metric.
     """
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     try:
-        from cerebro_dds_principle_evaluator import (PRINCIPLE_DOCS,
-                                                       PRINCIPLE_WEIGHTS)
+        from cerebro_dds_principle_evaluator import PRINCIPLE_DOCS, PRINCIPLE_WEIGHTS
     except ImportError:
         log.debug("[COMPLETED-WRITER] dds_principle_evaluator not importable — "
                   "skipping principle-explanation sheet")
@@ -882,12 +879,12 @@ def _write_principle_explanations_sheet(wb) -> None:
 # v22 ADDITIONS — Deep Validation + Translational + Fallback Chain sheets
 # (Per Muhammad's instruction: ALL results visible in every output)
 # ──────────────────────────────────────────────────────────────────────────
-def _write_drug_deep_validation_sheet(wb, idx: int, dr: Dict) -> None:
+def _write_drug_deep_validation_sheet(wb, idx: int, dr: dict) -> None:
     """
     Class B Deep Physics validation results for the Top-1 DDS of this drug.
     Shows surrogate vs deep score per principle, with validation verdict.
     """
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     drug_name = dr["drug_name"]
     safe_name = "".join(c for c in drug_name if c.isalnum())[:18]
@@ -961,11 +958,11 @@ def _write_drug_deep_validation_sheet(wb, idx: int, dr: Dict) -> None:
         ws.column_dimensions[get_column_letter(j)].width = w
 
 
-def _write_drug_translational_sheet(wb, idx: int, dr: Dict) -> None:
+def _write_drug_translational_sheet(wb, idx: int, dr: dict) -> None:
     """
     Class C Translational deliverables (Pre-IND, FTO, Compliance, Grants, Patents).
     """
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     drug_name = dr["drug_name"]
     safe_name = "".join(c for c in drug_name if c.isalnum())[:18]
@@ -1076,9 +1073,9 @@ def _write_drug_translational_sheet(wb, idx: int, dr: Dict) -> None:
         ws.column_dimensions[get_column_letter(j)].width = w
 
 
-def _write_drug_fallback_chain_sheet(wb, idx: int, dr: Dict) -> None:
+def _write_drug_fallback_chain_sheet(wb, idx: int, dr: dict) -> None:
     """Documents which DDS were tried for deep validation, with reasons."""
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     drug_name = dr["drug_name"]
     safe_name = "".join(c for c in drug_name if c.isalnum())[:18]
@@ -1183,8 +1180,8 @@ def _write_drug_fallback_chain_sheet(wb, idx: int, dr: Dict) -> None:
 # This is what the researcher reads when they want to know exactly WHY a
 # principle gave a particular score for a particular DDS.
 # ──────────────────────────────────────────────────────────────────────────
-def _write_drug_surrogate_detail_sheet(wb, idx: int, dr: Dict) -> None:
-    from openpyxl.styles import Font, PatternFill, Alignment
+def _write_drug_surrogate_detail_sheet(wb, idx: int, dr: dict) -> None:
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     drug_name = dr["drug_name"]
     safe_name = "".join(c for c in drug_name if c.isalnum())[:18]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  UNIVERSAL DOCKING ENGINE
@@ -30,9 +29,10 @@ References:
 ================================================================================
 """
 from __future__ import annotations
-import math, logging, tempfile, os, json
+
+import logging
+import math
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 log = logging.getLogger("CEREBRO-DOCKING")
 
@@ -74,7 +74,7 @@ def _lie_estimate(mw: float, logp: float, tpsa: float,
     }
 
 
-def _prepare_ligand_pdbqt(smiles: str, out_path: Path) -> Tuple[bool, str]:
+def _prepare_ligand_pdbqt(smiles: str, out_path: Path) -> tuple[bool, str]:
     """
     Prepare PDBQT from SMILES via RDKit + Meeko.
     Works for ALL MW ranges — no restriction.
@@ -87,7 +87,7 @@ def _prepare_ligand_pdbqt(smiles: str, out_path: Path) -> Tuple[bool, str]:
 
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
-            return False, f"Invalid SMILES"
+            return False, "Invalid SMILES"
 
         mw = Descriptors.MolWt(mol)
         log.info(f"[DOCK-PREP] MW={mw:.0f} Da — preparing PDBQT")
@@ -165,7 +165,8 @@ def _prepare_receptor_pdbqt(pdb_path: Path, out_path: Path) -> bool:
 
         # Try Meeko receptor preparation
         try:
-            import subprocess, shutil
+            import shutil
+            import subprocess
             if shutil.which("mk_prepare_receptor.py"):
                 r = subprocess.run(
                     ["mk_prepare_receptor.py", "-i", str(clean_path),
@@ -185,7 +186,7 @@ def _prepare_receptor_pdbqt(pdb_path: Path, out_path: Path) -> bool:
         return False
 
 
-def _detect_binding_site(pdb_path: Path) -> Tuple[float, float, float, float]:
+def _detect_binding_site(pdb_path: Path) -> tuple[float, float, float, float]:
     """Auto-detect binding site from HETATM coords or protein centroid."""
     lines = pdb_path.read_text(errors='replace').splitlines()
     hetm = []
@@ -234,12 +235,12 @@ def _fetch_pdb(pdb_id: str, out_path: Path) -> bool:
 
 
 def run_docking(smiles: str,
-                pdb_id: Optional[str],
+                pdb_id: str | None,
                 drug_name: str,
-                mol_profile: Dict,
+                mol_profile: dict,
                 output_dir: Path,
                 exhaustiveness: int = 8,
-                n_poses: int = 9) -> Dict:
+                n_poses: int = 9) -> dict:
     """
     Universal docking — handles all MW ranges without restriction.
     

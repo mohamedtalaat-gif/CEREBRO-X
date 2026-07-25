@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_dds_principle_evaluator.py
@@ -92,8 +91,8 @@ OUTPUT
 ================================================================================
 """
 from __future__ import annotations
-import logging, math
-from typing import Dict, List, Tuple, Any, Optional
+
+import logging
 
 log = logging.getLogger("CEREBRO-DDS-PRINCIPLE-EVAL")
 
@@ -364,7 +363,7 @@ PRINCIPLE_DOCS = {
 # Per-principle scoring functions (each returns score 0-100)
 # All functions are deterministic, fast (<1ms), and side-effect-free.
 # ──────────────────────────────────────────────────────────────────────────
-def _safe(d: Dict, key: str, default: float = 0.0) -> float:
+def _safe(d: dict, key: str, default: float = 0.0) -> float:
     """Get a numeric value from dict with fallback. Handles None and strings."""
     v = d.get(key)
     if v is None: return float(default)
@@ -390,12 +389,12 @@ def _score_zeta_for_bbb(zeta_mv: float) -> float:
     return max(0, 100 + (zeta_mv + 20) * 5)   # zeta < -20
 
 
-def _evaluate_dds(dds: Dict, mol_profile: Dict) -> Dict[str, Dict]:
+def _evaluate_dds(dds: dict, mol_profile: dict) -> dict[str, dict]:
     """
     Run all 24 DDS-dependent principles for a single DDS.
     Returns dict mapping principle_id → {value, score, weight, method, reference, confidence}.
     """
-    out: Dict[str, Dict] = {}
+    out: dict[str, dict] = {}
 
     # Pull DDS specs (handle multiple naming conventions)
     size  = _safe(dds, "Size_nm",  _safe(dds, "size_nm", 100))
@@ -740,7 +739,7 @@ def _evaluate_dds(dds: Dict, mol_profile: Dict) -> Dict[str, Dict]:
 # ──────────────────────────────────────────────────────────────────────────
 # Main entry point — evaluate all DDS in a DataFrame
 # ──────────────────────────────────────────────────────────────────────────
-def evaluate_all_dds(mol_profile: Dict, df_dds, drug_name: str = "") -> Tuple:
+def evaluate_all_dds(mol_profile: dict, df_dds, drug_name: str = "") -> tuple:
     """
     For every DDS row in df_dds, run the 24 DDS-dependent principles and
     compute a CNS-weighted composite score. Returns:
@@ -756,7 +755,6 @@ def evaluate_all_dds(mol_profile: Dict, df_dds, drug_name: str = "") -> Tuple:
 
     Side effects: none. The original df_dds is copied, not mutated.
     """
-    import pandas as pd
     if df_dds is None or len(df_dds) == 0:
         log.warning(f"[DDS-EVAL] df_dds is empty for {drug_name} — skipping")
         return df_dds, [], []
@@ -782,10 +780,10 @@ def evaluate_all_dds(mol_profile: Dict, df_dds, drug_name: str = "") -> Tuple:
                               "P7.3_HBD_HBA_balance"],
     }
 
-    matrix: List[Dict] = []
-    breakdowns: List[Dict] = []
-    composite_scores: List[float] = []
-    group_scores_per_row: Dict[str, List[float]] = {g: [] for g in GROUP_KEYS}
+    matrix: list[dict] = []
+    breakdowns: list[dict] = []
+    composite_scores: list[float] = []
+    group_scores_per_row: dict[str, list[float]] = {g: [] for g in GROUP_KEYS}
 
     for idx in range(len(df)):
         dds = df.iloc[idx].to_dict()
@@ -798,7 +796,7 @@ def evaluate_all_dds(mol_profile: Dict, df_dds, drug_name: str = "") -> Tuple:
         composite_scores.append(round(composite, 2))
 
         # Group-level rollups (unweighted average within group)
-        group_rollup: Dict[str, float] = {}
+        group_rollup: dict[str, float] = {}
         for g, pids in GROUP_KEYS.items():
             vals = [per_principle[pid]["score"] for pid in pids if pid in per_principle]
             avg = sum(vals) / len(vals) if vals else 0.0
@@ -856,8 +854,8 @@ def evaluate_all_dds(mol_profile: Dict, df_dds, drug_name: str = "") -> Tuple:
     # Reorder breakdowns to match new ranking
     breakdown_by_idx = {b["dds_index"]: b for b in breakdowns}
     matrix_by_idx    = {m["dds_index"]: m for m in matrix}
-    breakdowns_sorted: List[Dict] = []
-    matrix_sorted: List[Dict] = []
+    breakdowns_sorted: list[dict] = []
+    matrix_sorted: list[dict] = []
     for idx in df.index:
         # Need original index — preserve via row uniqueness
         pass
@@ -897,8 +895,8 @@ def evaluate_all_dds(mol_profile: Dict, df_dds, drug_name: str = "") -> Tuple:
     return df, sorted_matrix, sorted_breakdowns
 
 
-def _build_narrative(dds: Dict, per_principle: Dict,
-                       groups: Dict, composite: float, verdict: str) -> str:
+def _build_narrative(dds: dict, per_principle: dict,
+                       groups: dict, composite: float, verdict: str) -> str:
     """Build a human-readable narrative explaining the score."""
     name = str(dds.get("Formulation_Name") or
                 dds.get("Formulation_ID") or "this DDS")

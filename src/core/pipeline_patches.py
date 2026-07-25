@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  PIPELINE PATCHES & EXTENSIONS
@@ -19,15 +18,23 @@ Import AFTER CEREBRO_Pipeline is imported:
 ================================================================================
 """
 
-import os, sys, io, base64, json, math, logging, warnings, time, copy, tempfile, re
+import base64
+import io
+import json
+import logging
+import re
+import time
+import warnings
+
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
+
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, List, Tuple, Any
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 
 warnings.filterwarnings("ignore")
 log = logging.getLogger("CEREBRO-PATCH")
@@ -109,7 +116,7 @@ class TrainAwareScaler:
         return obj
 
 
-def patched_train(cls, df: pd.DataFrame, feature_cols: List[str],
+def patched_train(cls, df: pd.DataFrame, feature_cols: list[str],
                   target_formula=None, run_id: str = None):
     """
     Drop-in replacement for AdvancedMLEngine.train().
@@ -128,15 +135,17 @@ def patched_train(cls, df: pd.DataFrame, feature_cols: List[str],
         all_preds = ensemble.predict(all_X)           # Predict all rows
         df["ML_Success_Probability"] = mm.transform(all_preds) # Transform (not fit)
     """
-    from sklearn.model_selection import KFold, cross_val_score, GridSearchCV
-    from sklearn.ensemble import (RandomForestRegressor, GradientBoostingRegressor,
-                                   VotingRegressor, IsolationForest)
-    from sklearn.svm import SVR
-    from sklearn.decomposition import PCA
-    from sklearn.preprocessing import StandardScaler, RobustScaler
-    from sklearn.pipeline import Pipeline
     from sklearn.covariance import EllipticEnvelope
-    from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+    from sklearn.decomposition import PCA
+    from sklearn.ensemble import (
+        GradientBoostingRegressor,
+        RandomForestRegressor,
+        VotingRegressor,
+    )
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+    from sklearn.model_selection import GridSearchCV, KFold, cross_val_score
+    from sklearn.preprocessing import RobustScaler, StandardScaler
+    from sklearn.svm import SVR
 
     try:
         import xgboost as xgb
@@ -363,7 +372,7 @@ class InferenceEngine:
     """
 
     def __init__(self, model, scaler: TrainAwareScaler,
-                 features: List[str], run_id: str = ""):
+                 features: list[str], run_id: str = ""):
         self.model    = model
         self.scaler   = scaler
         self.features = features
@@ -394,7 +403,7 @@ class InferenceEngine:
         return cls(model=bundle["model"], scaler=scaler,
                    features=bundle["features"], run_id=bundle.get("run_id",""))
 
-    def predict_single(self, profile: Dict[str, float]) -> float:
+    def predict_single(self, profile: dict[str, float]) -> float:
         """
         Predict ML_Success_Probability for ONE new molecule profile.
         Uses .transform() on the TRAINING scaler — NO re-fitting.
@@ -444,7 +453,7 @@ class ExcelReader:
     }
 
     @classmethod
-    def read(cls, xlsx_path: str) -> Tuple[Dict, List[Dict]]:
+    def read(cls, xlsx_path: str) -> tuple[dict, list[dict]]:
         """
         Returns:
             drug_profile  : dict with drug identity (for MoleculeEngine)
@@ -481,7 +490,7 @@ class ExcelReader:
         return bool(cls._MARKER_RE.match(label))
 
     @classmethod
-    def _read_drug_sheet(cls, wb) -> Dict:
+    def _read_drug_sheet(cls, wb) -> dict:
         ws = wb["1_Drug_Input"]
         profile = {}
         for row in ws.iter_rows(min_row=4, values_only=True):
@@ -519,7 +528,7 @@ class ExcelReader:
         return profile
 
     @classmethod
-    def _read_dds_sheet(cls, wb) -> List[Dict]:
+    def _read_dds_sheet(cls, wb) -> list[dict]:
         ws = wb["2_DDS_Formulations"]
         # Row 3 = headers
         headers = [str(c.value or "").strip()
@@ -542,8 +551,8 @@ class ExcelReader:
         return formulations
 
     @classmethod
-    def to_yaml_dict(cls, drug_profile: Dict,
-                     formulations: List[Dict]) -> Dict:
+    def to_yaml_dict(cls, drug_profile: dict,
+                     formulations: list[dict]) -> dict:
         """Convert Excel data to the same dict structure as dds_config.yaml."""
         return {
             "drug": {
@@ -610,7 +619,7 @@ class AnimationEngine:
             f.write("\n".join(lines))
 
     def pkpd_animation(self, df_pk: pd.DataFrame,
-                       fps: int = 15) -> Optional[Path]:
+                       fps: int = 15) -> Path | None:
         """
         Animated GIF: PK/PD kinetics curves drawn incrementally.
         Shows each drug's concentration curve being drawn over time.
@@ -679,7 +688,7 @@ class AnimationEngine:
         return out_path
 
     def bbb_score_animation(self, df_dds: pd.DataFrame,
-                            fps: int = 8) -> Optional[Path]:
+                            fps: int = 8) -> Path | None:
         """
         Animated GIF: BBB Engineering Score bar chart revealed one bar at a time.
         Ranked from lowest to highest, building suspense toward the top candidate.
@@ -750,7 +759,7 @@ class AnimationEngine:
         return out_path
 
     def radar_animation(self, df_ml: pd.DataFrame,
-                        fps: int = 10) -> Optional[Path]:
+                        fps: int = 10) -> Path | None:
         """
         Animated GIF: radar fingerprint chart rotating through each drug candidate.
         Each frame highlights one drug while dimming the others.
@@ -835,7 +844,7 @@ class AnimationEngine:
 # PATCH 5: BASE64 EXPORT (for REST API responses)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def encode_file_base64(path: Path) -> Optional[str]:
+def encode_file_base64(path: Path) -> str | None:
     """Read file and return Base64-encoded string for JSON transport."""
     try:
         with open(path, "rb") as f:
@@ -843,7 +852,7 @@ def encode_file_base64(path: Path) -> Optional[str]:
     except Exception:
         return None
 
-def collect_results_as_json(output_root: Path) -> Dict:
+def collect_results_as_json(output_root: Path) -> dict:
     """
     Collect all pipeline outputs into a single JSON-serialisable dict.
     PNG/GIF files are Base64-encoded for direct embedding in API response.
@@ -909,7 +918,7 @@ def collect_results_as_json(output_root: Path) -> Dict:
 # PATCH 6: IN-MEMORY PDF REPORT
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generate_pdf_report(results_json: Dict,
+def generate_pdf_report(results_json: dict,
                         title: str = "CEREBRO-X Analysis Report") -> bytes:
     """
     Generate a PDF report IN MEMORY from the results JSON.
@@ -917,14 +926,20 @@ def generate_pdf_report(results_json: Dict,
     Sent directly to client via FastAPI StreamingResponse.
     """
     try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import cm
         from reportlab.lib import colors
-        from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                         Table, TableStyle, Image as RLImage,
-                                         PageBreak)
         from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.lib.units import cm
+        from reportlab.platypus import Image as RLImage
+        from reportlab.platypus import (
+            PageBreak,
+            Paragraph,
+            SimpleDocTemplate,
+            Spacer,
+            Table,
+            TableStyle,
+        )
     except ImportError:
         raise ImportError("pip install reportlab")
 
@@ -1044,7 +1059,6 @@ def apply_patches(cp_module) -> None:
     Apply all patches to the CEREBRO_Pipeline module.
     Call after: import CEREBRO_Pipeline as cp
     """
-    import types
     # Patch AdvancedMLEngine.train with the leakage-free version
     cp_module.AdvancedMLEngine.train = classmethod(
         lambda cls, *a, **kw: patched_train(cls, *a, **kw))
@@ -1062,7 +1076,12 @@ def apply_patches(cp_module) -> None:
 
 
 __all__ = [
-    "TrainAwareScaler", "InferenceEngine", "ExcelReader",
-    "AnimationEngine", "collect_results_as_json",
-    "generate_pdf_report", "patched_train", "apply_patches",
+    "AnimationEngine",
+    "ExcelReader",
+    "InferenceEngine",
+    "TrainAwareScaler",
+    "apply_patches",
+    "collect_results_as_json",
+    "generate_pdf_report",
+    "patched_train",
 ]

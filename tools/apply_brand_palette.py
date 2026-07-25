@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 apply_brand_palette.py
 =======================
@@ -23,6 +22,7 @@ This is conservative: only touches hex codes used as colour values, not
 strings that happen to contain the same byte sequence.
 """
 from __future__ import annotations
+
 import re
 from pathlib import Path
 
@@ -86,7 +86,7 @@ def should_process(path: Path) -> bool:
 
 def main() -> None:
     print("┌─ Brand palette normalization")
-    print(f"│  Mappings:")
+    print("│  Mappings:")
     for k, v in HEX_REMAP.items():
         if k.startswith("#") and k[1].isupper():
             print(f"│      {k}  →  {v}")

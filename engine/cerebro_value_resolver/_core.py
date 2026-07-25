@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | cerebro_value_resolver/_core.py
@@ -20,9 +19,11 @@ to (DB_name, identifier).
 ================================================================================
 """
 from __future__ import annotations
+
 import logging
-from typing import Dict, Any, Optional, List, Callable
+from collections.abc import Callable
 from functools import lru_cache
+from typing import Any
 
 log = logging.getLogger("CEREBRO-RESOLVER")
 
@@ -37,8 +38,14 @@ except ImportError:
 
 try:
     from rdkit import Chem
-    from rdkit.Chem import (Descriptors, Crippen, Lipinski, rdMolDescriptors,
-                              AllChem, Draw)
+    from rdkit.Chem import (
+        AllChem,
+        Crippen,
+        Descriptors,
+        Draw,
+        Lipinski,
+        rdMolDescriptors,
+    )
     _HAS_RDKIT = True
 except ImportError:
     _HAS_RDKIT = False
@@ -121,9 +128,9 @@ TIER_CONFIDENCE = {
 # Standard return record
 # ──────────────────────────────────────────────────────────────────────────
 def _resolved(value: Any, tier: int, source: str, method: str,
-                reference: str, live_db_misses: List[str],
-                computational_method: Optional[str] = None,
-                extra: Optional[Dict] = None) -> Dict:
+                reference: str, live_db_misses: list[str],
+                computational_method: str | None = None,
+                extra: dict | None = None) -> dict:
     """Build the standard ResolvedValue record returned by every resolver.
 
     Critical fields:
@@ -200,7 +207,7 @@ def _resolved(value: Any, tier: int, source: str, method: str,
 # ──────────────────────────────────────────────────────────────────────────
 def _safe_get(url: str, timeout: int = 8,
                 accept: str = "application/json",
-                headers_extra: Optional[Dict] = None) -> Optional[Any]:
+                headers_extra: dict | None = None) -> Any | None:
     if not _HAS_REQUESTS:
         return None
     try:
@@ -219,7 +226,7 @@ def _safe_get(url: str, timeout: int = 8,
 
 
 def _safe_post(url: str, data=None, json=None, timeout: int = 8,
-                 accept: str = "application/json") -> Optional[Any]:
+                 accept: str = "application/json") -> Any | None:
     if not _HAS_REQUESTS: return None
     try:
         h = {"User-Agent": "CEREBRO-X/22.1", "Accept": accept}
@@ -235,7 +242,7 @@ def _safe_post(url: str, data=None, json=None, timeout: int = 8,
 # ──────────────────────────────────────────────────────────────────────────
 # Category Registry — populated by categories/*.py at import time
 # ──────────────────────────────────────────────────────────────────────────
-_REGISTRY: Dict[str, Callable] = {}
+_REGISTRY: dict[str, Callable] = {}
 
 
 def register(category: str):
@@ -249,7 +256,7 @@ def register(category: str):
     return deco
 
 
-def resolve_value(category: str, **context) -> Dict:
+def resolve_value(category: str, **context) -> dict:
     """Public API. Dispatch to the right resolver by category name.
 
     Categories are registered via the @register("name") decorator in
@@ -298,7 +305,7 @@ def resolve_value(category: str, **context) -> Dict:
             extra={"confidence": "FAILED"})
 
 
-def list_categories() -> List[str]:
+def list_categories() -> list[str]:
     """Public: list all registered categories."""
     return sorted(_REGISTRY.keys())
 
@@ -308,7 +315,7 @@ def list_categories() -> List[str]:
 # ──────────────────────────────────────────────────────────────────────────
 @lru_cache(maxsize=4096)
 def cached_safe_get(url: str, timeout: int = 8,
-                      accept: str = "application/json") -> Optional[str]:
+                      accept: str = "application/json") -> str | None:
     """Cached GET. Returns raw text (not parsed JSON) so it's hashable.
     For JSON, callers should json.loads(text)."""
     if not _HAS_REQUESTS: return None

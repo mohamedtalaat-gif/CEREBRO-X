@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 CEREBRO-X  —  Brand & Visual Identity (Single Source of Truth)
 ================================================================
@@ -158,7 +157,6 @@ def register_brand_fonts(verbose: bool = False) -> dict:
         plt.rcParams.update(matplotlib_style())
     """
     import os
-    from pathlib import Path
     try:
         from matplotlib import font_manager as _fm
     except ImportError:
@@ -421,7 +419,7 @@ def html_brand_header(title: str, subtitle: str = "", meta: str = "") -> str:
     Returns: an HTML block ready to drop after <body>.
     """
     parts = [
-        f'<div class="brand-header">',
+        '<div class="brand-header">',
         f'  <div class="title">{PROJECT_NAME}</div>',
     ]
     if title and title.strip().lower() not in ("cerebro-x", PROJECT_NAME.lower()):
@@ -439,8 +437,13 @@ def html_brand_header(title: str, subtitle: str = "", meta: str = "") -> str:
 # in one import.
 try:
     from _version import (
-        PROJECT_NAME, PROJECT_VERSION, PROJECT_TITLE_FULL,
-        AUTHOR, CITATION, COPYRIGHT, footer_line,
+        AUTHOR,
+        CITATION,
+        COPYRIGHT,
+        PROJECT_NAME,
+        PROJECT_TITLE_FULL,
+        PROJECT_VERSION,
+        footer_line,
     )
 except ImportError:
     # Defensive fallback so this module imports cleanly even if _version
@@ -451,7 +454,7 @@ except ImportError:
     AUTHOR             = "Muhammad Talaat"
     CITATION           = "Talaat M (2026) CEREBRO-X."
     COPYRIGHT          = "© 2024–2026  Muhammad Talaat  |  CEREBRO-X"
-    def footer_line() -> str:                          # noqa: E301
+    def footer_line() -> str:
         return "CEREBRO-X |  Muhammad Talaat"
 
 

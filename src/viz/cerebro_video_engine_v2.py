@@ -1,16 +1,17 @@
-# -*- coding: utf-8 -*-
 """
 CEREBRO-X | VIDEO ENGINE v2  — Fixed MP4 generation using imageio v2 + ffmpeg
 Created by: Muhammad Talaat -- CEREBRO-X
 """
-import io, math, logging
-import numpy as np
+import io
+import logging
+import math
 from pathlib import Path
-from typing import Dict, List, Optional
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Circle, Rectangle
 
 log = logging.getLogger("CEREBRO-VIDEO2")
@@ -29,7 +30,7 @@ def _frame(fig) -> bytes:
     return buf.read()
 
 
-def _write_video(frames: List[bytes], out: Path, fps: int = 20) -> bool:
+def _write_video(frames: list[bytes], out: Path, fps: int = 20) -> bool:
     """Write MP4 using imageio v2 + bundled ffmpeg.
 
     If `imageio_ffmpeg` is unavailable, the caller gets a clear actionable
@@ -39,7 +40,7 @@ def _write_video(frames: List[bytes], out: Path, fps: int = 20) -> bool:
     """
     try:
         import imageio.v2 as iio
-        import imageio_ffmpeg     # noqa: F401 — required for FFMPEG writer
+        import imageio_ffmpeg  # noqa: F401 — required for FFMPEG writer
     except ImportError as e:
         log.error(
             "[Video] imageio_ffmpeg is missing — MP4 generation disabled. "
@@ -67,7 +68,7 @@ def _write_video(frames: List[bytes], out: Path, fps: int = 20) -> bool:
         return False
 
 
-def make_video_bbb(drug_name: str, top_dds: Dict, out_dir: Path, fps=24, n=120) -> Optional[Path]:
+def make_video_bbb(drug_name: str, top_dds: dict, out_dir: Path, fps=24, n=120) -> Path | None:
     """V01: BBB Crossing — 5 stage animated simulation."""
     out = out_dir / f"V01_BBB_Crossing_{drug_name}.mp4"
     bbb_enh = float(top_dds.get("BBB_Enhanced_Pct", 30))
@@ -173,8 +174,8 @@ def make_video_bbb(drug_name: str, top_dds: Dict, out_dir: Path, fps=24, n=120) 
     return out if success else None
 
 
-def make_video_pbpk(pbpk: Dict, drug_name: str, top_dds: Dict,
-                     out_dir: Path, fps=20, n=80) -> Optional[Path]:
+def make_video_pbpk(pbpk: dict, drug_name: str, top_dds: dict,
+                     out_dir: Path, fps=20, n=80) -> Path | None:
     """V02: PBPK 6-compartment animated time course."""
     out = out_dir / f"V02_PBPK_{drug_name}.mp4"
     if not pbpk or pbpk.get("error"): return None
@@ -224,8 +225,8 @@ def make_video_pbpk(pbpk: Dict, drug_name: str, top_dds: Dict,
     return out if _write_video(frames, out, fps) else None
 
 
-def make_video_release(release: Dict, drug_name: str, top_dds: Dict,
-                        out_dir: Path, fps=20, n=70) -> Optional[Path]:
+def make_video_release(release: dict, drug_name: str, top_dds: dict,
+                        out_dir: Path, fps=20, n=70) -> Path | None:
     """V03: Drug release kinetics animation."""
     out = out_dir / f"V03_Release_{drug_name}.mp4"
     if not release or release.get("error"): return None
@@ -264,8 +265,8 @@ def make_video_release(release: Dict, drug_name: str, top_dds: Dict,
     return out if _write_video(frames, out, fps) else None
 
 
-def make_video_ranking(df_data: List[Dict], drug_name: str,
-                        out_dir: Path, fps=20) -> Optional[Path]:
+def make_video_ranking(df_data: list[dict], drug_name: str,
+                        out_dir: Path, fps=20) -> Path | None:
     """V04: DDS ranking reveal animation."""
     out = out_dir / f"V04_DDS_Ranking_{drug_name}.mp4"
     if not df_data: return None
@@ -315,8 +316,8 @@ def make_video_ranking(df_data: List[Dict], drug_name: str,
     return out if _write_video(frames, out, fps) else None
 
 
-def make_video_biodistrib(top_dds: Dict, drug_name: str,
-                           out_dir: Path, fps=20, n=60) -> Optional[Path]:
+def make_video_biodistrib(top_dds: dict, drug_name: str,
+                           out_dir: Path, fps=20, n=60) -> Path | None:
     """V05: Organ biodistribution animated pie."""
     out = out_dir / f"V05_Biodistrib_{drug_name}.mp4"
     cns   = float(top_dds.get("CNS_Bioavailability_Pct", 10))
@@ -373,8 +374,8 @@ def make_video_biodistrib(top_dds: Dict, drug_name: str,
     return out if _write_video(frames, out, fps) else None
 
 
-def run_all_videos(drug_name: str, top_dds: Dict, df_dds_data: List[Dict],
-                    science: Dict, out_dir: Path, fps: int = 24) -> Dict:
+def run_all_videos(drug_name: str, top_dds: dict, df_dds_data: list[dict],
+                    science: dict, out_dir: Path, fps: int = 24) -> dict:
     """Generate all videos. Returns dict of {name: path}."""
     out_dir = Path(out_dir); out_dir.mkdir(parents=True, exist_ok=True)
     results = {}

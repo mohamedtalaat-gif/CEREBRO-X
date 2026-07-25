@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X — INFRASTRUCTURE
@@ -29,13 +28,11 @@ This single command:
 ================================================================================
 """
 import os
-import re
-import yaml
 from pathlib import Path
-import os
-import yaml
+
 import pandas as pd
-from pathlib import Path
+import yaml
+
 
 def get_data_from_excel():
     """Reads the drug name directly from the Excel file."""
@@ -87,7 +84,7 @@ def auto_fix_config():
         yaml.dump(new_config, f, default_flow_style=False)
         
     print(f"✅ Successfully linked! Current drug in the system: {drug_name}")
-    print(f"🚀 Old results will be ignored. The pipeline will process the new Excel data.")
+    print("🚀 Old results will be ignored. The pipeline will process the new Excel data.")
 
 if __name__ == "__main__":
     auto_fix_config()
@@ -95,7 +92,9 @@ if __name__ == "__main__":
 # ─────────────────────────────────────────────────────────────────────────────
 # 0.  ANCHOR
 # ─────────────────────────────────────────────────────────────────────────────
-import os, sys, platform
+import platform
+import sys
+
 try:
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 except NameError:
@@ -153,14 +152,16 @@ except ImportError:
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.  STANDARD IMPORTS
 # ─────────────────────────────────────────────────────────────────────────────
-import time, json, logging, warnings, subprocess, threading, hashlib
-import importlib, textwrap, shutil
-from pathlib import Path
+import logging
+import textwrap
+import threading
+import time
+import warnings
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Any
+from pathlib import Path
+from typing import Any
 
 import numpy as np
-import pandas as pd
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(
@@ -188,11 +189,11 @@ except ImportError:
     _HAS_IMPUTER = False
 
 try:
-    from fastapi import FastAPI, BackgroundTasks, HTTPException, Depends
-    from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import JSONResponse, FileResponse
-    from pydantic import BaseModel as PydanticBase
     import uvicorn
+    from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import FileResponse, JSONResponse
+    from pydantic import BaseModel as PydanticBase
     _HAS_FASTAPI = True
 except ImportError:
     _HAS_FASTAPI = False
@@ -306,7 +307,7 @@ class ImputerEngine:
     _imputer = None   # cached singleton
 
     @classmethod
-    def _get_imputer(cls) -> Optional[Any]:
+    def _get_imputer(cls) -> Any | None:
         if not _HAS_IMPUTER:
             return None
         if cls._imputer is None:
@@ -320,7 +321,7 @@ class ImputerEngine:
         return cls._imputer
 
     @classmethod
-    def impute(cls, df: pd.DataFrame, numeric_cols: List[str]) -> pd.DataFrame:
+    def impute(cls, df: pd.DataFrame, numeric_cols: list[str]) -> pd.DataFrame:
         """
         Apply IterativeImputer to secondary numeric columns only.
         Core columns with NaN trigger strict rejection (row dropped).
@@ -540,7 +541,7 @@ class DDSEngine:
         return round(min(max(score, 0), 100), 2)
 
     @classmethod
-    def load_config(cls) -> Optional[Dict]:
+    def load_config(cls) -> dict | None:
         """Load and validate dds_config.yaml."""
         if not DDS_CONFIG.exists():
             log.error(f"dds_config.yaml not found at {DDS_CONFIG}")
@@ -556,7 +557,7 @@ class DDSEngine:
         return cfg
 
     @classmethod
-    def build_dataframe(cls, cfg: Dict) -> pd.DataFrame:
+    def build_dataframe(cls, cfg: dict) -> pd.DataFrame:
         """
         Convert formulations list to DataFrame.
         Fields marked null in YAML are left as NaN for ImputerEngine.
@@ -632,7 +633,7 @@ class DDSEngine:
         # Try to import CascadeDataEngine from the main pipeline
         try:
             sys.path.insert(0, SCRIPT_DIR)
-            from CEREBRO_Pipeline import CascadeDataEngine, CLINICAL_HL, MW_REF
+            from CEREBRO_Pipeline import CLINICAL_HL, MW_REF, CascadeDataEngine
             data = CascadeDataEngine.fetch_drug(drug_name)
             if data:
                 if needs_mw:
@@ -658,7 +659,7 @@ class DDSEngine:
         return df
 
     @classmethod
-    def run(cls) -> Optional[pd.DataFrame]:
+    def run(cls) -> pd.DataFrame | None:
         """
         Full DDS analysis pipeline:
         1. Load YAML
@@ -863,7 +864,6 @@ else:
     class _StubTask:
         def delay(self, *a, **kw):
             log.warning("Celery not installed — task runs synchronously")
-            return None
     run_pipeline_task = _StubTask()
     run_dds_task      = _StubTask()
 
@@ -885,8 +885,8 @@ if _HAS_FASTAPI:
 
     # ── Pydantic request/response models ──────────────────────────────────
     class PipelineRequest(PydanticBase):
-        drugs:       List[str] = []          # v22.1: NO defaults — caller must supply
-        aav_vectors: List[str] = ["AAV9","AAV-PHP.eB","AAV5"]   # AAV serotypes (not drugs)
+        drugs:       list[str] = []          # v22.1: NO defaults — caller must supply
+        aav_vectors: list[str] = ["AAV9","AAV-PHP.eB","AAV5"]   # AAV serotypes (not drugs)
         async_mode:  bool      = True
 
     class DDSRequest(PydanticBase):
@@ -1016,16 +1016,21 @@ if _HAS_FASTAPI:
         This endpoint is the bridge between the website form and the pipeline.
         The website sends a filled Excel → gets back a complete analysis JSON.
         """
-        import tempfile, shutil
-        from fastapi import UploadFile
+        import shutil
+        import tempfile
+
         from fastapi.responses import StreamingResponse
 
         # Import patches
         try:
-            from cerebro_pipeline_patches import (
-                ExcelReader, AnimationEngine,
-                collect_results_as_json, generate_pdf_report, apply_patches)
             import CEREBRO_Pipeline as cp
+            from cerebro_pipeline_patches import (
+                AnimationEngine,
+                ExcelReader,
+                apply_patches,
+                collect_results_as_json,
+                generate_pdf_report,
+            )
             apply_patches(cp)
         except ImportError as e:
             raise HTTPException(500, f"Patch module not found: {e}")
@@ -1062,7 +1067,9 @@ if _HAS_FASTAPI:
 
             # Write temporary YAML config for DDSEngine
             if _HAS_YAML:
-                import yaml, tempfile
+                import tempfile
+
+                import yaml
                 with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml",
                                                   delete=False,
                                                   encoding="utf-8") as ytmp:
@@ -1072,7 +1079,6 @@ if _HAS_FASTAPI:
                 # Run DDSEngine with the uploaded config
                 original_config = DDSEngine.__dict__.get("_config_path_override")
                 # Temporarily override config path
-                import types
                 orig_load = DDSEngine.load_config.__func__ if hasattr(DDSEngine.load_config, "__func__") else DDSEngine.load_config
 
                 def _tmp_load(cls):
@@ -1189,7 +1195,10 @@ if _HAS_FASTAPI:
         """
         from fastapi.responses import StreamingResponse
         try:
-            from cerebro_pipeline_patches import collect_results_as_json, generate_pdf_report
+            from cerebro_pipeline_patches import (
+                collect_results_as_json,
+                generate_pdf_report,
+            )
         except ImportError:
             raise HTTPException(500, "cerebro_pipeline_patches.py not found")
 
@@ -1225,6 +1234,7 @@ if _HAS_FASTAPI:
             # v22.1: NO hardcoded drug list. Read from current Excel input.
             try:
                 from pathlib import Path as _P
+
                 import pandas as _pd
                 _xlsx = _P("CEREBRO_Input_Template.xlsx")
                 if not _xlsx.exists():
@@ -1270,6 +1280,7 @@ def _blocking_pipeline_run_standalone():
         # v22.1: NO hardcoded drug list. Read live from current Excel input.
         try:
             from pathlib import Path as _P
+
             import pandas as _pd
             _xlsx = _P("CEREBRO_Input_Template.xlsx")
             if not _xlsx.exists():
@@ -1524,22 +1535,21 @@ if __name__ == "__main__":
 # CEREBRO-X — PRODUCTION BACKEND (FastAPI + PostgreSQL)
 # =============================================================================
 
-import os, sys, asyncio, logging
-from datetime import datetime
+import asyncio
+import logging
+import os
+import sys
 
-import numpy as np
 import pandas as pd
-
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, Float, String
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sqlalchemy import Column, Float, Integer, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, sessionmaker
 
 # =============================================================================
 # 1. CONFIG

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | NOVEL DRUG ANALOG ENGINE — NO HARDCODED REFERENCE DB
@@ -19,16 +18,20 @@ PUBLIC INTERFACE (preserved for backward compatibility):
 ================================================================================
 """
 from __future__ import annotations
-import logging, json, urllib.request, urllib.parse, time
-from typing import Dict, List, Optional
+
+import json
+import logging
+import time
+import urllib.parse
+import urllib.request
 
 log = logging.getLogger("CEREBRO-ANALOG")
 
 # Empty list — preserved for any code that still imports REFERENCE_DRUGS.
-REFERENCE_DRUGS: List[Dict] = []
+REFERENCE_DRUGS: list[dict] = []
 
 
-def _safe_get(url: str, timeout: int = 10) -> Optional[dict]:
+def _safe_get(url: str, timeout: int = 10) -> dict | None:
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "CEREBRO-X/22.1"})
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -39,7 +42,7 @@ def _safe_get(url: str, timeout: int = 10) -> Optional[dict]:
 
 
 def _live_chembl_similarity(smiles: str, threshold_pct: int = 60,
-                              limit: int = 5) -> List[Dict]:
+                              limit: int = 5) -> list[dict]:
     """Live ChEMBL similarity search."""
     if not smiles: return []
     try:
@@ -70,7 +73,7 @@ def _live_chembl_similarity(smiles: str, threshold_pct: int = 60,
 
 
 def _live_pubchem_similarity(smiles: str, threshold: int = 90,
-                                limit: int = 5) -> List[Dict]:
+                                limit: int = 5) -> list[dict]:
     """Live PubChem 2D similarity search."""
     if not smiles: return []
     try:
@@ -112,8 +115,8 @@ def _live_pubchem_similarity(smiles: str, threshold: int = 90,
         return []
 
 
-def find_closest_analog(drug_name: str, mol_profile: Dict,
-                          smiles: Optional[str] = None) -> Dict:
+def find_closest_analog(drug_name: str, mol_profile: dict,
+                          smiles: str | None = None) -> dict:
     """Find the closest analog using live databases ONLY."""
     smiles = smiles or mol_profile.get("smiles") or mol_profile.get("SMILES") or ""
     smiles = str(smiles).strip()
@@ -128,9 +131,9 @@ def find_closest_analog(drug_name: str, mol_profile: Dict,
                 "method":         "no_smiles_input",
                 "_source":        "none",
             },
-            "disclaimer": (f"No SMILES provided. Cannot query live similarity "
-                            f"databases. Provide SMILES or canonical drug name "
-                            f"(PubChem will resolve it to SMILES) for analog matching."),
+            "disclaimer": ("No SMILES provided. Cannot query live similarity "
+                            "databases. Provide SMILES or canonical drug name "
+                            "(PubChem will resolve it to SMILES) for analog matching."),
         }
 
     chembl_hits = _live_chembl_similarity(smiles, threshold_pct=60, limit=5)
@@ -147,9 +150,9 @@ def find_closest_analog(drug_name: str, mol_profile: Dict,
                 "method":         "no_analog_found",
                 "_source":        "none",
             },
-            "disclaimer": (f"Live ChEMBL and PubChem similarity searches "
-                            f"returned no analogs for the provided SMILES. "
-                            f"This may indicate a genuinely novel chemical entity."),
+            "disclaimer": ("Live ChEMBL and PubChem similarity searches "
+                            "returned no analogs for the provided SMILES. "
+                            "This may indicate a genuinely novel chemical entity."),
         }
 
     best = max(all_hits, key=lambda h: h["similarity_pct"])

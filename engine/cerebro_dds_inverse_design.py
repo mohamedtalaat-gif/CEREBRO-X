@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_dds_inverse_design.py  —  DDS Formulation Optimizer
@@ -62,7 +61,6 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import Dict, List, Optional, Tuple
 
 log = logging.getLogger("CEREBRO-DDS-INVERSE")
 
@@ -72,7 +70,7 @@ log = logging.getLogger("CEREBRO-DDS-INVERSE")
 # the example values already used throughout this project's demo inputs,
 # not fitted from any dataset.
 # ─────────────────────────────────────────────────────────────────────────────
-CATEGORICAL_SPACE: Dict[str, List[str]] = {
+CATEGORICAL_SPACE: dict[str, list[str]] = {
     "Carrier_Type": ["liposome", "plga", "lnp", "solid_lipid", "micelle",
                       "dendrimer", "aav9", "aav"],
     "Surface_Ligand": ["Transferrin", "RVG29", "ApoE", "Lactoferrin",
@@ -80,7 +78,7 @@ CATEGORICAL_SPACE: Dict[str, List[str]] = {
     "Release_Kinetics": ["sustained", "burst", "pH_triggered", "thermal_triggered"],
     "Scale_Up_Readiness": ["lab", "pilot", "clinical"],
 }
-CONTINUOUS_SPACE: Dict[str, Tuple[float, float]] = {
+CONTINUOUS_SPACE: dict[str, tuple[float, float]] = {
     "Size_nm":                     (20.0, 300.0),
     "Zeta_Potential_mV":           (-40.0, 20.0),
     "PDI":                         (0.05, 0.40),
@@ -95,7 +93,7 @@ CONTINUOUS_SPACE: Dict[str, Tuple[float, float]] = {
 ALL_PARAMS = list(CATEGORICAL_SPACE) + list(CONTINUOUS_SPACE)
 
 
-def _random_individual(rng: random.Random, idx: int) -> Dict:
+def _random_individual(rng: random.Random, idx: int) -> dict:
     ind = {"Formulation_ID": f"GA{idx:04d}", "Formulation_Name": f"Generated_{idx:04d}"}
     for k, choices in CATEGORICAL_SPACE.items():
         ind[k] = rng.choice(choices)
@@ -104,14 +102,14 @@ def _random_individual(rng: random.Random, idx: int) -> Dict:
     return ind
 
 
-def _crossover(a: Dict, b: Dict, rng: random.Random) -> Dict:
+def _crossover(a: dict, b: dict, rng: random.Random) -> dict:
     child = {"Formulation_ID": "", "Formulation_Name": ""}
     for k in ALL_PARAMS:
         child[k] = a[k] if rng.random() < 0.5 else b[k]
     return child
 
 
-def _mutate(ind: Dict, rng: random.Random, rate: float = 0.15) -> Dict:
+def _mutate(ind: dict, rng: random.Random, rate: float = 0.15) -> dict:
     out = dict(ind)
     for k in ALL_PARAMS:
         if rng.random() < rate:
@@ -123,19 +121,19 @@ def _mutate(ind: Dict, rng: random.Random, rate: float = 0.15) -> Dict:
     return out
 
 
-def _dedupe_key(ind: Dict) -> tuple:
+def _dedupe_key(ind: dict) -> tuple:
     return tuple(ind[k] for k in ALL_PARAMS)
 
 
 def generate_candidate_formulations(
-    drug_bundle: Dict,
+    drug_bundle: dict,
     drug_name: str = "",
-    existing_formulations: Optional["object"] = None,  # pandas.DataFrame, optional
+    existing_formulations: object | None = None,  # pandas.DataFrame, optional
     n_generations: int = 15,
     population_size: int = 24,
     top_k: int = 5,
-    seed: Optional[int] = 42,
-) -> Dict:
+    seed: int | None = 42,
+) -> dict:
     """
     Search the DDS formulation-parameter space for high-scoring candidates,
     using cerebro_62_orchestrator.evaluate_all_dds_62 as the fitness
@@ -170,7 +168,7 @@ def generate_candidate_formulations(
 
     population = [_random_individual(rng, i) for i in range(population_size)]
     n_evaluated = 0
-    best_ever: List[Dict] = []
+    best_ever: list[dict] = []
 
     for gen in range(n_generations):
         df = pd.DataFrame(population)
@@ -193,7 +191,7 @@ def generate_candidate_formulations(
         elites = scored[:max(2, population_size // 6)]
         next_pop = [{k: e[k] for k in ["Formulation_ID", "Formulation_Name"] + ALL_PARAMS} for e in elites]
 
-        def tournament() -> Dict:
+        def tournament() -> dict:
             a, b = rng.sample(scored, 2)
             winner = a if a.get("Principle_Composite_Score", 0) >= b.get("Principle_Composite_Score", 0) else b
             return {k: winner[k] for k in ALL_PARAMS}
@@ -209,7 +207,7 @@ def generate_candidate_formulations(
         population = next_pop
 
     # Deduplicate best_ever by parameter tuple, keep highest score per unique tuple
-    by_key: Dict[tuple, Dict] = {}
+    by_key: dict[tuple, dict] = {}
     for r in best_ever:
         key = _dedupe_key(r)
         if key not in by_key or r.get("Principle_Composite_Score", 0) > by_key[key].get("Principle_Composite_Score", 0):

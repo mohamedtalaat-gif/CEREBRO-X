@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  MLOps ENGINE
@@ -42,19 +41,15 @@ References:
 ================================================================================
 """
 
-import os
-import sys
-import json
 import hashlib
+import json
 import logging
+import os
 import sqlite3
-import time
-import math
-import warnings
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, Dict, List, Tuple, Any
-from dataclasses import dataclass, field, asdict
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -108,13 +103,13 @@ class ModelVersion:
     model_name:     str
     version:        str              # semantic: "1.0.0", "1.1.0", etc.
     stage:          str = ModelStage.DEVELOPMENT
-    metrics:        Dict = field(default_factory=dict)
-    hyperparams:    Dict = field(default_factory=dict)
+    metrics:        dict = field(default_factory=dict)
+    hyperparams:    dict = field(default_factory=dict)
     training_data_hash: str = ""
     artifact_path:  str = ""
     created_at:     str = ""
     description:    str = ""
-    tags:           Dict = field(default_factory=dict)
+    tags:           dict = field(default_factory=dict)
     run_id:         str = ""
 
 
@@ -229,7 +224,7 @@ class ModelRegistry:
         conn.close()
         log.info(f"[REGISTRY] Promoted {model_name} v{version} → {target_stage}")
 
-    def get_production(self, model_name: str) -> Optional[ModelVersion]:
+    def get_production(self, model_name: str) -> ModelVersion | None:
         """Get the current production model version."""
         conn = sqlite3.connect(self.db_path)
         row = conn.execute("""
@@ -242,7 +237,7 @@ class ModelRegistry:
             return None
         return self._row_to_mv(row)
 
-    def get_latest(self, model_name: str) -> Optional[ModelVersion]:
+    def get_latest(self, model_name: str) -> ModelVersion | None:
         """Get the latest model version regardless of stage."""
         conn = sqlite3.connect(self.db_path)
         row = conn.execute("""
@@ -254,7 +249,7 @@ class ModelRegistry:
         return self._row_to_mv(row) if row else None
 
     def list_versions(self, model_name: str,
-                      stage: str = None) -> List[ModelVersion]:
+                      stage: str = None) -> list[ModelVersion]:
         conn = sqlite3.connect(self.db_path)
         if stage:
             rows = conn.execute("""
@@ -342,7 +337,7 @@ class ModelDriftDetector:
 
     @staticmethod
     def ks_test(reference: np.ndarray,
-                current: np.ndarray) -> Tuple[float, float]:
+                current: np.ndarray) -> tuple[float, float]:
         """
         Two-sample Kolmogorov-Smirnov test.
         Returns (statistic, p_value).
@@ -358,7 +353,7 @@ class ModelDriftDetector:
         cls,
         reference_preds: np.ndarray,
         current_preds:   np.ndarray,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Full prediction drift analysis.
         Returns dict with PSI, KS test, and drift verdict.
@@ -406,7 +401,7 @@ class ModelDriftDetector:
         baseline_mae: float,
         r2_drop_threshold:  float = 0.10,
         mae_rise_threshold: float = 0.20,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Compare current model metrics vs baseline.
         Flags degradation if R² drops or MAE rises beyond thresholds.
@@ -449,7 +444,7 @@ class DataDriftDetector:
 
     @classmethod
     def compute_reference_profile(cls, df: pd.DataFrame,
-                                  numeric_cols: List[str]) -> Dict:
+                                  numeric_cols: list[str]) -> dict:
         """
         Snapshot reference statistics from training data.
         Store this once after training — compare all future data against it.
@@ -483,9 +478,9 @@ class DataDriftDetector:
         return profile
 
     @classmethod
-    def detect_drift(cls, reference_profile: Dict,
+    def detect_drift(cls, reference_profile: dict,
                      live_df: pd.DataFrame,
-                     numeric_cols: List[str]) -> Dict:
+                     numeric_cols: list[str]) -> dict:
         """
         Run full drift detection suite against reference profile.
         Returns per-feature drift results + overall summary.
@@ -564,7 +559,7 @@ class DataDriftDetector:
         return results
 
     @staticmethod
-    def _check_schema(ref_profile: Dict, live_df: pd.DataFrame) -> Dict:
+    def _check_schema(ref_profile: dict, live_df: pd.DataFrame) -> dict:
         """Check for missing columns, new columns, type changes."""
         ref_cols  = set(ref_profile.get("schema", {}).get("columns", []))
         live_cols = set(live_df.columns)
@@ -587,7 +582,7 @@ class ExperimentTracker:
     def __init__(self, db_path: Path = MLOPS_DB_PATH):
         self.db_path = db_path
 
-    def start_run(self, model_name: str, params: Dict = None,
+    def start_run(self, model_name: str, params: dict = None,
                   notes: str = "") -> str:
         """Start a new experiment run. Returns run_id."""
         import secrets
@@ -604,7 +599,7 @@ class ExperimentTracker:
         log.info(f"[EXPERIMENT] Started run {run_id} for {model_name}")
         return run_id
 
-    def log_metrics(self, run_id: str, metrics: Dict):
+    def log_metrics(self, run_id: str, metrics: dict):
         conn = sqlite3.connect(self.db_path)
         conn.execute("""
             UPDATE experiments SET metrics = ? WHERE run_id = ?
@@ -637,7 +632,7 @@ class ExperimentTracker:
         conn.close()
         log.info(f"[EXPERIMENT] Run {run_id} → {status}")
 
-    def get_run(self, run_id: str) -> Optional[Dict]:
+    def get_run(self, run_id: str) -> dict | None:
         conn = sqlite3.connect(self.db_path)
         row = conn.execute(
             "SELECT * FROM experiments WHERE run_id = ?", (run_id,)
@@ -656,7 +651,7 @@ class ExperimentTracker:
             "notes":       row[11],
         }
 
-    def compare_runs(self, run_ids: List[str]) -> pd.DataFrame:
+    def compare_runs(self, run_ids: list[str]) -> pd.DataFrame:
         """Compare metrics across multiple runs as a DataFrame."""
         runs = [self.get_run(rid) for rid in run_ids]
         runs = [r for r in runs if r is not None]
@@ -685,7 +680,7 @@ class DriftEventLogger:
     def log_event(self, model_name: str, drift_type: str,
                   metric_name: str, metric_value: float,
                   threshold: float, severity: str = "warning",
-                  details: Dict = None):
+                  details: dict = None):
         conn = sqlite3.connect(self.db_path)
         conn.execute("""
             INSERT INTO drift_events
@@ -701,7 +696,7 @@ class DriftEventLogger:
         conn.close()
 
     def get_recent(self, model_name: str = None,
-                   hours: int = 24) -> List[Dict]:
+                   hours: int = 24) -> list[dict]:
         conn = sqlite3.connect(self.db_path)
         cutoff = (datetime.utcnow() - timedelta(hours=hours)).isoformat()
         if model_name:
@@ -747,9 +742,9 @@ class MLOpsPipeline:
         train_func:  callable,  # train_func(X, y) → (model, metrics)
         X_train:     np.ndarray,
         y_train:     np.ndarray,
-        hyperparams: Dict = None,
+        hyperparams: dict = None,
         description: str = "",
-    ) -> Tuple[Any, str]:
+    ) -> tuple[Any, str]:
         """
         Full training workflow:
         1. Start experiment
@@ -823,7 +818,7 @@ class MLOpsPipeline:
 
             return model, run_id
 
-        except Exception as e:
+        except Exception:
             self.tracker.end_run(run_id, "failed")
             raise
 
@@ -832,10 +827,10 @@ class MLOpsPipeline:
         model_name:      str,
         reference_preds: np.ndarray,
         current_preds:   np.ndarray,
-        reference_profile: Dict = None,
+        reference_profile: dict = None,
         live_df:           pd.DataFrame = None,
-        numeric_cols:      List[str] = None,
-    ) -> Dict:
+        numeric_cols:      list[str] = None,
+    ) -> dict:
         """
         Run all drift checks and log events.
         Returns combined drift report.

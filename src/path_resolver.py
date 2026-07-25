@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  PATH RESOLVER
@@ -33,9 +32,9 @@ Usage (in run.py — one line, before any pipeline imports):
 ================================================================================
 """
 
+import importlib
 import os
 import sys
-import importlib
 from pathlib import Path
 
 # ─────────────────────────────────────────────────────────────────────────────

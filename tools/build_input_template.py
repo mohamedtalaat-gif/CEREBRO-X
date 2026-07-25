@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  build_input_template.py
@@ -35,17 +34,15 @@ sheet name (it matches the existing schema exactly).
 ================================================================================
 """
 from __future__ import annotations
+
 from pathlib import Path
-import openpyxl
+
 from openpyxl import Workbook
-from openpyxl.styles import (Font, PatternFill, Alignment, Border, Side,
-                              NamedStyle)
-from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.table import Table, TableStyleInfo
-from openpyxl.formatting.rule import (ColorScaleRule, CellIsRule, FormulaRule)
-from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.comments import Comment
-from openpyxl.workbook.defined_name import DefinedName
+from openpyxl.formatting.rule import ColorScaleRule
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
 
 # ── Brand palette  (CEREBRO-X — see cerebro_brand.py for the full spec) ──
 # Excel-friendly variant: deep-space navy/gold for HEADERS, light tints for
@@ -292,7 +289,7 @@ def build_drug_input(ws, n_drug_slots: int = 3) -> None:
         _section_header(ws, row, f"  Drug {n}  (OPTIONAL — leave blank to skip)",
                          colour=MINT, colspan=5)
         row += 1
-        _input_row(ws, row, "Drug Name", f"e.g. Donepezil", "Optional", "")
+        _input_row(ws, row, "Drug Name", "e.g. Donepezil", "Optional", "")
         row += 1
         _input_row(ws, row, "Molecule Class",
                     "small_molecule | biologic | peptide", "Optional", "")

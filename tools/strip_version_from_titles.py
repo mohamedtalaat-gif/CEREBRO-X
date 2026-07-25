@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 strip_version_from_titles.py
 =============================
@@ -40,6 +39,7 @@ clearly inside a TITLE-emitting context. Anything ambiguous is left
 alone for review.
 """
 from __future__ import annotations
+
 import re
 from pathlib import Path
 

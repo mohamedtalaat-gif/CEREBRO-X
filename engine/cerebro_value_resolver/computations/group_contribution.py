@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | computations/group_contribution.py
@@ -28,8 +27,8 @@ Implementations:
 ================================================================================
 """
 from __future__ import annotations
-import math, re
-from typing import Dict, List, Optional, Tuple
+
+import math
 
 # ──────────────────────────────────────────────────────────────────────────
 # Joback (1987) group contribution — atom & functional-group counts
@@ -45,7 +44,7 @@ from typing import Dict, List, Optional, Tuple
 #
 # Format: group_label → (Tb_K, Tm_K, Tc_K, Pc_bar, Vc_cm3_mol, dHvap_kJ_mol,
 #                         dHform_kJ_mol, dGform_kJ_mol, Cp_a, Cp_b, Cp_c, Cp_d)
-JOBACK_GROUPS: Dict[str, Tuple] = {
+JOBACK_GROUPS: dict[str, tuple] = {
     # alkyl
     "-CH3":      (23.58, -5.10, 0.0141, -0.0012,  65, 2.373, -76.45, -43.96,
                    1.95E1, -8.08E-3, 1.53E-4, -9.67E-8),
@@ -96,12 +95,12 @@ JOBACK_GROUPS: Dict[str, Tuple] = {
 }
 
 
-def _tokenize_smiles_to_atoms(smiles: str) -> List[str]:
+def _tokenize_smiles_to_atoms(smiles: str) -> list[str]:
     """Very simple SMILES atom tokenizer. Handles two-letter elements and
     aromatic-vs-aliphatic distinction (lowercase = aromatic).
     Skips bond chars, parens, ring-closure digits.
     """
-    atoms: List[str] = []
+    atoms: list[str] = []
     i = 0
     skip = set("()=#-+./\\@123456789%0[]") 
     while i < len(smiles):
@@ -116,7 +115,7 @@ def _tokenize_smiles_to_atoms(smiles: str) -> List[str]:
     return atoms
 
 
-def _approximate_joback_groups(smiles: str) -> Dict[str, int]:
+def _approximate_joback_groups(smiles: str) -> dict[str, int]:
     """Rough Joback group counting from SMILES tokens (no SMARTS).
 
     Counts (-CH3, -CH2-, -CH<, =CH-(ar), =C<(ar), -OH(alc), -OH(phen),
@@ -124,7 +123,7 @@ def _approximate_joback_groups(smiles: str) -> Dict[str, int]:
     Approximations are deliberate — Tier 7 is fallback only.
     """
     atoms = _tokenize_smiles_to_atoms(smiles)
-    counts: Dict[str, int] = {k: 0 for k in JOBACK_GROUPS}
+    counts: dict[str, int] = {k: 0 for k in JOBACK_GROUPS}
 
     n_C  = sum(1 for a in atoms if a == "C")
     n_c  = sum(1 for a in atoms if a == "c")     # aromatic
@@ -176,7 +175,7 @@ def _approximate_joback_groups(smiles: str) -> Dict[str, int]:
     return {k: v for k, v in counts.items() if v > 0}
 
 
-def joback_estimate(smiles: str) -> Dict[str, float]:
+def joback_estimate(smiles: str) -> dict[str, float]:
     """Estimate Tb (K), Tm (K), Tc (K), Pc (bar), Vc (cm³/mol), ΔHvap, etc.
 
     Joback equations:
@@ -249,7 +248,7 @@ ATOM_LOGP_GHOSE_CRIPPEN = {
 }
 
 
-def ghose_crippen_logp_atomic(smiles: str) -> Optional[float]:
+def ghose_crippen_logp_atomic(smiles: str) -> float | None:
     """Atom-additive LogP (no RDKit). Returns rounded LogP or None."""
     if not smiles: return None
     atoms = _tokenize_smiles_to_atoms(smiles)
@@ -261,9 +260,9 @@ def ghose_crippen_logp_atomic(smiles: str) -> Optional[float]:
 # ──────────────────────────────────────────────────────────────────────────
 # Bjerrum 4-microspecies / Henderson-Hasselbalch
 # ──────────────────────────────────────────────────────────────────────────
-def hh_microspeciation(pka_acid: Optional[float],
-                         pka_base: Optional[float],
-                         pH: float = 7.4) -> Dict[str, float]:
+def hh_microspeciation(pka_acid: float | None,
+                         pka_base: float | None,
+                         pH: float = 7.4) -> dict[str, float]:
     """Bjerrum 4-microspecies (acid+base) or HH (single-site). Returns
     fractions f_cationic, f_anionic, f_zwitterion, f_neutral and net charge.
 
@@ -322,7 +321,7 @@ def stokes_einstein_diff(mw_Da: float, T_K: float = 310.15,
 
 def wilke_chang_diff(mw_solute_Da: float, T_K: float = 310.15,
                         visc_solvent_cP: float = 0.69,
-                        Vm_solute_cm3_mol: Optional[float] = None,
+                        Vm_solute_cm3_mol: float | None = None,
                         phi_solvent: float = 2.6) -> float:
     """Wilke-Chang (1955) AIChE J 1:264 — D₁₂ (cm²/s).
 
@@ -355,7 +354,7 @@ def hayduk_laudie_diff(Vm_solute_cm3_mol: float,
 # ──────────────────────────────────────────────────────────────────────────
 def lennard_jones_combine(eps1_K: float, sig1_A: float,
                              eps2_K: float, sig2_A: float
-                            ) -> Tuple[float, float]:
+                            ) -> tuple[float, float]:
     """Lorentz-Berthelot combining rules.
     σ_12 = (σ₁ + σ₂)/2;  ε_12 = √(ε₁·ε₂)
     """
@@ -399,7 +398,7 @@ def antoine_vapor_pressure(T_K: float, A: float, B: float, C: float) -> float:
 
 
 def clausius_clapeyron(T1_K: float, P1_Pa: float,
-                          dHvap_J_mol: float) -> Tuple[float, float]:
+                          dHvap_J_mol: float) -> tuple[float, float]:
     """Returns (T2, P2) extrapolation — caller picks T2 → P2 or vice versa.
     Here: returns slope dP/dT and intercept for ln(P) = -ΔHvap/RT + C.
     """

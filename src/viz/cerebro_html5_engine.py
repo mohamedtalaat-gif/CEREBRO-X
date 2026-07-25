@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  HTML5 CANVAS INTERACTIVE ENGINE
@@ -41,10 +40,11 @@ Generates fully self-contained HTML5 files with:
 """
 
 from __future__ import annotations
-import json, math, logging
+
+import json
+import logging
+import math
 from pathlib import Path
-from typing import Dict, List, Optional, Any
-import numpy as np
 
 log = logging.getLogger("CEREBRO-HTML5")
 
@@ -173,7 +173,7 @@ function hexAlpha(hex,a){{
 # ─────────────────────────────────────────────────────────────────────────────
 # H01: BBB CROSSING ANIMATION
 # ─────────────────────────────────────────────────────────────────────────────
-def h01_bbb_crossing(drug_name: str, top_dds: Dict, science: Dict) -> str:
+def h01_bbb_crossing(drug_name: str, top_dds: dict, science: dict) -> str:
     bbb_enh = float(top_dds.get("BBB_Enhanced_Pct", 30))
     bbb_nat = float(top_dds.get("BBB_Native_Pct", 3))
     ligand  = str(top_dds.get("Surface_Ligand", "RVG29"))
@@ -326,7 +326,7 @@ bbbDraw(0);
 # ─────────────────────────────────────────────────────────────────────────────
 # H02: PBPK TIME-COURSE
 # ─────────────────────────────────────────────────────────────────────────────
-def h02_pbpk(drug_name: str, pbpk: Dict, top_dds: Dict) -> str:
+def h02_pbpk(drug_name: str, pbpk: dict, top_dds: dict) -> str:
     if not pbpk or pbpk.get("error"):
         return ""
 
@@ -424,13 +424,13 @@ function pbpkToggleCell(){{const ds=pbpkChart.data.datasets[3];ds.hidden=!ds.hid
 # ─────────────────────────────────────────────────────────────────────────────
 # H05: DDS RANKING DASHBOARD
 # ─────────────────────────────────────────────────────────────────────────────
-def h05_dds_ranking(df_dds_data: List[Dict]) -> str:
+def h05_dds_ranking(df_dds_data: list[dict]) -> str:
     if not df_dds_data:
         return ""
     try:
-        from _dds_metrics import get_score, get_pct
+        from _dds_metrics import get_pct, get_score
     except ImportError:
-        from src.viz._dds_metrics import get_score, get_pct
+        from src.viz._dds_metrics import get_pct, get_score
     top20 = df_dds_data[:20]
     names  = [d.get("Formulation_Name","?")[:22] for d in top20]
     scores = [get_score(d) for d in top20]
@@ -495,7 +495,7 @@ function rankSwitch(mode){{
 # ─────────────────────────────────────────────────────────────────────────────
 # H06: DLVO STABILITY
 # ─────────────────────────────────────────────────────────────────────────────
-def h06_dlvo(top_dds: Dict) -> str:
+def h06_dlvo(top_dds: dict) -> str:
     size_nm = float(top_dds.get("size_nm", 80))
     zeta    = float(top_dds.get("zeta_potential_mv", -10))
     v_total = float(top_dds.get("DLVO_V_total_kT") or 0)
@@ -569,7 +569,7 @@ new Chart(dlvoCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H07: SHAP EXPLAINABILITY (Waterfall)
 # ─────────────────────────────────────────────────────────────────────────────
-def h07_shap(top_dds: Dict, drug_name: str) -> str:
+def h07_shap(top_dds: dict, drug_name: str) -> str:
     score = float(top_dds.get("Composite_Score") or top_dds.get("BBB_Engineering_Score") or 60)
     features = {
         "Surface_Ligand":      float(top_dds.get("BBB_Enhanced_Pct", 30)) * 0.25,
@@ -626,7 +626,7 @@ new Chart(shapCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H12: OFF-TARGET QSAR HEATMAP (50 receptors)
 # ─────────────────────────────────────────────────────────────────────────────
-def h12_qsar_heatmap(qsar: Dict, drug_name: str) -> str:
+def h12_qsar_heatmap(qsar: dict, drug_name: str) -> str:
     if not qsar or qsar.get("error"):
         return ""
     panel = qsar.get("receptor_panel", {})
@@ -687,7 +687,7 @@ function qsarView(mode){{
 # ─────────────────────────────────────────────────────────────────────────────
 # H13: DDS COMPARISON RADAR
 # ─────────────────────────────────────────────────────────────────────────────
-def h13_radar(df_dds_data: List[Dict]) -> str:
+def h13_radar(df_dds_data: list[dict]) -> str:
     """Top-5 DDS comparison radar.
 
     Bug history:
@@ -707,7 +707,7 @@ def h13_radar(df_dds_data: List[Dict]) -> str:
     try:
         from _dds_metrics import METRIC_DEFS, get_pct
     except ImportError:
-        from src.viz._dds_metrics import METRIC_DEFS, get_pct
+        from src.viz._dds_metrics import get_pct
 
     # The 5 axes of the radar (Score is the *outcome*, not an axis):
     metric_keys = ["BBB%", "CNS BA%", "Escape", "Stealth", "Payload%"]
@@ -717,8 +717,8 @@ def h13_radar(df_dds_data: List[Dict]) -> str:
     colors = ["#C9A84C", "#0D6E6E", "#F57C00", "#D4B563", "#B89A3F"]
 
     # Filter: keep DDS that have ≥3 of the 5 metrics with REAL (>0) values.
-    eligible: List[Dict] = []
-    excluded: List[str]  = []
+    eligible: list[dict] = []
+    excluded: list[str]  = []
     for d in df_dds_data[:15]:
         n_populated = sum(1 for m in metric_keys if get_pct(d, m) > 0)
         if n_populated >= 3:
@@ -729,7 +729,7 @@ def h13_radar(df_dds_data: List[Dict]) -> str:
             break
 
     if len(eligible) < 2:
-        return f"""
+        return """
 <div class="card">
   <div class="title">H13 · DDS Comparison Radar — Top-5 Formulations</div>
   <div class="subtitle" style="color:#C62828">⚠ Insufficient data: fewer than
@@ -786,7 +786,7 @@ new Chart(radarCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H15: SYNTHETIC CLINICAL TRIAL WATERFALL
 # ─────────────────────────────────────────────────────────────────────────────
-def h15_clinical(synth: Dict, drug_name: str) -> str:
+def h15_clinical(synth: dict, drug_name: str) -> str:
     if not synth or synth.get("error"):
         return ""
     resp     = float(synth.get("overall_response_pct", 70))
@@ -842,7 +842,7 @@ new Chart(trialCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H20: BOOTSTRAP VALIDATION (95% CI)
 # ─────────────────────────────────────────────────────────────────────────────
-def h20_bootstrap(df_dds_data: List[Dict]) -> str:
+def h20_bootstrap(df_dds_data: list[dict]) -> str:
     if len(df_dds_data) < 5:
         return ""
     try:
@@ -890,7 +890,7 @@ new Chart(bootCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H21: DRUG PROBLEM → DDS SOLUTION SANKEY
 # ─────────────────────────────────────────────────────────────────────────────
-def h21_sankey(problems: List[Dict], drug_name: str) -> str:
+def h21_sankey(problems: list[dict], drug_name: str) -> str:
     if not problems:
         return ""
     rows = ""
@@ -920,7 +920,7 @@ def h21_sankey(problems: List[Dict], drug_name: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # H03: DRUG RELEASE (interactive)
 # ─────────────────────────────────────────────────────────────────────────────
-def h03_release(release: Dict, top_dds: Dict, drug_name: str) -> str:
+def h03_release(release: dict, top_dds: dict, drug_name: str) -> str:
     if not release or release.get("error"):
         return ""
     t   = release.get("t_h", [])
@@ -973,7 +973,7 @@ new Chart(relCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H14: SHELF-LIFE DEGRADATION
 # ─────────────────────────────────────────────────────────────────────────────
-def h14_shelflife(shelf: Dict, top_dds: Dict, drug_name: str) -> str:
+def h14_shelflife(shelf: dict, top_dds: dict, drug_name: str) -> str:
     if not shelf or shelf.get("error"):
         return ""
     t90   = float(shelf.get("t90_shelf_life_days", 365))
@@ -1039,7 +1039,7 @@ new Chart(degCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H22: LNP IONIZATION CURVE
 # ─────────────────────────────────────────────────────────────────────────────
-def h22_ionization(ion: Dict, top_dds: Dict) -> str:
+def h22_ionization(ion: dict, top_dds: dict) -> str:
     if not ion or not ion.get("applicable"):
         return ""
     ph_arr = ion.get("pH_curve_pH", [])
@@ -1100,7 +1100,7 @@ new Chart(ionCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H24: CRYO-CHAIN EXCURSION
 # ─────────────────────────────────────────────────────────────────────────────
-def h24_cryo(cryo: Dict, top_dds: Dict, drug_name: str) -> str:
+def h24_cryo(cryo: dict, top_dds: dict, drug_name: str) -> str:
     if not cryo or cryo.get("error"):
         return ""
     exc_T  = float(cryo.get("excursion_temp_C", -20))
@@ -1157,7 +1157,7 @@ new Chart(cryoCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H25: MULTI-DRUG COMPARISON
 # ─────────────────────────────────────────────────────────────────────────────
-def h25_multidrug(multi_results: Optional[List[Dict]]) -> str:
+def h25_multidrug(multi_results: list[dict] | None) -> str:
     """Multi-drug comparison matrix — Phase 4 fix (2026-04-30).
 
     Previous bug: when top_dds for any drug lacked metrics, Chart.js
@@ -1176,8 +1176,8 @@ def h25_multidrug(multi_results: Optional[List[Dict]]) -> str:
     colors  = ["#C9A84C","#C9A84C","#0D6E6E","#F57C00","#7C4DFF"]
 
     # Filter eligible drugs (top_dds must have ≥3 populated metrics)
-    eligible: List[tuple] = []
-    excluded: List[str] = []
+    eligible: list[tuple] = []
+    excluded: list[str] = []
     for r in multi_results:
         td = r.get("top_dds", {}) or {}
         n_populated = sum(1 for m in metrics
@@ -1201,7 +1201,7 @@ def h25_multidrug(multi_results: Optional[List[Dict]]) -> str:
     datasets = []
     drug_names = [n for n, _ in eligible]
     for i, (drug_name, td) in enumerate(eligible):
-        vals: List = []
+        vals: list = []
         for m in metrics:
             raw = td.get(m)
             if raw is None:
@@ -1255,17 +1255,17 @@ new Chart(mrCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # MASTER: Assemble full HTML5 report
 # ─────────────────────────────────────────────────────────────────────────────
-def build_html5_report(drug_name: str, top_dds: Dict, df_dds_data: List[Dict],
-                        science: Dict, mol_profile: Dict,
-                        multi_results: Optional[List[Dict]] = None,
-                        out_path: Optional[Path] = None,
+def build_html5_report(drug_name: str, top_dds: dict, df_dds_data: list[dict],
+                        science: dict, mol_profile: dict,
+                        multi_results: list[dict] | None = None,
+                        out_path: Path | None = None,
                         # v22 — C+ Flow data (all optional for backward-compat)
-                        breakdown: Optional[List[Dict]] = None,
-                        matrix: Optional[List[Dict]] = None,
-                        deep_results: Optional[Dict] = None,
-                        deep_summary: Optional[Dict] = None,
-                        translational: Optional[Dict] = None,
-                        fallback_chain: Optional[List[Dict]] = None) -> str:
+                        breakdown: list[dict] | None = None,
+                        matrix: list[dict] | None = None,
+                        deep_results: dict | None = None,
+                        deep_summary: dict | None = None,
+                        translational: dict | None = None,
+                        fallback_chain: list[dict] | None = None) -> str:
     """Build complete interactive HTML5 report with all visualizations.
 
     v22: now also renders the C+ Flow outputs (surrogate principle scores,
@@ -1328,7 +1328,7 @@ def build_html5_report(drug_name: str, top_dds: Dict, df_dds_data: List[Dict],
 # ─────────────────────────────────────────────────────────────────────────────
 # H08: MOLECULAR DOCKING — Drug–DDS Receptor Binding (Canvas animation)
 # ─────────────────────────────────────────────────────────────────────────────
-def h08_molecular_docking(top_dds: Dict, science: Dict, drug_name: str) -> str:
+def h08_molecular_docking(top_dds: dict, science: dict, drug_name: str) -> str:
     fep = science.get("fep_binding", {}) or {}
     ligand   = str(top_dds.get("Surface_Ligand", "RVG29"))
     dG       = float(fep.get("dG_avidity_kcal", -12.5) or -12.5)
@@ -1486,13 +1486,13 @@ dockDraw(0);
 # ─────────────────────────────────────────────────────────────────────────────
 # H10: REGRESSION DOCKING — Score vs BBB% Scatter
 # ─────────────────────────────────────────────────────────────────────────────
-def h10_regression_docking(df_dds_data: List[Dict], drug_name: str) -> str:
+def h10_regression_docking(df_dds_data: list[dict], drug_name: str) -> str:
     if not df_dds_data:
         return ""
     try:
-        from _dds_metrics import get_score, get_pct
+        from _dds_metrics import get_pct, get_score
     except ImportError:
-        from src.viz._dds_metrics import get_score, get_pct
+        from src.viz._dds_metrics import get_pct, get_score
     names    = [d.get("Formulation_Name","?")[:16] for d in df_dds_data]
     scores   = [get_score(d)              for d in df_dds_data]
     bbb      = [get_pct(d, "BBB%")        for d in df_dds_data]
@@ -1581,7 +1581,7 @@ function regSwitch(mode){{
 # ─────────────────────────────────────────────────────────────────────────────
 # H11: EFFICIENCY HEATMAP — DDS × Metric matrix
 # ─────────────────────────────────────────────────────────────────────────────
-def h11_efficiency_heatmap(df_dds_data: List[Dict], drug_name: str) -> str:
+def h11_efficiency_heatmap(df_dds_data: list[dict], drug_name: str) -> str:
     """DDS × performance matrix heatmap.
 
     Bug-fix (v22.1+): previously expected raw column names that
@@ -1595,10 +1595,9 @@ def h11_efficiency_heatmap(df_dds_data: List[Dict], drug_name: str) -> str:
     # Lazy import to keep the module loadable in environments where
     # the relative-path resolution differs (Colab, FastAPI, Docker).
     try:
-        from _dds_metrics import METRIC_DEFS, normalize_row, get_pct, diagnose
+        from _dds_metrics import METRIC_DEFS, diagnose, get_pct, normalize_row
     except ImportError:
-        from src.viz._dds_metrics import (METRIC_DEFS, normalize_row,
-                                            get_pct, diagnose)
+        from src.viz._dds_metrics import METRIC_DEFS, diagnose, normalize_row
 
     top15  = df_dds_data[:15]
     keys   = list(METRIC_DEFS.keys())                  # 6 metrics in order
@@ -1666,7 +1665,7 @@ renderHeatmap();
 # ─────────────────────────────────────────────────────────────────────────────
 # H16: CAPABILITY RADAR — All 62 science modules coverage
 # ─────────────────────────────────────────────────────────────────────────────
-def h16_capability_radar(science: Dict, drug_name: str) -> str:
+def h16_capability_radar(science: dict, drug_name: str) -> str:
     # 8 capability dimensions
     dims = {
         "BBB Engineering":    min(100, float(science.get("pbpk_cns",{}).get("BBB_integrity",0.85)*100 if science.get("pbpk_cns") else 85)),
@@ -1730,7 +1729,7 @@ new Chart(capCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H17: GLYMPHATIC CLEARANCE — Sleep/Wake Animated
 # ─────────────────────────────────────────────────────────────────────────────
-def h17_glymphatic_animated(science: Dict, top_dds: Dict, drug_name: str) -> str:
+def h17_glymphatic_animated(science: dict, top_dds: dict, drug_name: str) -> str:
     glyph = science.get("glymphatic", {}) or {}
     t_arr  = glyph.get("t_h", list(range(73))) or list(range(73))
     ret    = glyph.get("brain_retention", [1.0]*73) or [1.0]*73
@@ -1808,7 +1807,7 @@ new Chart(glCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H18: MICROGLIAL ACTIVATION GAUGE
 # ─────────────────────────────────────────────────────────────────────────────
-def h18_microglial_gauge(science: Dict, drug_name: str) -> str:
+def h18_microglial_gauge(science: dict, drug_name: str) -> str:
     micr = science.get("microglial_activation", {}) or {}
     score  = float(micr.get("neuroinflammation_score", 0.2) or 0.2)
     tlr    = float(micr.get("TLR_activation_score", 0.1) or 0.1)
@@ -1876,7 +1875,7 @@ def h18_microglial_gauge(science: Dict, drug_name: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # H19: LYOPHILIZATION CYCLE — T vs Pressure
 # ─────────────────────────────────────────────────────────────────────────────
-def h19_lyophilization(science: Dict, drug_name: str) -> str:
+def h19_lyophilization(science: dict, drug_name: str) -> str:
     lyoph = science.get("lyophilization", {}) or {}
     Tg    = float(lyoph.get("Tg_prime_C", -30) or -30)
     T_pry = float(lyoph.get("T_primary_drying_C", -32) or -32)
@@ -1947,7 +1946,7 @@ new Chart(lyoCtx,{{
 # ─────────────────────────────────────────────────────────────────────────────
 # H23: BIODISTRIBUTION ORGAN MAP (animated)
 # ─────────────────────────────────────────────────────────────────────────────
-def h23_biodistribution_animated(science: Dict, top_dds: Dict, drug_name: str, mol_profile: Dict) -> str:  # v18 FIX-2: mol_profile added
+def h23_biodistribution_animated(science: dict, top_dds: dict, drug_name: str, mol_profile: dict) -> str:  # v18 FIX-2: mol_profile added
     biodist = science.get("biodistribution_map", {}) or {}
     organs  = biodist.get("organs", {}) or {}
     
@@ -2053,7 +2052,7 @@ def h23_biodistribution_animated(science: Dict, top_dds: Dict, drug_name: str, m
 # ─────────────────────────────────────────────────────────────────────────────
 # H26: FUS ACOUSTIC RESPONSE
 # ─────────────────────────────────────────────────────────────────────────────
-def h26_fus_response(science: Dict, top_dds: Dict, drug_name: str) -> str:
+def h26_fus_response(science: dict, top_dds: dict, drug_name: str) -> str:
     fus = science.get("fus_responsive", {}) or {}
     freq_mhz  = float(fus.get("freq_MHz", 0.5) or 0.5)
     MI        = float(fus.get("MI_target", 0.4) or 0.4)
@@ -2184,7 +2183,7 @@ fusDraw(0);
 </div>
 <script>{js_anim}</script>"""
 
-def h09_docking_release(science: Dict, top_dds: Dict, drug_name: str) -> str:
+def h09_docking_release(science: dict, top_dds: dict, drug_name: str) -> str:
     release = science.get("release", {}) or {}
     fep     = science.get("fep_binding", {}) or {}
     t_arr   = release.get("t_h", list(range(49))) or list(range(49))

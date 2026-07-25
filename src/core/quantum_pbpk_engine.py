@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  QUANTUM-ENHANCED PBPK ENGINE
@@ -29,8 +28,10 @@ Libraries used:
 ================================================================================
 """
 from __future__ import annotations
-import math, logging
-from typing import Dict, Optional, List
+
+import logging
+import math
+
 import numpy as np
 
 log = logging.getLogger("CEREBRO-QPBPK")
@@ -261,8 +262,8 @@ def quantum_partition_coefficient(logP: float, T_K: float = 310.15,
     }
 
 
-def run_quantum_pbpk(mol_profile: Dict, top_dds: Dict,
-                      dose_mg: float = 10.0) -> Dict:
+def run_quantum_pbpk(mol_profile: dict, top_dds: dict,
+                      dose_mg: float = 10.0) -> dict:
     """
     Full quantum-enhanced PBPK calculation.
     Combines WKB tunneling + PennyLane quantum BBB + 

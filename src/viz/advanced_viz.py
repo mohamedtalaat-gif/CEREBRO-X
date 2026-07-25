@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  ADVANCED VISUALIZATION ENGINE
@@ -40,24 +39,26 @@ All figures:
 ================================================================================
 """
 
-import os, sys, io, math, json, logging, warnings, time
-from pathlib import Path
+import io
+import logging
+import math
+import warnings
 from datetime import datetime
-from typing import Optional, Dict, List, Tuple, Any
+from pathlib import Path
 
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
+
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-import matplotlib.gridspec as gridspec
-from matplotlib.colors import LinearSegmentedColormap, Normalize
-from matplotlib.cm import ScalarMappable
+import matplotlib.pyplot as plt
 import seaborn as sns
+from matplotlib import gridspec
+from matplotlib.colors import LinearSegmentedColormap
 from scipy import stats
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import MinMaxScaler
 
 warnings.filterwarnings("ignore")
 log = logging.getLogger("CEREBRO-VIZ-ADV")
@@ -118,7 +119,7 @@ def _save(fig, path: Path, dpi: int = 300):
 
 def fig01_concentration_time_multipanel(df_pk: pd.DataFrame,
                                          drug_name: str,
-                                         out_dir: Path) -> Optional[Path]:
+                                         out_dir: Path) -> Path | None:
     """Multi-panel PK/PD: linear + log + derivative."""
     if df_pk is None or df_pk.empty:
         return None
@@ -185,7 +186,7 @@ def fig01_concentration_time_multipanel(df_pk: pd.DataFrame,
 
 def fig02_seaborn_dds_heatmap(df_dds: pd.DataFrame,
                                drug_name: str,
-                               out_dir: Path) -> Optional[Path]:
+                               out_dir: Path) -> Path | None:
     """Seaborn correlation heatmap of DDS parameters."""
     if df_dds is None or df_dds.empty:
         return None
@@ -271,14 +272,14 @@ def fig02_seaborn_dds_heatmap(df_dds: pd.DataFrame,
 # ─────────────────────────────────────────────────────────────────────────────
 
 def fig03_plotly_interactive_dashboard(df_dds: pd.DataFrame,
-                                        df_pk: Optional[pd.DataFrame],
-                                        df_ml: Optional[pd.DataFrame],
+                                        df_pk: pd.DataFrame | None,
+                                        df_ml: pd.DataFrame | None,
                                         drug_name: str,
-                                        out_dir: Path) -> Optional[Path]:
+                                        out_dir: Path) -> Path | None:
     """Full Plotly interactive HTML dashboard."""
     try:
-        import plotly.graph_objects as go
         import plotly.express as px
+        import plotly.graph_objects as go
         from plotly.subplots import make_subplots
     except ImportError:
         log.debug("  [VIZ] Plotly not available")
@@ -397,16 +398,25 @@ def fig03_plotly_interactive_dashboard(df_dds: pd.DataFrame,
 
 def fig04_bokeh_dds_explorer(df_dds: pd.DataFrame,
                               drug_name: str,
-                              out_dir: Path) -> Optional[Path]:
+                              out_dir: Path) -> Path | None:
     """Bokeh interactive DDS explorer with linked brushing."""
     try:
-        from bokeh.plotting import figure, output_file, save
-        from bokeh.models import (ColumnDataSource, HoverTool, ColorBar,
-                                   LinearColorMapper, Select, Slider,
-                                   CustomJS, CDSView, GroupFilter)
-        from bokeh.layouts import column, row as bk_row
-        from bokeh.transform import linear_cmap
+        from bokeh.layouts import column
+        from bokeh.layouts import row as bk_row
+        from bokeh.models import (
+            CDSView,
+            ColorBar,
+            ColumnDataSource,
+            CustomJS,
+            GroupFilter,
+            HoverTool,
+            LinearColorMapper,
+            Select,
+            Slider,
+        )
         from bokeh.palettes import Viridis256
+        from bokeh.plotting import figure, output_file, save
+        from bokeh.transform import linear_cmap
     except ImportError:
         log.debug("  [VIZ] Bokeh not available")
         return None
@@ -482,9 +492,9 @@ def fig04_bokeh_dds_explorer(df_dds: pd.DataFrame,
 # ─────────────────────────────────────────────────────────────────────────────
 
 def fig05_drug_dds_network(df_dds: pd.DataFrame,
-                            df_ml: Optional[pd.DataFrame],
+                            df_ml: pd.DataFrame | None,
                             drug_name: str,
-                            out_dir: Path) -> Optional[Path]:
+                            out_dir: Path) -> Path | None:
     """Drug–DDS interaction network with NetworkX."""
     import networkx as nx
 
@@ -557,7 +567,7 @@ def fig05_drug_dds_network(df_dds: pd.DataFrame,
 # ─────────────────────────────────────────────────────────────────────────────
 
 def fig06_box_plots(df_dds: pd.DataFrame, drug_name: str,
-                    out_dir: Path) -> Optional[Path]:
+                    out_dir: Path) -> Path | None:
     """Comprehensive box + whisker plots for DDS parameters."""
     if df_dds is None or df_dds.empty:
         return None
@@ -633,7 +643,7 @@ def fig06_box_plots(df_dds: pd.DataFrame, drug_name: str,
 
 def fig07_parameter_heatmap_extended(df_dds: pd.DataFrame,
                                       drug_name: str,
-                                      out_dir: Path) -> Optional[Path]:
+                                      out_dir: Path) -> Path | None:
     """Extended heatmap: all 100 formulations × computed parameters."""
     if df_dds is None or df_dds.empty:
         return None
@@ -686,10 +696,10 @@ def fig07_parameter_heatmap_extended(df_dds: pd.DataFrame,
 # 8.  KAPLAN-MEIER CURVES — survival analysis
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fig08_kaplan_meier(df_pk: Optional[pd.DataFrame],
-                        df_dds: Optional[pd.DataFrame],
+def fig08_kaplan_meier(df_pk: pd.DataFrame | None,
+                        df_dds: pd.DataFrame | None,
                         drug_name: str,
-                        out_dir: Path) -> Optional[Path]:
+                        out_dir: Path) -> Path | None:
     """
     Kaplan-Meier style curves for drug 'survival' above therapeutic threshold.
     Simulates: time drug concentration remains above 50% of initial.
@@ -765,7 +775,7 @@ def fig08_kaplan_meier(df_pk: Optional[pd.DataFrame],
 
 def fig09_scatter_violin(df_dds: pd.DataFrame,
                           drug_name: str,
-                          out_dir: Path) -> Optional[Path]:
+                          out_dir: Path) -> Path | None:
     """Combined scatter + violin panels."""
     if df_dds is None or df_dds.empty:
         return None
@@ -837,7 +847,7 @@ def fig09_scatter_violin(df_dds: pd.DataFrame,
 
 def fig10_regression_analysis(df_dds: pd.DataFrame,
                                drug_name: str,
-                               out_dir: Path) -> Optional[Path]:
+                               out_dir: Path) -> Path | None:
     """Linear + polynomial regression analysis."""
     if df_dds is None or df_dds.empty:
         return None
@@ -922,13 +932,13 @@ def fig10_regression_analysis(df_dds: pd.DataFrame,
 # ─────────────────────────────────────────────────────────────────────────────
 
 def fig12_molecular_2d_structure(smiles: str, drug_name: str,
-                                   out_dir: Path) -> Optional[Path]:
+                                   out_dir: Path) -> Path | None:
     """RDKit 2D molecule drawing with property annotations."""
     if not smiles:
         return None
     try:
         from rdkit import Chem
-        from rdkit.Chem import Draw, Descriptors, rdMolDescriptors
+        from rdkit.Chem import Descriptors, Draw, rdMolDescriptors
         from rdkit.Chem.Draw import rdMolDraw2D
 
         mol = Chem.MolFromSmiles(smiles)
@@ -1010,9 +1020,9 @@ def fig12_molecular_2d_structure(smiles: str, drug_name: str,
 # 13. PBBM PHARMACOMETRICS — VPC, GOF, Spaghetti
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fig13_pbbm_diagnostic_plots(df_pk: Optional[pd.DataFrame],
+def fig13_pbbm_diagnostic_plots(df_pk: pd.DataFrame | None,
                                   drug_name: str,
-                                  out_dir: Path) -> Optional[Path]:
+                                  out_dir: Path) -> Path | None:
     """Visual Predictive Check (VPC), GOF, and Spaghetti plots."""
     if df_pk is None or df_pk.empty:
         return None
@@ -1108,11 +1118,11 @@ def fig13_pbbm_diagnostic_plots(df_pk: Optional[pd.DataFrame],
 # 14. XAI — SHAP plots
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fig14_shap_xai(df_ml: Optional[pd.DataFrame],
-                    feature_cols: List[str],
+def fig14_shap_xai(df_ml: pd.DataFrame | None,
+                    feature_cols: list[str],
                     drug_name: str,
                     out_dir: Path,
-                    model=None) -> Optional[Path]:
+                    model=None) -> Path | None:
     """SHAP summary and waterfall plots."""
     if df_ml is None or df_ml.empty:
         return None
@@ -1222,7 +1232,7 @@ def fig14_shap_xai(df_ml: Optional[pd.DataFrame],
 
 def fig15_doe_surface(df_dds: pd.DataFrame,
                        drug_name: str,
-                       out_dir: Path) -> Optional[Path]:
+                       out_dir: Path) -> Path | None:
     """Design of Experiments: contour + 3D response surface."""
     if df_dds is None or df_dds.empty:
         return None
@@ -1302,7 +1312,7 @@ def fig15_doe_surface(df_dds: pd.DataFrame,
 
 def fig16_dimensionality_reduction(df_dds: pd.DataFrame,
                                     drug_name: str,
-                                    out_dir: Path) -> Optional[Path]:
+                                    out_dir: Path) -> Path | None:
     """PCA + t-SNE + UMAP dimensionality reduction plots."""
     if df_dds is None or len(df_dds) < 5:
         return None
@@ -1397,12 +1407,12 @@ def fig16_dimensionality_reduction(df_dds: pd.DataFrame,
 # 17. DASHBOARD — Streamlit/Dash HTML export
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fig17_streamlit_html_export(df_dds: Optional[pd.DataFrame],
-                                  df_pk: Optional[pd.DataFrame],
-                                  df_ml: Optional[pd.DataFrame],
+def fig17_streamlit_html_export(df_dds: pd.DataFrame | None,
+                                  df_pk: pd.DataFrame | None,
+                                  df_ml: pd.DataFrame | None,
                                   drug_name: str,
                                   trial_dir: Path,
-                                  out_dir: Path) -> Optional[Path]:
+                                  out_dir: Path) -> Path | None:
     """Generate a self-contained HTML dashboard (no server required)."""
     out = out_dir / f"17_Dashboard_{drug_name}.html"
 
@@ -1584,15 +1594,18 @@ class SimulationVideoEngine:
     @staticmethod
     def _write_mp4(frames_bytes: list, out: Path, fps: int = 15):
         try:
-            import imageio.v2 as imageio
             import io as _io
+
+            import imageio.v2 as imageio
             imgs = [imageio.imread(_io.BytesIO(b)) for b in frames_bytes]
             imageio.mimsave(str(out), imgs, fps=fps,
                              output_params=["-vcodec","libx264","-pix_fmt","yuv420p"])
         except Exception:
             try:
-                import cv2, numpy as _np
                 import io as _io
+
+                import cv2
+                import numpy as _np
                 from PIL import Image
                 first = Image.open(_io.BytesIO(frames_bytes[0]))
                 h, w = first.size[1], first.size[0]
@@ -1608,7 +1621,7 @@ class SimulationVideoEngine:
     @classmethod
     def video_bbb_crossing(cls, drug_name: str, ligand: str,
                             out_dir: Path, fps: int = 15,
-                            n_frames: int = 60) -> Optional[Path]:
+                            n_frames: int = 60) -> Path | None:
         """Animate a nanoparticle crossing the BBB (matplotlib)."""
         writer = cls._check_writer()
         if writer == "none":
@@ -1700,9 +1713,9 @@ class SimulationVideoEngine:
         return out
 
     @classmethod
-    def video_pk_kinetics(cls, df_pk: Optional[pd.DataFrame],
+    def video_pk_kinetics(cls, df_pk: pd.DataFrame | None,
                            drug_name: str,
-                           out_dir: Path, fps: int = 15) -> Optional[Path]:
+                           out_dir: Path, fps: int = 15) -> Path | None:
         """Animate PK/PD kinetics curve building up over time."""
         writer = cls._check_writer()
         if writer == "none" or df_pk is None or df_pk.empty:
@@ -1765,9 +1778,9 @@ class SimulationVideoEngine:
         return out
 
     @classmethod
-    def video_dds_ranking_reveal(cls, df_dds: Optional[pd.DataFrame],
+    def video_dds_ranking_reveal(cls, df_dds: pd.DataFrame | None,
                                   drug_name: str,
-                                  out_dir: Path, fps: int = 5) -> Optional[Path]:
+                                  out_dir: Path, fps: int = 5) -> Path | None:
         """Reveal DDS ranking one bar at a time (suspense build-up)."""
         writer = cls._check_writer()
         if writer == "none" or df_dds is None or df_dds.empty:
@@ -1827,15 +1840,15 @@ class AdvancedVizOrchestrator:
     @classmethod
     def run_all(cls,
                  drug_name:   str,
-                 smiles:      Optional[str],
-                 mol_profile: Dict,
-                 df_ml:       Optional[pd.DataFrame],
-                 df_dds:      Optional[pd.DataFrame],
-                 df_pk:       Optional[pd.DataFrame],
+                 smiles:      str | None,
+                 mol_profile: dict,
+                 df_ml:       pd.DataFrame | None,
+                 df_dds:      pd.DataFrame | None,
+                 df_pk:       pd.DataFrame | None,
                  trial_dir:   Path,
                  ml_model=    None,
                  make_videos: bool = True,
-                 ligand:      str  = "RVG29") -> Dict[str, Optional[Path]]:
+                 ligand:      str  = "RVG29") -> dict[str, Path | None]:
         """Run complete visualization suite. Returns dict of produced paths."""
 
         figs_dir = trial_dir / "figures"

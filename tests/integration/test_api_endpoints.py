@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Integration tests — test full API endpoints with TestClient.
 Requires: pip install httpx

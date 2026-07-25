@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/drug_admet.py
@@ -22,10 +21,13 @@ Tier cascade:
 ================================================================================
 """
 from __future__ import annotations
-import logging, math, urllib.parse, json
-from typing import Optional, Dict, List
-from .._core import (register, _resolved, cached_safe_get,
-                     _HAS_REQUESTS, _HAS_RDKIT)
+
+import json
+import logging
+import math
+import urllib.parse
+
+from .._core import _HAS_REQUESTS, _resolved, cached_safe_get, register
 
 log = logging.getLogger("CEREBRO-RESOLVER.admet")
 
@@ -34,7 +36,7 @@ log = logging.getLogger("CEREBRO-RESOLVER.admet")
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────
 def _chembl_activity(name: str, std_type: str,
-                       std_units: Optional[str] = None) -> Optional[float]:
+                       std_units: str | None = None) -> float | None:
     """Fetch median active value from ChEMBL bioactivity for a given std_type."""
     if not name or not _HAS_REQUESTS: return None
     try:
@@ -74,19 +76,19 @@ def _chembl_activity(name: str, std_type: str,
 # ──────────────────────────────────────────────────────────────────────────
 @register("drug_solubility_logS")
 def resolve_drug_solubility_logS(name: str = "", smiles: str = "",
-                                    mw_Da: Optional[float] = None,
-                                    logp: Optional[float] = None,
-                                    Tm_C: Optional[float] = None,
-                                    rotbonds: Optional[float] = None,
-                                    aromatic_rings: Optional[float] = None,
-                                    researcher_override: Optional[float] = None) -> Dict:
+                                    mw_Da: float | None = None,
+                                    logp: float | None = None,
+                                    Tm_C: float | None = None,
+                                    rotbonds: float | None = None,
+                                    aromatic_rings: float | None = None,
+                                    researcher_override: float | None = None) -> dict:
     """log10(aqueous solubility in mol/L) at 25°C."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided logS",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = []
+    db_misses: list[str] = []
     # Tier 1: ChEMBL
     try:
         v = _chembl_activity(name, "Solubility", "uM")
@@ -140,18 +142,18 @@ def resolve_drug_solubility_logS(name: str = "", smiles: str = "",
 # ──────────────────────────────────────────────────────────────────────────
 @register("drug_caco2_papp")
 def resolve_drug_caco2_papp(name: str = "", smiles: str = "",
-                              mw_Da: Optional[float] = None,
-                              logp: Optional[float] = None,
-                              tpsa: Optional[float] = None,
-                              hbd: Optional[float] = None,
-                              researcher_override: Optional[float] = None) -> Dict:
+                              mw_Da: float | None = None,
+                              logp: float | None = None,
+                              tpsa: float | None = None,
+                              hbd: float | None = None,
+                              researcher_override: float | None = None) -> dict:
     """Caco-2 apparent permeability P_app (×10⁻⁶ cm/s)."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided Caco-2 P_app",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = []
+    db_misses: list[str] = []
 
     # Tier 1: ChEMBL Permeability
     try:
@@ -189,17 +191,17 @@ def resolve_drug_caco2_papp(name: str = "", smiles: str = "",
 # ──────────────────────────────────────────────────────────────────────────
 @register("drug_pgp_efflux_ratio")
 def resolve_drug_pgp_efflux_ratio(name: str = "", smiles: str = "",
-                                     mw_Da: Optional[float] = None,
-                                     logp: Optional[float] = None,
-                                     hba: Optional[float] = None,
-                                     researcher_override: Optional[float] = None) -> Dict:
+                                     mw_Da: float | None = None,
+                                     logp: float | None = None,
+                                     hba: float | None = None,
+                                     researcher_override: float | None = None) -> dict:
     """P-glycoprotein efflux ratio (BL→AP / AP→BL)."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided efflux ratio",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = []
+    db_misses: list[str] = []
     try:
         v = _chembl_activity(name, "Efflux Ratio", None)
         if v is not None:
@@ -235,14 +237,14 @@ def resolve_drug_pgp_efflux_ratio(name: str = "", smiles: str = "",
 # ──────────────────────────────────────────────────────────────────────────
 @register("drug_cyp3a4_inhibition")
 def resolve_drug_cyp3a4_inhibition(name: str = "", smiles: str = "",
-                                       researcher_override: Optional[float] = None) -> Dict:
+                                       researcher_override: float | None = None) -> dict:
     """CYP3A4 inhibition IC50 (μM). Lower = more potent inhibitor."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided IC50",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = []
+    db_misses: list[str] = []
     try:
         # ChEMBL: target=CHEMBL340 (CYP3A4)
         if name and _HAS_REQUESTS:
@@ -282,15 +284,15 @@ def resolve_drug_cyp3a4_inhibition(name: str = "", smiles: str = "",
 # ──────────────────────────────────────────────────────────────────────────
 @register("drug_herg_ic50")
 def resolve_drug_herg_ic50(name: str = "", smiles: str = "",
-                              logp: Optional[float] = None,
-                              researcher_override: Optional[float] = None) -> Dict:
+                              logp: float | None = None,
+                              researcher_override: float | None = None) -> dict:
     """hERG K-channel IC50 (μM). Lower = greater cardiac risk."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided hERG IC50",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = []
+    db_misses: list[str] = []
     try:
         if name and _HAS_REQUESTS:
             enc = urllib.parse.quote(name)
@@ -339,9 +341,9 @@ def resolve_drug_herg_ic50(name: str = "", smiles: str = "",
 # ──────────────────────────────────────────────────────────────────────────
 @register("drug_clearance_route")
 def resolve_drug_clearance_route(name: str = "", smiles: str = "",
-                                    mw_Da: Optional[float] = None,
-                                    logp: Optional[float] = None,
-                                    researcher_override: Optional[str] = None) -> Dict:
+                                    mw_Da: float | None = None,
+                                    logp: float | None = None,
+                                    researcher_override: str | None = None) -> dict:
     """Primary clearance route. Returns categorical string in `value`.
 
     Heuristic: Williams et al (2003) Drug Metab Dispos 31:1437 — high MW
@@ -352,7 +354,7 @@ def resolve_drug_clearance_route(name: str = "", smiles: str = "",
                           source="researcher_override",
                           method="User-provided CL route",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = ["OpenFDA label parsing (route extraction TBD)",
+    db_misses: list[str] = ["OpenFDA label parsing (route extraction TBD)",
                               "DrugBank metabolism field"]
     if mw_Da is not None and logp is not None:
         if mw_Da > 350 and logp > 1.5:

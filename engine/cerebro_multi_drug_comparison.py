@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_multi_drug_comparison.py
@@ -39,10 +38,12 @@ DESIGN PRINCIPLES
 ================================================================================
 """
 from __future__ import annotations
-import json, logging, math
-from pathlib import Path
-from typing import Dict, List, Any, Tuple, Optional
+
+import json
+import logging
+import math
 from datetime import datetime
+from pathlib import Path
 
 log = logging.getLogger("CEREBRO-COMPARISON")
 
@@ -97,7 +98,7 @@ PRINCIPLE_WEIGHTS = {
 # ──────────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────
-def _to_float(v) -> Optional[float]:
+def _to_float(v) -> float | None:
     if v is None: return None
     if isinstance(v, bool): return float(v)
     if isinstance(v, (int, float)) and not math.isnan(v) and math.isfinite(v):
@@ -116,9 +117,9 @@ def _direction_for(metric: str) -> str:
     return "unknown"
 
 
-def _flatten_numeric(d: Dict, prefix: str = "") -> Dict[str, float]:
+def _flatten_numeric(d: dict, prefix: str = "") -> dict[str, float]:
     """Flatten a nested dict, keeping only numeric leaves."""
-    out: Dict[str, float] = {}
+    out: dict[str, float] = {}
     if not isinstance(d, dict): return out
     for k, v in d.items():
         if isinstance(k, str) and k.startswith("_"): continue
@@ -132,7 +133,7 @@ def _flatten_numeric(d: Dict, prefix: str = "") -> Dict[str, float]:
     return out
 
 
-def _normalize_score(values: Dict[str, float], direction: str) -> Dict[str, float]:
+def _normalize_score(values: dict[str, float], direction: str) -> dict[str, float]:
     """
     Normalize values to 0–100 scores per direction.
     For 'higher': max → 100, min → 0
@@ -152,10 +153,10 @@ def _normalize_score(values: Dict[str, float], direction: str) -> Dict[str, floa
     return out
 
 
-def _tier_distribution(mol_profile: Dict) -> Dict[int, int]:
+def _tier_distribution(mol_profile: dict) -> dict[int, int]:
     """Count how many properties were resolved at each tier for a drug."""
     audit = (mol_profile or {}).get("_source_audit", {}) or {}
-    counts: Dict[int, int] = {}
+    counts: dict[int, int] = {}
     for prop_key, info in audit.items():
         if isinstance(info, dict):
             t = info.get("_tier", 99)
@@ -166,9 +167,9 @@ def _tier_distribution(mol_profile: Dict) -> Dict[int, int]:
 # ──────────────────────────────────────────────────────────────────────────
 # Main entry — compare_drugs
 # ──────────────────────────────────────────────────────────────────────────
-def compare_drugs(drug_results: List[Dict],
+def compare_drugs(drug_results: list[dict],
                    output_dir: Path,
-                   pipeline_metadata: Optional[Dict] = None) -> Dict:
+                   pipeline_metadata: dict | None = None) -> dict:
     """
     Run the full N-drug comparison and emit Excel + JSON.
 
@@ -191,7 +192,7 @@ def compare_drugs(drug_results: List[Dict],
     log.info(f"[COMPARISON] Comparing {len(drug_names)} drugs: {drug_names}")
 
     # ─── Step 1: collect all numeric metrics per drug ──────────────────
-    per_drug_metrics: Dict[str, Dict[str, float]] = {}
+    per_drug_metrics: dict[str, dict[str, float]] = {}
     for d in drug_results:
         flat = _flatten_numeric(d.get("principles", {}))
         # Add top-line PK & physchem from mol_profile
@@ -222,7 +223,7 @@ def compare_drugs(drug_results: List[Dict],
              f"across {len(drug_names)} drugs")
 
     # ─── Step 2: per-metric ranking + score accumulation ───────────────
-    per_principle_table: List[Dict] = []
+    per_principle_table: list[dict] = []
     winner_counts = {n: 0 for n in drug_names}
     score_sum     = {n: 0.0 for n in drug_names}
     weight_sum    = {n: 0.0 for n in drug_names}
@@ -277,7 +278,7 @@ def compare_drugs(drug_results: List[Dict],
     # For each drug, capture the principle-ranked top-1 DDS and its full
     # 25-principle score breakdown. This is the "drug + best DDS pair"
     # head-to-head comparison the researcher cares about most.
-    champions: List[Dict] = []
+    champions: list[dict] = []
     for d in drug_results:
         breakdown = d.get("dds_principle_breakdown") or []
         matrix    = d.get("dds_principle_matrix") or []
@@ -365,9 +366,9 @@ def compare_drugs(drug_results: List[Dict],
 # ──────────────────────────────────────────────────────────────────────────
 # Excel writer
 # ──────────────────────────────────────────────────────────────────────────
-def _write_comparison_excel(summary: Dict, output_path: Path) -> None:
+def _write_comparison_excel(summary: dict, output_path: Path) -> None:
     import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
 
     wb = openpyxl.Workbook()
@@ -500,7 +501,7 @@ def _write_comparison_excel(summary: Dict, output_path: Path) -> None:
     wb.save(str(output_path))
 
 
-def _write_champion_comparison_sheet(wb, summary: Dict) -> None:
+def _write_champion_comparison_sheet(wb, summary: dict) -> None:
     """
     Drug × Best-DDS Champion comparison sheet.
 
@@ -511,7 +512,7 @@ def _write_champion_comparison_sheet(wb, summary: Dict) -> None:
     Winner per row is highlighted green. Group sub-headers separate the
     25 principles into the 7 thematic groups (CNS Delivery, Release, …).
     """
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     try:
         from cerebro_dds_principle_evaluator import PRINCIPLE_DOCS, PRINCIPLE_WEIGHTS
@@ -674,14 +675,13 @@ def _write_champion_comparison_sheet(wb, summary: Dict) -> None:
     ws.sheet_view.showGridLines = False
 
 
-def _write_scientific_rationale_sheet(wb, summary: Dict) -> None:
+def _write_scientific_rationale_sheet(wb, summary: dict) -> None:
     """
     Plain-language scientific rationale for the multi-drug comparison.
     Tells the researcher: what was compared, how scores were computed,
     which references back the methods, and what the verdict means.
     """
-    from openpyxl.styles import Font, PatternFill, Alignment
-    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment, Font, PatternFill
 
     ws = wb.create_sheet("Scientific_Rationale")
     ws["A1"] = "How CEREBRO-X Reached These Results — Scientific Rationale"
@@ -775,8 +775,8 @@ def _write_scientific_rationale_sheet(wb, summary: Dict) -> None:
 # v22 — C+ Flow cross-drug comparison sheets
 # (Per Muhammad's mandate: results visible in every output)
 # ──────────────────────────────────────────────────────────────────────────
-def _write_cplus_deep_compare_sheet(wb, summary: Dict) -> None:
-    from openpyxl.styles import Font, PatternFill, Alignment
+def _write_cplus_deep_compare_sheet(wb, summary: dict) -> None:
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     ws = wb.create_sheet("CPlus_Deep_Validation")
     ws["A1"] = "C+ Flow — Class B Deep Physics Validation (cross-drug)"
@@ -820,8 +820,8 @@ def _write_cplus_deep_compare_sheet(wb, summary: Dict) -> None:
         ws.column_dimensions[get_column_letter(j)].width = w
 
 
-def _write_cplus_translational_compare_sheet(wb, summary: Dict) -> None:
-    from openpyxl.styles import Font, PatternFill, Alignment
+def _write_cplus_translational_compare_sheet(wb, summary: dict) -> None:
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     ws = wb.create_sheet("CPlus_Translational")
     ws["A1"] = "C+ Flow — Class C Translational Deliverables (cross-drug)"
@@ -885,8 +885,8 @@ def _write_cplus_translational_compare_sheet(wb, summary: Dict) -> None:
         ws.column_dimensions[get_column_letter(j)].width = w
 
 
-def _write_cplus_fallback_compare_sheet(wb, summary: Dict) -> None:
-    from openpyxl.styles import Font, PatternFill, Alignment
+def _write_cplus_fallback_compare_sheet(wb, summary: dict) -> None:
+    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     ws = wb.create_sheet("CPlus_Fallback_Audit")
     ws["A1"] = "C+ Flow — Top-N Fallback Audit (cross-drug)"

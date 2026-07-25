@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  ADVANCED SCIENCE MODULES PART 2
@@ -58,13 +57,15 @@ Modules:
 ================================================================================
 """
 
-import math, logging, json, urllib.request, urllib.parse
+import json
+import logging
+import math
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from typing import Dict, List, Optional, Any
-from scipy.integrate import solve_ivp
-from scipy.optimize import minimize
 
 log = logging.getLogger("CEREBRO-ADV2")
 
@@ -80,7 +81,7 @@ class CompetitiveLandscape:
     API = "https://clinicaltrials.gov/api/v2/studies"
 
     @classmethod
-    def fetch(cls, indication: str = "CNS", max_studies: int = 10) -> List[Dict]:
+    def fetch(cls, indication: str = "CNS", max_studies: int = 10) -> list[dict]:
         """Fetch nanocarrier CNS trials from ClinicalTrials.gov."""
         try:
             params = urllib.parse.urlencode({
@@ -116,7 +117,7 @@ class CompetitiveLandscape:
             ]
 
     @classmethod
-    def compare(cls, top_dds: Dict, indication: str = "CNS") -> Dict:
+    def compare(cls, top_dds: dict, indication: str = "CNS") -> dict:
         trials = cls.fetch(indication)
         bbb_score = float(top_dds.get("BBB_Engineering_Score") or 60)
         composite  = float(top_dds.get("Composite_Score") or 60)
@@ -163,7 +164,7 @@ class QuantumTransportModel:
     T_BODY = 310.15            # K
 
     @classmethod
-    def compute(cls, mol_profile: Dict) -> Dict:
+    def compute(cls, mol_profile: dict) -> dict:
         mw      = float(mol_profile.get("MW_Da") or 300)
         logp    = float(mol_profile.get("LogP") or 2.0)
 
@@ -247,8 +248,8 @@ class PatientSubgroupStratifier:
     ]
 
     @classmethod
-    def stratify(cls, top_dds: Dict, mol_profile: Dict,
-                  disease_stage: str = "alzheimer_2") -> Dict:
+    def stratify(cls, top_dds: dict, mol_profile: dict,
+                  disease_stage: str = "alzheimer_2") -> dict:
         cns_ba    = float(top_dds.get("CNS_Bioavailability_Pct") or 10)
         bbb_enh   = float(top_dds.get("BBB_Enhanced_Pct") or 30)
         stealth   = float(top_dds.get("Stealth_Index") or 0.5)
@@ -331,7 +332,7 @@ class LysosomalTraffickingEngine:
     Reference: Sahay 2010; Rejman 2004; Bhatt 2020.
     """
     @classmethod
-    def predict(cls, top_dds: Dict, mol_profile: Dict) -> Dict:
+    def predict(cls, top_dds: dict, mol_profile: dict) -> dict:
         size_nm  = float(top_dds.get("size_nm") or 80)
         zeta_mv  = float(top_dds.get("zeta_potential_mv") or -10)
         escape   = float(top_dds.get("Endosomal_Escape_Eff") or 0.5)
@@ -407,7 +408,7 @@ class LiteratureMiningEngine:
 
     @classmethod
     def search(cls, drug_name: str, carrier_type: str,
-                max_results: int = 5) -> List[Dict]:
+                max_results: int = 5) -> list[dict]:
         query = f'"{drug_name}"[Title/Abstract] AND "{carrier_type}"[Title/Abstract] AND "drug delivery"[MeSH]'
         try:
             params = urllib.parse.urlencode({
@@ -465,7 +466,7 @@ class LiteratureMiningEngine:
             return cls._fallback_citations(carrier_type)
 
     @staticmethod
-    def _fallback_citations(carrier_type: str) -> List[Dict]:
+    def _fallback_citations(carrier_type: str) -> list[dict]:
         ct = carrier_type.lower()
         citations = {
             "vexosome": [
@@ -516,7 +517,7 @@ class PharmacovigilanceEngine:
     }
 
     @classmethod
-    def analyze(cls, mol_profile: Dict, top_dds: Dict) -> Dict:
+    def analyze(cls, mol_profile: dict, top_dds: dict) -> dict:
         mw      = float(mol_profile.get("MW_Da") or 500)
         logp    = float(mol_profile.get("LogP") or 2.0)
         hl_d    = float(mol_profile.get("Half_Life_Days") or 0.5)
@@ -596,7 +597,7 @@ class LNPIonizationEngine:
     Reference: Jayaraman 2012 (Angew Chem); Kulkarni 2019 (Nano Letters).
     """
     @classmethod
-    def compute(cls, top_dds: Dict) -> Dict:
+    def compute(cls, top_dds: dict) -> dict:
         carrier = str(top_dds.get("Carrier_Type") or "").lower()
         zeta_mv = float(top_dds.get("zeta_potential_mv") or -10)
         peg_pct = float(top_dds.get("pegylation_degree_mol_pct") or 5)
@@ -667,7 +668,7 @@ class InstabilityFingerprintEngine:
     }
 
     @classmethod
-    def fingerprint(cls, top_dds: Dict) -> Dict:
+    def fingerprint(cls, top_dds: dict) -> dict:
         carrier  = str(top_dds.get("Carrier_Type") or "").lower()
         ph_trig  = float(top_dds.get("ph_trigger") or 7.4)
         peg_pct  = float(top_dds.get("pegylation_degree_mol_pct") or 5)
@@ -752,7 +753,7 @@ class LyophilizationOptimizer:
     Reference: Pikal 2002 (Pharm Res); Wang 2000 (Int J Pharm).
     """
     @classmethod
-    def optimize(cls, top_dds: Dict, cryoprotectant: str = "trehalose") -> Dict:
+    def optimize(cls, top_dds: dict, cryoprotectant: str = "trehalose") -> dict:
         size_nm = float(top_dds.get("size_nm") or 80)
         pdi     = float(top_dds.get("pdi") or 0.2)
         ee      = float(top_dds.get("encapsulation_efficiency_pct") or 75)
@@ -806,7 +807,7 @@ class LyophilizationOptimizer:
             "post_lyoph_size_nm":       round(size_post, 1),
             "cake_collapse_risk":       collapse_msg,
             "recommended_cycle": {
-                "step1_freeze":    f"Cool to -50 degC at 1 degC/min",
+                "step1_freeze":    "Cool to -50 degC at 1 degC/min",
                 "step2_primary":   f"Shelves at {T_primary_dry:.0f} degC, P={P_chamber_mbar:.3f} mbar, {t_primary_h:.0f}h",
                 "step3_secondary": f"Ramp to +{T_secondary:.0f} degC, P={P_secondary} mbar, {t_secondary_h:.0f}h",
                 "step4_backfill":  "Nitrogen backfill to 500 mbar, stopper, cap",
@@ -831,7 +832,7 @@ class SterilizationSurvivabilityEngine:
     Reference: ICH Q5A; Bhatt 2020 (PDA J Pharm Sci).
     """
     @classmethod
-    def predict(cls, top_dds: Dict, mol_profile: Dict) -> Dict:
+    def predict(cls, top_dds: dict, mol_profile: dict) -> dict:
         size_nm  = float(top_dds.get("size_nm") or 80)
         tm_c     = float(top_dds.get("phase_transition_temp_c") or 42)
         elastic  = float(top_dds.get("elasticity_kpa") or 1.0)
@@ -933,8 +934,8 @@ class SyntheticClinicalTrials:
     Reference: Bhatt 2020; Lalonde 2007; FDA PBPK guidance 2018.
     """
     @classmethod
-    def run(cls, top_dds: Dict, mol_profile: Dict,
-             n_patients: int = 1000, disease: str = "alzheimer") -> Dict:
+    def run(cls, top_dds: dict, mol_profile: dict,
+             n_patients: int = 1000, disease: str = "alzheimer") -> dict:
         rng = np.random.default_rng(42)
 
         cns_ba  = float(top_dds.get("CNS_Bioavailability_Pct") or 10) / 100
@@ -1021,7 +1022,7 @@ class MicroglialActivationEngine:
     Reference: Dobrovolskaia 2008; Ziemba 2018; Ransohoff 2016.
     """
     @classmethod
-    def predict(cls, top_dds: Dict) -> Dict:
+    def predict(cls, top_dds: dict) -> dict:
         size_nm  = float(top_dds.get("size_nm") or 80)
         zeta_mv  = float(top_dds.get("zeta_potential_mv") or -10)
         peg_pct  = float(top_dds.get("pegylation_degree_mol_pct") or 5)
@@ -1103,7 +1104,7 @@ class FUSResponsiveEngine:
     Reference: Deffieux 2013; Hynynen 2001 (Ann Biomed Eng).
     """
     @classmethod
-    def compute(cls, top_dds: Dict, freq_MHz: float = 0.5) -> Dict:
+    def compute(cls, top_dds: dict, freq_MHz: float = 0.5) -> dict:
         size_nm   = float(top_dds.get("size_nm") or 80)
         elastic   = float(top_dds.get("elasticity_kpa") or 1.0)
 
@@ -1177,8 +1178,8 @@ class CryoChainExcursionEngine:
     Reference: Koynova 1998 (Biochim Biophys Acta); Loidl-Stahlhofen 1996.
     """
     @classmethod
-    def predict(cls, top_dds: Dict, excursion_temp_C: float,
-                 excursion_duration_h: float) -> Dict:
+    def predict(cls, top_dds: dict, excursion_temp_C: float,
+                 excursion_duration_h: float) -> dict:
         tm_c    = float(top_dds.get("phase_transition_temp_c") or 42)
         ee      = float(top_dds.get("encapsulation_efficiency_pct") or 75)
         carrier = str(top_dds.get("Carrier_Type") or "").lower()
@@ -1264,7 +1265,7 @@ class OrganOnChipSimulator:
     Reference: Booth 2012 (Lab Chip); Adriani 2017; Bhatt 2020.
     """
     @classmethod
-    def simulate(cls, top_dds: Dict, flow_rate_ul_min: float = 1.0) -> Dict:
+    def simulate(cls, top_dds: dict, flow_rate_ul_min: float = 1.0) -> dict:
         size_nm  = float(top_dds.get("size_nm") or 80)
         bbb_enh  = float(top_dds.get("BBB_Enhanced_Pct") or 30) / 100
         ee       = float(top_dds.get("encapsulation_efficiency_pct") or 75) / 100
@@ -1352,7 +1353,7 @@ class SupplyChainResilienceEngine:
     }
 
     @classmethod
-    def assess(cls, top_dds: Dict) -> Dict:
+    def assess(cls, top_dds: dict) -> dict:
         carrier = str(top_dds.get("Carrier_Type") or "").lower()
         ligand  = str(top_dds.get("Surface_Ligand") or "none").lower()
 
@@ -1418,8 +1419,9 @@ class FDA21CFRCompliance:
     @classmethod
     def log_computation(cls, trial_dir: Path, drug_name: str,
                           computation: str, result_hash: str,
-                          user_id: str = "CEREBRO-AUTO") -> Dict:
-        import hashlib, datetime
+                          user_id: str = "CEREBRO-AUTO") -> dict:
+        import datetime
+        import hashlib
         timestamp = datetime.datetime.utcnow().isoformat() + "Z"
         entry_data = f"{timestamp}|{user_id}|{computation}|{drug_name}|{result_hash}"
         entry_hash = hashlib.sha256(entry_data.encode()).hexdigest()
@@ -1446,7 +1448,7 @@ class FDA21CFRCompliance:
         return audit_record
 
     @classmethod
-    def generate_compliance_report(cls, trial_dir: Path) -> Dict:
+    def generate_compliance_report(cls, trial_dir: Path) -> dict:
         """Summarize audit trail for regulatory submission."""
         audit_file = trial_dir / "audit_trail.jsonl"
         entries = []
@@ -1495,7 +1497,7 @@ class FEPBindingAffinityEngine:
     }
 
     @classmethod
-    def compute(cls, top_dds: Dict, mol_profile: Dict) -> Dict:
+    def compute(cls, top_dds: dict, mol_profile: dict) -> dict:
         ligand   = str(top_dds.get("Surface_Ligand") or "none").lower()
         lig_dens = float(top_dds.get("ligand_density_per_nm2") or 0.8)
         size_nm  = float(top_dds.get("size_nm") or 80)
@@ -1541,13 +1543,13 @@ class FEPBindingAffinityEngine:
 # ─────────────────────────────────────────────────────────────────────────────
 # MASTER RUNNER -- All Part 2 modules
 # ─────────────────────────────────────────────────────────────────────────────
-def run_all_advanced_modules(mol_profile: Dict, top_dds: Dict,
+def run_all_advanced_modules(mol_profile: dict, top_dds: dict,
                                df_dds: "pd.DataFrame",
                                output_dir: Path,
                                disease_state: str = "alzheimer_2",
                                excursion_temp_C: float = -20.0,
                                excursion_h: float = 4.0,
-                               n_clinical_patients: int = 500) -> Dict:
+                               n_clinical_patients: int = 500) -> dict:
     """Run all 46 advanced modules and return results dict."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1660,7 +1662,7 @@ class SupplementModules:
     """
 
     @staticmethod
-    def oxidative_stress(top_dds: Dict) -> Dict:
+    def oxidative_stress(top_dds: dict) -> dict:
         """#8: ROS degradation kinetics (Fenton reaction model)."""
         is_lipid = any(x in str(top_dds.get("Carrier_Type","")).lower()
                         for x in ["liposome","lipid","vexosome"])
@@ -1681,7 +1683,7 @@ class SupplementModules:
         }
 
     @staticmethod
-    def scale_up_manufacturability(top_dds: Dict) -> Dict:
+    def scale_up_manufacturability(top_dds: dict) -> dict:
         """#16: Scale-up feasibility (Kolmogorov micro-mixing + Reynolds)."""
         size_nm = float(top_dds.get("size_nm", 80) or 80)
         pdi     = float(top_dds.get("pdi", 0.2) or 0.2)
@@ -1714,7 +1716,7 @@ class SupplementModules:
         }
 
     @staticmethod
-    def qbd_design_space(top_dds: Dict) -> Dict:
+    def qbd_design_space(top_dds: dict) -> dict:
         """#19: Quality by Design -- critical quality attributes."""
         size_nm = float(top_dds.get("size_nm", 80) or 80)
         pdi     = float(top_dds.get("pdi", 0.2) or 0.2)
@@ -1742,8 +1744,8 @@ class SupplementModules:
         }
 
     @staticmethod
-    def biodistribution_map(top_dds: Dict, mol_profile: Dict,
-                               science_results: Dict = None) -> Dict:
+    def biodistribution_map(top_dds: dict, mol_profile: dict,
+                               science_results: dict = None) -> dict:
         """
         #31: In-silico organ biodistribution — drug-class-aware.
         
@@ -1757,7 +1759,7 @@ class SupplementModules:
           Tsoi KM et al (2016) Nat Mater 15:1212 (NP organ distribution)
           Zhang YN et al (2019) Adv Mater 31:1901521 (size-dependent NP fate)
         """
-        import sys, os
+        import sys
         _mol_class = str(mol_profile.get("molecule_class","")).lower()
         _mw        = float(mol_profile.get("MW_Da",0) or 0)
         _is_biologic = _mol_class in ("biologic","protein","antibody","enzyme") or _mw > 2000
@@ -1839,7 +1841,7 @@ class SupplementModules:
         }
 
     @staticmethod
-    def patentability_score(top_dds: Dict, mol_profile: Dict) -> Dict:
+    def patentability_score(top_dds: dict, mol_profile: dict) -> dict:
         """#38: IP novelty scoring."""
         ligand  = str(top_dds.get("Surface_Ligand","")).lower()
         carrier = str(top_dds.get("Carrier_Type","")).lower()
@@ -1865,7 +1867,7 @@ class SupplementModules:
         }
 
     @staticmethod
-    def microfluidics_lnp_twin(top_dds: Dict) -> Dict:
+    def microfluidics_lnp_twin(top_dds: dict) -> dict:
         """#39: Microfluidics synthesis digital twin (Taylor dispersion)."""
         size_nm  = float(top_dds.get("size_nm", 80) or 80)
         pdi_tgt  = float(top_dds.get("pdi", 0.15) or 0.15)
@@ -1894,7 +1896,7 @@ class SupplementModules:
         }
 
     @staticmethod
-    def intranasal_rheology(top_dds: Dict) -> Dict:
+    def intranasal_rheology(top_dds: dict) -> dict:
         """#52: Intranasal mucoadhesion and thermogelation predictor."""
         carrier = str(top_dds.get("Carrier_Type","")).lower()
         pdi     = float(top_dds.get("pdi", 0.15) or 0.15)
@@ -1920,7 +1922,7 @@ class SupplementModules:
         }
 
 
-def run_supplement_modules(mol_profile: Dict, top_dds: Dict) -> Dict:
+def run_supplement_modules(mol_profile: dict, top_dds: dict) -> dict:
     """Run all 7 supplement modules (covering points 8,16,19,31,38,39,52)."""
     results = {}
     tasks = [
@@ -1945,7 +1947,7 @@ class FinalModules:
     """Points 26,28,29,32,34,37,41,42,44,46,54."""
 
     @staticmethod
-    def microbiome_excipient(top_dds: Dict) -> Dict:
+    def microbiome_excipient(top_dds: dict) -> dict:
         """#26: Microbiome-excipient interaction predictor."""
         carrier = str(top_dds.get("Carrier_Type","")).lower()
         peg_pct = float(top_dds.get("pegylation_degree_mol_pct",5) or 5)
@@ -1969,7 +1971,7 @@ class FinalModules:
         }
 
     @staticmethod
-    def polypill_3d_rheology(top_dds: Dict, mol_profile: Dict) -> Dict:
+    def polypill_3d_rheology(top_dds: dict, mol_profile: dict) -> dict:
         """#28: 3D-printed polypill rheology predictor (Power-law viscosity)."""
         mw_drug = float(mol_profile.get("MW_Da",500) or 500)
         logp    = float(mol_profile.get("LogP",2) or 2)
@@ -1995,7 +1997,7 @@ class FinalModules:
         }
 
     @staticmethod
-    def biomimetic_stealth(top_dds: Dict) -> Dict:
+    def biomimetic_stealth(top_dds: dict) -> dict:
         """#29: Biomimetic membrane coating stealth predictor."""
         carrier = str(top_dds.get("Carrier_Type","")).lower()
         stealth = float(top_dds.get("Stealth_Index",0.5) or 0.5)
@@ -2018,7 +2020,7 @@ class FinalModules:
         }
 
     @staticmethod
-    def fto_ip_analysis(top_dds: Dict, mol_profile: Dict) -> Dict:
+    def fto_ip_analysis(top_dds: dict, mol_profile: dict) -> dict:
         """#32: Freedom to Operate (FTO) and IP landscape analysis."""
         ligand  = str(top_dds.get("Surface_Ligand","")).lower()
         carrier = str(top_dds.get("Carrier_Type","")).lower()
@@ -2047,7 +2049,7 @@ class FinalModules:
         }
 
     @staticmethod
-    def continuous_mfg_twin(top_dds: Dict) -> Dict:
+    def continuous_mfg_twin(top_dds: dict) -> dict:
         """#34: Continuous manufacturing digital twin (RTD model)."""
         size_nm = float(top_dds.get("size_nm",80) or 80)
         pdi     = float(top_dds.get("pdi",0.15) or 0.15)
@@ -2072,8 +2074,8 @@ class FinalModules:
         }
 
     @staticmethod
-    def grant_proposal_summary(drug_name: str, top_dds: Dict,
-                                science: Dict) -> Dict:
+    def grant_proposal_summary(drug_name: str, top_dds: dict,
+                                science: dict) -> dict:
         """#37: Auto-generated NIH/NSF grant proposal summary."""
         carrier   = str(top_dds.get("Carrier_Type","DDS"))
         ligand    = str(top_dds.get("Surface_Ligand","ligand"))
@@ -2106,7 +2108,7 @@ class FinalModules:
         }
 
     @staticmethod
-    def shape_shifting_4d(top_dds: Dict) -> Dict:
+    def shape_shifting_4d(top_dds: dict) -> dict:
         """#41: 4D morphological transition predictor."""
         ph_trig  = float(top_dds.get("ph_trigger",6.5) or 6.5)
         ph_resp  = float(top_dds.get("pH_Responsiveness",0.5) or 0.5)
@@ -2128,7 +2130,7 @@ class FinalModules:
         }
 
     @staticmethod
-    def swarm_nanorobotics(top_dds: Dict) -> Dict:
+    def swarm_nanorobotics(top_dds: dict) -> dict:
         """#42: Agent-based swarm intelligence model."""
         size_nm = float(top_dds.get("size_nm",80) or 80)
         bbb_enh = float(top_dds.get("BBB_Enhanced_Pct",30) or 30)
@@ -2154,7 +2156,7 @@ class FinalModules:
         }
 
     @staticmethod
-    def biobetter_generator(top_dds: Dict, mol_profile: Dict) -> Dict:
+    def biobetter_generator(top_dds: dict, mol_profile: dict) -> dict:
         """#44: Biobetter/supergeneric scaffold alternatives."""
         ligand  = str(top_dds.get("Surface_Ligand","")).lower()
         carrier = str(top_dds.get("Carrier_Type","")).lower()
@@ -2182,7 +2184,7 @@ class FinalModules:
         }
 
     @staticmethod
-    def dna_logic_gates(top_dds: Dict, mol_profile: Dict) -> Dict:
+    def dna_logic_gates(top_dds: dict, mol_profile: dict) -> dict:
         """#46: DNA logic gate drug release simulator."""
         ph_trig = float(top_dds.get("ph_trigger",6.5) or 6.5)
         carrier = str(top_dds.get("Carrier_Type","")).lower()
@@ -2205,7 +2207,7 @@ class FinalModules:
         }
 
     @staticmethod
-    def spatiotemporal_targeting(top_dds: Dict) -> Dict:
+    def spatiotemporal_targeting(top_dds: dict) -> dict:
         """#54: Region-specific brain targeting (Hippocampus vs Substantia Nigra)."""
         ligand  = str(top_dds.get("Surface_Ligand","")).lower()
         carrier = str(top_dds.get("Carrier_Type","")).lower()
@@ -2238,9 +2240,9 @@ class FinalModules:
         }
 
 
-def run_final_modules(mol_profile: Dict, top_dds: Dict,
-                       science_results: Dict,
-                       drug_name: str = "Drug") -> Dict:
+def run_final_modules(mol_profile: dict, top_dds: dict,
+                       science_results: dict,
+                       drug_name: str = "Drug") -> dict:
     """Run all 11 final modules (points 26,28,29,32,34,37,41,42,44,46,54)."""
     results = {}
     tasks = [
@@ -2275,7 +2277,7 @@ class MicrogravityModule:
     Ref: Merck/NASA ISS experiments; Petsev 2003 (microgravity crystallization)
     """
     @staticmethod
-    def simulate(top_dds: Dict, mol_profile: Dict) -> Dict:
+    def simulate(top_dds: dict, mol_profile: dict) -> dict:
         size_nm = float(top_dds.get("size_nm", 80) or 80)
         zeta    = float(top_dds.get("zeta_potential_mv", -15) or -15)
         pdi     = float(top_dds.get("pdi", 0.15) or 0.15)
@@ -2342,7 +2344,7 @@ class ExosomeCargo:
     Ref: Alvarez-Erviti 2011 (Nat Biotechnol); Kooijmans 2013 (J Control Release)
     """
     @staticmethod
-    def simulate(top_dds: Dict, mol_profile: Dict) -> Dict:
+    def simulate(top_dds: dict, mol_profile: dict) -> dict:
         carrier = str(top_dds.get("Carrier_Type", "")).lower()
         mw_drug = float(mol_profile.get("MW_Da", 500) or 500)
         logp    = float(mol_profile.get("LogP", 2) or 2)
@@ -2400,7 +2402,7 @@ class ExosomeCargo:
                 "protocol_duration_s":    round(t_sono_s, 1),
                 "amplitude_pct":          40,
                 "cycles":                 3,
-                "recommended_for":        f"MW < 500 Da, LogP > 1",
+                "recommended_for":        "MW < 500 Da, LogP > 1",
             },
             # Electroporation
             "electroporation": {
@@ -2410,7 +2412,7 @@ class ExosomeCargo:
                 "pulse_duration_ms":       round(pulse_ms, 2),
                 "loading_efficiency_pct":  round(EE_electro, 1),
                 "membrane_integrity_pct":  round(membrane_integrity_pct, 1),
-                "recommended_for":         f"MW > 500 Da, hydrophilic drugs",
+                "recommended_for":         "MW > 500 Da, hydrophilic drugs",
             },
             "best_method":             best_method,
             "optimal_protocol": {
@@ -2481,12 +2483,15 @@ class RealTimeLiterature:
 
     @classmethod
     def fetch_pubmed(cls, drug_name: str, carrier_type: str,
-                     output_dir: Path, max_results: int = 5) -> List[Dict]:
+                     output_dir: Path, max_results: int = 5) -> list[dict]:
         """
         Attempts live PubMed E-utilities API. Falls back to curated citations.
         Returns list of citation dicts with title, pmid, journal, year.
         """
-        import urllib.request, urllib.parse, json as _json, time
+        import json as _json
+        import time
+        import urllib.parse
+        import urllib.request
 
         query = f"{drug_name} {carrier_type} CNS drug delivery nanoparticle"
         base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
@@ -2537,7 +2542,7 @@ class RealTimeLiterature:
         return citations
 
     @classmethod
-    def _get_curated(cls, carrier_type: str, drug_name: str) -> List[Dict]:
+    def _get_curated(cls, carrier_type: str, drug_name: str) -> list[dict]:
         ct = carrier_type.lower()
         if "vex" in ct or "exo" in ct:  key = "vexosome_exosome"
         elif "lipo" in ct:               key = "liposome_cns"
@@ -2549,7 +2554,7 @@ class RealTimeLiterature:
                 for c in cits[:6]]
 
     @classmethod
-    def get_dark_data_warnings(cls, top_dds: Dict) -> List[Dict]:
+    def get_dark_data_warnings(cls, top_dds: dict) -> list[dict]:
         """
         Point 35 — Dark Data & Negative Results Vault
         Checks formulation against known failure patterns.
@@ -2581,8 +2586,8 @@ class RealTimeLiterature:
         return warnings
 
 
-def run_missing_modules(mol_profile: Dict, top_dds: Dict,
-                         output_dir: Path, drug_name: str = "Drug") -> Dict:
+def run_missing_modules(mol_profile: dict, top_dds: dict,
+                         output_dir: Path, drug_name: str = "Drug") -> dict:
     """Run the 4 previously-partial modules with full implementation."""
     results = {}
     Path(output_dir).mkdir(parents=True, exist_ok=True)

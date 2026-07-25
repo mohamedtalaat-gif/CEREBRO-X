@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  AUTHENTICATION & RBAC ENGINE
@@ -35,16 +34,13 @@ References:
 ================================================================================
 """
 
-import os
-import sys
-import hmac
 import hashlib
-import secrets
 import logging
+import os
+import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional, List, Dict, Any
 from enum import Enum
-from functools import wraps
+from typing import Optional
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Dependencies
@@ -62,23 +58,34 @@ except ImportError:
     _HAS_PASSLIB = False
 
 try:
-    from fastapi import Depends, HTTPException, status, Security
+    from fastapi import Depends, HTTPException, Security, status
     from fastapi.security import (
-        OAuth2PasswordBearer, OAuth2PasswordRequestForm,
-        HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader,
+        APIKeyHeader,
+        HTTPAuthorizationCredentials,
+        HTTPBearer,
+        OAuth2PasswordBearer,
+        OAuth2PasswordRequestForm,
     )
-    from pydantic import BaseModel, Field, EmailStr
+    from pydantic import BaseModel, EmailStr, Field
     _HAS_FASTAPI = True
 except ImportError:
     _HAS_FASTAPI = False
 
 try:
     from sqlalchemy import (
-        Column, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON,
-        create_engine, event
+        JSON,
+        Boolean,
+        Column,
+        DateTime,
+        ForeignKey,
+        Integer,
+        String,
+        Text,
+        create_engine,
+        event,
     )
     from sqlalchemy.ext.declarative import declarative_base
-    from sqlalchemy.orm import sessionmaker, Session, relationship
+    from sqlalchemy.orm import Session, relationship, sessionmaker
     _HAS_SQLALCHEMY = True
 except ImportError:
     _HAS_SQLALCHEMY = False
@@ -136,7 +143,7 @@ class Role(str, Enum):
 
 
 # Permission matrix: role → set of allowed actions
-PERMISSION_MATRIX: Dict[str, set] = {
+PERMISSION_MATRIX: dict[str, set] = {
     Role.ADMIN: {
         "pipeline:run", "pipeline:read", "pipeline:config",
         "dds:run", "dds:read",
@@ -281,7 +288,7 @@ if _HAS_FASTAPI:
         email:     str = Field(..., description="User email")
         username:  str = Field(..., min_length=3, max_length=50)
         password:  str = Field(..., min_length=8)
-        full_name: Optional[str] = None
+        full_name: str | None = None
         role:      str = Field(default=Role.READONLY)
 
     class UserRegister(BaseModel):
@@ -292,13 +299,13 @@ if _HAS_FASTAPI:
         email:     str = Field(..., description="User email")
         username:  str = Field(..., min_length=3, max_length=50)
         password:  str = Field(..., min_length=8)
-        full_name: Optional[str] = None
+        full_name: str | None = None
 
     class UserResponse(BaseModel):
         id:         int
         email:      str
         username:   str
-        full_name:  Optional[str]
+        full_name:  str | None
         role:       str
         is_active:  bool
         created_at: datetime
@@ -318,13 +325,13 @@ if _HAS_FASTAPI:
 
     class APIKeyCreate(BaseModel):
         name:   str = Field(..., description="Key description")
-        scopes: List[str] = Field(default_factory=list)
+        scopes: list[str] = Field(default_factory=list)
 
     class APIKeyResponse(BaseModel):
         key:        str  # shown only once at creation
         key_prefix: str
         name:       str
-        scopes:     List[str]
+        scopes:     list[str]
         created_at: datetime
 
 
@@ -337,7 +344,7 @@ class TokenEngine:
     @staticmethod
     def create_access_token(
         data: dict,
-        expires_delta: Optional[timedelta] = None,
+        expires_delta: timedelta | None = None,
     ) -> str:
         if not _HAS_JOSE:
             raise RuntimeError("python-jose not installed: pip install python-jose[cryptography]")
@@ -502,7 +509,7 @@ class AuthService:
         )
 
     def create_api_key(self, user_id: int, name: str,
-                       scopes: List[str] = None) -> tuple:
+                       scopes: list[str] = None) -> tuple:
         """Returns (raw_key, APIKeyModel). Raw key shown only once."""
         raw_key    = f"cerebro_{secrets.token_hex(24)}"
         key_hash   = hashlib.sha256(raw_key.encode()).hexdigest()

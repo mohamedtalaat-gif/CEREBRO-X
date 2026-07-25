@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_62_orchestrator.py
@@ -28,8 +27,9 @@ Output structure (returned to run.py):
 ================================================================================
 """
 from __future__ import annotations
-import logging, math
-from typing import Dict, List, Tuple, Any, Optional
+
+import logging
+from typing import Any
 
 log = logging.getLogger("CEREBRO-62-ORCHESTRATOR")
 
@@ -37,8 +37,8 @@ log = logging.getLogger("CEREBRO-62-ORCHESTRATOR")
 # ──────────────────────────────────────────────────────────────────────────
 # Composite scoring with CNS-focused weights from the catalog
 # ──────────────────────────────────────────────────────────────────────────
-def _compute_composite_score(per_principle: Dict[str, Dict],
-                              weights: Dict[str, float]) -> float:
+def _compute_composite_score(per_principle: dict[str, dict],
+                              weights: dict[str, float]) -> float:
     """Weighted average of all principle scores. Weights from catalog."""
     total_w = 0.0
     total_score = 0.0
@@ -59,7 +59,7 @@ def _verdict_for(score: float) -> str:
 
 
 def _drug_dds_compatibility_multiplier(drug_type: str,
-                                          carrier_type: str) -> Tuple[float, str]:
+                                          carrier_type: str) -> tuple[float, str]:
     """Phase 5 (2026-04-30): pathway-aware composite multiplier.
 
     Different drug modalities need fundamentally different DDS architectures.
@@ -158,7 +158,7 @@ def _drug_dds_compatibility_multiplier(drug_type: str,
     return 0.95, "default: pairing not in FDA-validated table — surrogate score retained"
 
 
-def _group_score(per_principle: Dict[str, Dict], pids: List[str]) -> float:
+def _group_score(per_principle: dict[str, dict], pids: list[str]) -> float:
     """Average score across a list of principle IDs (skipping missing)."""
     vals = [per_principle[p]["score"] for p in pids if p in per_principle]
     return sum(vals)/len(vals) if vals else 0.0
@@ -182,8 +182,8 @@ PRINCIPLE_GROUPS = {
 # ──────────────────────────────────────────────────────────────────────────
 # Main entry point — replaces evaluate_all_dds in v21
 # ──────────────────────────────────────────────────────────────────────────
-def evaluate_all_dds_62(drug_bundle: Dict, df_dds, drug_name: str = "",
-                          context: Optional[Dict] = None) -> Dict:
+def evaluate_all_dds_62(drug_bundle: dict, df_dds, drug_name: str = "",
+                          context: dict | None = None) -> dict:
     """The full C+ Flow on a single drug's DDS list — BUNDLE-ONLY.
 
     Phase 5 refactor (2026-04-30):
@@ -205,12 +205,18 @@ def evaluate_all_dds_62(drug_bundle: Dict, df_dds, drug_name: str = "",
       translational, principle_weights, fallback_chain,
       drug_bundle (for report-level provenance)
     """
-    import pandas as pd
-    from cerebro_62_surrogate_engine     import evaluate_all_principles_for_dds, SURROGATE_FUNCTIONS
-    from cerebro_62_deep_engine          import evaluate_deep_for_top1, overall_deep_validation
+    from cerebro_62_deep_engine import evaluate_deep_for_top1, overall_deep_validation
+    from cerebro_62_principles_catalog import PRINCIPLES_62
+    from cerebro_62_surrogate_engine import (
+        SURROGATE_FUNCTIONS,
+        evaluate_all_principles_for_dds,
+    )
     from cerebro_62_translational_engine import evaluate_translational_for_top1
-    from cerebro_62_principles_catalog   import PRINCIPLES_62
-    from cerebro_resolved_bundles        import resolve_dds_bundle, resolve_combo_bundle, cache_stats
+    from cerebro_resolved_bundles import (
+        cache_stats,
+        resolve_combo_bundle,
+        resolve_dds_bundle,
+    )
 
     if df_dds is None or len(df_dds) == 0:
         log.warning(f"[62-ORCH] {drug_name}: empty df_dds")
@@ -232,8 +238,8 @@ def evaluate_all_dds_62(drug_bundle: Dict, df_dds, drug_name: str = "",
                 if p["class"] in ("A_surrogate", "B_deep")}
 
     # ─── Pre-resolve all DDS bundles + combo bundles (cache-friendly) ──
-    dds_bundles: List[Dict] = []
-    combo_bundles: List[Dict] = []
+    dds_bundles: list[dict] = []
+    combo_bundles: list[dict] = []
     for idx in range(len(df)):
         dds_row = df.iloc[idx].to_dict()
         carrier = str(dds_row.get("Carrier_Type", "") or
@@ -255,10 +261,10 @@ def evaluate_all_dds_62(drug_bundle: Dict, df_dds, drug_name: str = "",
               f"{cache_stats()}")
 
     # ─── PHASE 1: Class A surrogate on every DDS ────────────────────
-    all_principles: List[Dict] = []
-    all_breakdowns: List[Dict] = []
-    composites: List[float] = []
-    group_rollups_per_row: Dict[str, List[float]] = {g: [] for g in PRINCIPLE_GROUPS}
+    all_principles: list[dict] = []
+    all_breakdowns: list[dict] = []
+    composites: list[float] = []
+    group_rollups_per_row: dict[str, list[float]] = {g: [] for g in PRINCIPLE_GROUPS}
 
     # Drug type for compatibility multiplier
     drug_type_meta = drug_bundle.get("_meta", {}).get("drug_type", "small_molecule")
@@ -349,7 +355,7 @@ def evaluate_all_dds_62(drug_bundle: Dict, df_dds, drug_name: str = "",
     sorted_principles = sorted(all_principles, key=lambda p: p["composite"],
                                  reverse=True)
     # Map old idx → new sorted position so we can pick the right bundles
-    sorted_idx_to_old: List[int] = [b["dds_index"] for b in sorted_breakdowns]
+    sorted_idx_to_old: list[int] = [b["dds_index"] for b in sorted_breakdowns]
 
     # Phase 5 (2026-04-30): inject provenance summary columns into the
     # ranked DataFrame so downstream consumers (PDF/Excel/HTML5 writers)
@@ -386,9 +392,9 @@ def evaluate_all_dds_62(drug_bundle: Dict, df_dds, drug_name: str = "",
 
 
     # ─── PHASE 2: Class B deep physics on Top-1 (with fallback) ─────
-    fallback_chain: List[Dict] = []
-    deep_results: Dict[str, Dict] = {}
-    deep_summary: Dict[str, Any] = {"passed": False, "verdict": "NOT RUN"}
+    fallback_chain: list[dict] = []
+    deep_results: dict[str, dict] = {}
+    deep_summary: dict[str, Any] = {"passed": False, "verdict": "NOT RUN"}
     top1_used_idx = 0
 
     n_to_try = min(3, len(sorted_breakdowns))
@@ -447,8 +453,8 @@ def evaluate_all_dds_62(drug_bundle: Dict, df_dds, drug_name: str = "",
                     f"not meet the 70% deep-validation threshold.")
             else:
                 transition_reason = (
-                    f"No more candidates in Top-3 — reverting to rank #1 "
-                    f"and reporting with MARGINAL verdict.")
+                    "No more candidates in Top-3 — reverting to rank #1 "
+                    "and reporting with MARGINAL verdict.")
         else:   # FAILED
             top_failures = ", ".join(p["principle"] for p in failed_principles[:5])
             failure_reason = (
@@ -462,9 +468,9 @@ def evaluate_all_dds_62(drug_bundle: Dict, df_dds, drug_name: str = "",
                     f"showed insufficient evidence for this DDS.")
             else:
                 transition_reason = (
-                    f"No more candidates in Top-3 — reverting to rank #1 "
-                    f"and reporting with FAILED verdict. "
-                    f"Researcher should reformulate.")
+                    "No more candidates in Top-3 — reverting to rank #1 "
+                    "and reporting with FAILED verdict. "
+                    "Researcher should reformulate.")
 
         fallback_chain.append({
             "rank":              try_idx + 1,
@@ -532,8 +538,8 @@ def evaluate_all_dds_62(drug_bundle: Dict, df_dds, drug_name: str = "",
 # ──────────────────────────────────────────────────────────────────────────
 # Narrative builder
 # ──────────────────────────────────────────────────────────────────────────
-def _build_narrative(dds: Dict, per_principle: Dict,
-                       groups: Dict, composite: float, verdict: str) -> str:
+def _build_narrative(dds: dict, per_principle: dict,
+                       groups: dict, composite: float, verdict: str) -> str:
     name = str(dds.get("Formulation_Name") or
                 dds.get("Formulation_ID") or "this DDS")
     carrier = str(dds.get("Carrier_Type", "unknown")).lower()

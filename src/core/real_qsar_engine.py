@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  REAL ChEMBL-TRAINED QSAR ENGINE
@@ -23,9 +22,11 @@ Reference: Mayr A et al. (2018) Large-scale comparison of ML methods for
 ================================================================================
 """
 from __future__ import annotations
-import math, logging, json, hashlib
+
+import json
+import logging
+import math
 from pathlib import Path
-from typing import Dict, List, Optional
 
 log = logging.getLogger("CEREBRO-QSAR")
 
@@ -92,14 +93,14 @@ RECEPTOR_TARGETS = [
 ]
 
 
-def _compute_features(smiles: str, mol_profile: Dict) -> Optional[List[float]]:
+def _compute_features(smiles: str, mol_profile: dict) -> list[float] | None:
     """
     Compute feature vector from SMILES: MACCS keys (167) + 7 physicochemical.
     Returns None if SMILES invalid.
     """
     try:
         from rdkit import Chem
-        from rdkit.Chem import MACCSkeys, Descriptors
+        from rdkit.Chem import Descriptors, MACCSkeys
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             return None
@@ -124,15 +125,17 @@ def _compute_features(smiles: str, mol_profile: Dict) -> Optional[List[float]]:
         return None
 
 
-def _train_qsar_model(target_name: str, chembl_id: str) -> Optional[object]:
+def _train_qsar_model(target_name: str, chembl_id: str) -> object | None:
     """
     Attempt to fetch ChEMBL data and train a Random Forest model.
     Falls back gracefully if API unavailable.
     """
     try:
-        import urllib.request, json as _j
-        from sklearn.ensemble import RandomForestClassifier
+        import json as _j
+        import urllib.request
+
         import numpy as np
+        from sklearn.ensemble import RandomForestClassifier
 
         # Fetch ChEMBL bioactivity data
         url = (f"https://www.ebi.ac.uk/chembl/api/data/activity?"
@@ -166,7 +169,6 @@ def _train_qsar_model(target_name: str, chembl_id: str) -> Optional[object]:
         if len(X) < 20:
             return None
 
-        import numpy as np
         clf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
         clf.fit(np.array(X), np.array(y))
         log.info(f"[QSAR] Trained {target_name}: {len(X)} compounds, {sum(y)} actives")
@@ -177,8 +179,8 @@ def _train_qsar_model(target_name: str, chembl_id: str) -> Optional[object]:
         return None
 
 
-def _empirical_score(target: Dict, mol_profile: Dict,
-                       features: Optional[List[float]]) -> Dict:
+def _empirical_score(target: dict, mol_profile: dict,
+                       features: list[float] | None) -> dict:
     """
     Empirical QSAR scoring using physicochemical rules + partial ML prediction.
     Based on published SAR knowledge for each target class.
@@ -235,10 +237,10 @@ def _empirical_score(target: Dict, mol_profile: Dict,
     }
 
 
-def run_real_qsar_panel(smiles: str, mol_profile: Dict,
-                          top_dds: Dict,
+def run_real_qsar_panel(smiles: str, mol_profile: dict,
+                          top_dds: dict,
                           use_ml: bool = True,
-                          output_dir: Optional[Path] = None) -> Dict:
+                          output_dir: Path | None = None) -> dict:
     """
     Run the full 50-receptor QSAR panel.
     Attempts to use ChEMBL-trained RF models; falls back to empirical rules.
@@ -270,7 +272,7 @@ def run_real_qsar_panel(smiles: str, mol_profile: Dict,
                         "score_free_drug": round(score_free,3),
                         "score_in_DDS":    round(score_dds,3),
                         "risk":            risk_label,
-                        "method":          f"ChEMBL Random Forest (n≥20 actives)",
+                        "method":          "ChEMBL Random Forest (n≥20 actives)",
                     }
                     n_ml += 1
             except Exception as e:

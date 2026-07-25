@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/drug_descriptors.py
@@ -18,10 +17,20 @@ Categories registered:
 ================================================================================
 """
 from __future__ import annotations
-import logging, urllib.parse, json
-from typing import Optional, Dict, List, Callable
-from .._core import (register, _resolved, cached_safe_get,
-                     _HAS_RDKIT, _HAS_THERMO, _HAS_REQUESTS)
+
+import json
+import logging
+import urllib.parse
+from collections.abc import Callable
+
+from .._core import (
+    _HAS_RDKIT,
+    _HAS_REQUESTS,
+    _HAS_THERMO,
+    _resolved,
+    cached_safe_get,
+    register,
+)
 from ..computations import ghose_crippen_logp_atomic
 
 log = logging.getLogger("CEREBRO-RESOLVER.descriptors")
@@ -30,7 +39,7 @@ log = logging.getLogger("CEREBRO-RESOLVER.descriptors")
 # ──────────────────────────────────────────────────────────────────────────
 # Generic PubChem property fetcher (any descriptor)
 # ──────────────────────────────────────────────────────────────────────────
-def _pubchem_property(name: str, smiles: str, prop: str) -> Optional[float]:
+def _pubchem_property(name: str, smiles: str, prop: str) -> float | None:
     """prop ∈ {XLogP, MolecularWeight, TPSA, HBondDonorCount,
               HBondAcceptorCount, RotatableBondCount, MolecularFormula,
               CanonicalSMILES, Charge}"""
@@ -64,7 +73,7 @@ def _pubchem_property(name: str, smiles: str, prop: str) -> Optional[float]:
     return None
 
 
-def _chembl_property(name: str, key: str) -> Optional[float]:
+def _chembl_property(name: str, key: str) -> float | None:
     """key ∈ {alogp, full_mwt, psa, hbd, hba, rtb, aromatic_rings, full_molformula}"""
     if not name or not _HAS_REQUESTS: return None
     enc = urllib.parse.quote(name)
@@ -88,10 +97,10 @@ def _chembl_property(name: str, key: str) -> Optional[float]:
 # ──────────────────────────────────────────────────────────────────────────
 # RDKit Tier-3 dispatchers
 # ──────────────────────────────────────────────────────────────────────────
-def _rdkit_descriptor(smiles: str, name: str) -> Optional[Dict]:
+def _rdkit_descriptor(smiles: str, name: str) -> dict | None:
     if not (smiles and _HAS_RDKIT): return None
     from rdkit import Chem
-    from rdkit.Chem import Descriptors, Crippen, Lipinski, rdMolDescriptors
+    from rdkit.Chem import Crippen, Descriptors, Lipinski, rdMolDescriptors
     try:
         mol = Chem.MolFromSmiles(smiles)
         if mol is None: return None
@@ -113,7 +122,7 @@ def _rdkit_descriptor(smiles: str, name: str) -> Optional[Dict]:
         return None
 
 
-def _thermo_descriptor(name: str, key: str) -> Optional[float]:
+def _thermo_descriptor(name: str, key: str) -> float | None:
     """key ∈ {logP, MW, atom_count}"""
     if not _HAS_THERMO or not name: return None
     try:
@@ -151,7 +160,7 @@ _RNA_AVG_MASS = {
 _MOE_PS_DELTA = 88.0
 
 
-def _biologic_mw_from_fasta(fasta: str) -> Optional[float]:
+def _biologic_mw_from_fasta(fasta: str) -> float | None:
     """Compute biologic MW from FASTA via summed average residue masses.
 
     For an n-residue protein:
@@ -178,7 +187,7 @@ def _biologic_mw_from_fasta(fasta: str) -> Optional[float]:
 
 def _oligonucleotide_mw_from_sequence(sequence: str,
                                           modification: str = "DNA"
-                                          ) -> Optional[float]:
+                                          ) -> float | None:
     """Compute oligonucleotide MW from sequence.
 
     Args:
@@ -213,11 +222,11 @@ def _oligonucleotide_mw_from_sequence(sequence: str,
 
 
 def _build_descriptor_resolver(category: str,
-                                 pubchem_prop: Optional[str],
-                                 chembl_key: Optional[str],
-                                 rdkit_key: Optional[str],
-                                 thermo_key: Optional[str],
-                                 tier7_fn: Optional[Callable],
+                                 pubchem_prop: str | None,
+                                 chembl_key: str | None,
+                                 rdkit_key: str | None,
+                                 thermo_key: str | None,
+                                 tier7_fn: Callable | None,
                                  default_value: float,
                                  reference_t3: str,
                                  unit: str = "",
@@ -236,9 +245,9 @@ def _build_descriptor_resolver(category: str,
     def resolver(name: str = "", smiles: str = "",
                   fasta: str = "", sequence: str = "",
                   molecule_class: str = "",
-                  researcher_override: Optional[float] = None,
-                  **kwargs) -> Dict:
-        db_misses: List[str] = []
+                  researcher_override: float | None = None,
+                  **kwargs) -> dict:
+        db_misses: list[str] = []
 
         if researcher_override is not None:
             return _resolved(
@@ -300,7 +309,7 @@ def _build_descriptor_resolver(category: str,
                     is_full_mab = (molecule_class or "").lower() in (
                         "monoclonal_antibody", "mab", "antibody")
                     n_aa = len(fasta.replace(">","").replace("\n","").strip())
-                    extra: Dict = {"residue_count": n_aa}
+                    extra: dict = {"residue_count": n_aa}
                     method_note = ("Sequence-sum biologic MW: "
                                      f"Σ(residue_avg_mass × {n_aa}) − (n−1)·H₂O. "
                                      "Average residue masses from IUPAC Tarini 2008.")
@@ -398,7 +407,7 @@ def _build_descriptor_resolver(category: str,
 # ──────────────────────────────────────────────────────────────────────────
 # Pure-math tier-7 helpers
 # ──────────────────────────────────────────────────────────────────────────
-def _t7_mw(smiles: str) -> Optional[float]:
+def _t7_mw(smiles: str) -> float | None:
     """Sum of atomic weights from SMILES tokenization."""
     if not smiles: return None
     ATOMIC_WT = {
@@ -416,7 +425,7 @@ def _t7_mw(smiles: str) -> Optional[float]:
     return round(mw, 2)
 
 
-def _t7_tpsa(smiles: str) -> Optional[float]:
+def _t7_tpsa(smiles: str) -> float | None:
     """Approximate TPSA from polar atom count (Ertl 2000 approximation).
     Each O ≈ 9 Å², each N ≈ 12 Å², charge correction +6 each.
     """
@@ -430,21 +439,21 @@ def _t7_tpsa(smiles: str) -> Optional[float]:
     return round(tpsa, 1)
 
 
-def _t7_hbd(smiles: str) -> Optional[float]:
+def _t7_hbd(smiles: str) -> float | None:
     """Count -OH and -NH from SMILES patterns."""
     if not smiles: return None
     n = smiles.count("OH") + smiles.count("NH") + smiles.count("[nH]")
     return float(n)
 
 
-def _t7_hba(smiles: str) -> Optional[float]:
+def _t7_hba(smiles: str) -> float | None:
     """Count N + O atoms (Lipinski definition includes all)."""
     if not smiles: return None
     return float(smiles.count("O") + smiles.count("o")
                   + smiles.count("N") + smiles.count("n"))
 
 
-def _t7_rotbonds(smiles: str) -> Optional[float]:
+def _t7_rotbonds(smiles: str) -> float | None:
     """Approximate single-bond C-C/C-N/C-O count outside rings."""
     if not smiles: return None
     n = smiles.count("CC") + smiles.count("CN") + smiles.count("CO") \
@@ -453,7 +462,7 @@ def _t7_rotbonds(smiles: str) -> Optional[float]:
     return float(max(0, int(n * 0.7)))
 
 
-def _t7_arom_rings(smiles: str) -> Optional[float]:
+def _t7_arom_rings(smiles: str) -> float | None:
     """Aromatic ring count: count distinct ring closures involving lowercase
     aromatic atoms (c, n, o, s)."""
     if not smiles: return None
@@ -461,12 +470,12 @@ def _t7_arom_rings(smiles: str) -> Optional[float]:
     return float(int(n_arom_atoms / 6))   # rings of 6
 
 
-def _t7_formal_charge(smiles: str) -> Optional[float]:
+def _t7_formal_charge(smiles: str) -> float | None:
     if not smiles: return None
     return float(smiles.count("+") - smiles.count("-"))
 
 
-def _t7_stereo(smiles: str) -> Optional[float]:
+def _t7_stereo(smiles: str) -> float | None:
     if not smiles: return None
     return float(smiles.count("@") - smiles.count("@@"))   # rough
 

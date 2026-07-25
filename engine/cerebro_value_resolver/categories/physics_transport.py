@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/physics_transport.py
@@ -21,21 +20,21 @@ Tier cascade:
 ================================================================================
 """
 from __future__ import annotations
-import logging, math
-from typing import Optional, Dict, List
-from .._core import (register, _resolved, _HAS_CHEMICALS, _HAS_PINT,
-                     _HAS_THERMO)
-from ..computations import (stokes_einstein_diff, wilke_chang_diff,
-                              hayduk_laudie_diff)
+
+import logging
+import math
+
+from .._core import _HAS_CHEMICALS, _HAS_THERMO, _resolved, register
+from ..computations import stokes_einstein_diff, wilke_chang_diff
 
 log = logging.getLogger("CEREBRO-RESOLVER.transport")
 
 
 @register("physics_diff_coeff_water")
 def resolve_physics_diff_coeff_water(name: str = "", smiles: str = "",
-                                       mw_Da: Optional[float] = None,
+                                       mw_Da: float | None = None,
                                        T_K: float = 310.15,
-                                       researcher_override: Optional[float] = None) -> Dict:
+                                       researcher_override: float | None = None) -> dict:
     """Aqueous diffusion coefficient (m²/s) at 37°C."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
@@ -43,7 +42,7 @@ def resolve_physics_diff_coeff_water(name: str = "", smiles: str = "",
                           method="User-provided D (m²/s)",
                           reference="Researcher input",
                           live_db_misses=[])
-    db_misses: List[str] = []
+    db_misses: list[str] = []
     db_misses.extend(["NIST WebBook (rate-limited)", "PubChem (rare)"])
 
     # Tier 5: chemicals library
@@ -97,17 +96,17 @@ def resolve_physics_diff_coeff_water(name: str = "", smiles: str = "",
 
 @register("physics_diff_coeff_membrane")
 def resolve_physics_diff_coeff_membrane(name: str = "", smiles: str = "",
-                                          mw_Da: Optional[float] = None,
-                                          logp: Optional[float] = None,
+                                          mw_Da: float | None = None,
+                                          logp: float | None = None,
                                           T_K: float = 310.15,
-                                          researcher_override: Optional[float] = None) -> Dict:
+                                          researcher_override: float | None = None) -> dict:
     """Lateral diffusion coefficient inside a lipid bilayer (m²/s)."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided membrane D",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = ["LIPID MAPS (no D endpoint)",
+    db_misses: list[str] = ["LIPID MAPS (no D endpoint)",
                               "Avanti (no D endpoint)"]
     # Tier 6: Saffman-Delbrück (membrane viscosity ~100x water)
     if mw_Da:
@@ -131,21 +130,20 @@ def resolve_physics_diff_coeff_membrane(name: str = "", smiles: str = "",
 
 @register("physics_lj_epsilon")
 def resolve_physics_lj_epsilon(name: str = "", smiles: str = "",
-                                  mw_Da: Optional[float] = None,
-                                  Tb_K: Optional[float] = None,
-                                  researcher_override: Optional[float] = None) -> Dict:
+                                  mw_Da: float | None = None,
+                                  Tb_K: float | None = None,
+                                  researcher_override: float | None = None) -> dict:
     """Lennard-Jones ε / k_B (K)."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided LJ ε/k",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = ["NIST WebBook (sparse for organics)"]
+    db_misses: list[str] = ["NIST WebBook (sparse for organics)"]
 
     # Tier 5: chemicals lib
     if _HAS_CHEMICALS:
         try:
-            from chemicals import Stiel_Thodos
             # Stiel-Thodos: ε/k ≈ 0.77·Tc
             # We'll use Tb if Tc unavailable: Tc ≈ 1.5·Tb
             if Tb_K:
@@ -177,16 +175,16 @@ def resolve_physics_lj_epsilon(name: str = "", smiles: str = "",
 
 @register("physics_lj_sigma")
 def resolve_physics_lj_sigma(name: str = "", smiles: str = "",
-                                mw_Da: Optional[float] = None,
-                                Vc_cm3_mol: Optional[float] = None,
-                                researcher_override: Optional[float] = None) -> Dict:
+                                mw_Da: float | None = None,
+                                Vc_cm3_mol: float | None = None,
+                                researcher_override: float | None = None) -> dict:
     """Lennard-Jones σ (Å)."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided LJ σ (Å)",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = ["NIST WebBook (sparse)"]
+    db_misses: list[str] = ["NIST WebBook (sparse)"]
     # Tier 6: σ ≈ 0.841·Vc^(1/3) where Vc in cm³/mol (Bird-Stewart-Lightfoot)
     if Vc_cm3_mol:
         sigma = 0.841 * (Vc_cm3_mol ** (1/3))
@@ -216,14 +214,14 @@ def resolve_physics_lj_sigma(name: str = "", smiles: str = "",
 @register("physics_viscosity_solvent")
 def resolve_physics_viscosity_solvent(solvent: str = "water",
                                         T_K: float = 310.15,
-                                        researcher_override: Optional[float] = None) -> Dict:
+                                        researcher_override: float | None = None) -> dict:
     """Solvent dynamic viscosity (Pa·s)."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided η",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = []
+    db_misses: list[str] = []
     # Tier 5: thermo
     if _HAS_THERMO:
         try:

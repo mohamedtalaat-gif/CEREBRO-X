@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  ADVANCED SCIENCE MODULES
@@ -32,14 +31,13 @@ Modules implemented:
 ================================================================================
 """
 
-import math
 import logging
+import math
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
 from scipy.integrate import solve_ivp
-from scipy.optimize import minimize_scalar
 
 log = logging.getLogger("CEREBRO-SCIENCE")
 
@@ -84,7 +82,9 @@ class BiologicPBPK:
         Simulate biologic PK in plasma and CNS.
         Returns same schema as small-molecule PBPK for downstream compatibility.
         """
-        import math, numpy as np
+        import math
+
+        import numpy as np
         try:
             from scipy.integrate import solve_ivp
         except ImportError:
@@ -277,7 +277,7 @@ class PBPK_CNS_DigitalTwin:
 
     @staticmethod
     def _build_odes(t: float, C: np.ndarray,
-                    params: Dict) -> np.ndarray:
+                    params: dict) -> np.ndarray:
         """
         System of 6 ODEs for PBPK-CNS model.
         C = [C_plasma, C_BBB, C_ISF, C_cell, C_CSF, C_periph]
@@ -341,13 +341,13 @@ class PBPK_CNS_DigitalTwin:
 
     @classmethod
     def simulate(cls,
-                 mol_profile: Dict,
-                 top_dds: Dict,
+                 mol_profile: dict,
+                 top_dds: dict,
                  dose_mg: float = 1.0,
                  route: str = "IV",
                  disease_state: str = "healthy",
                  t_max_h: float = 72.0,
-                 n_points: int = 300) -> Dict:
+                 n_points: int = 300) -> dict:
         """
         Full PBPK-CNS simulation for Drug+DDS system.
 
@@ -567,8 +567,8 @@ class ReleaseProfileEngine:
         return np.clip(Mt * ee, 0, ee)
 
     @classmethod
-    def compute(cls, top_dds: Dict, mol_profile: Dict,
-                t_max_h: float = 48.0, n_points: int = 200) -> Dict:
+    def compute(cls, top_dds: dict, mol_profile: dict,
+                t_max_h: float = 48.0, n_points: int = 200) -> dict:
         carrier  = str(top_dds.get("Carrier_Type", "liposome")).lower()
         ee       = float(top_dds.get("encapsulation_efficiency_pct") or 75) / 100
         rel_kin  = str(top_dds.get("release_kinetics") or "sustained")
@@ -648,9 +648,9 @@ class ShelfLifeEngine:
     """
 
     @classmethod
-    def predict(cls, top_dds: Dict, mol_profile: Dict,
+    def predict(cls, top_dds: dict, mol_profile: dict,
                 T_storage_C: float = 4.0,
-                RH_pct: float = 40.0) -> Dict:
+                RH_pct: float = 40.0) -> dict:
         carrier   = str(top_dds.get("Carrier_Type", "liposome")).lower()
         size_nm   = float(top_dds.get("size_nm") or 80)
         zeta_mv   = abs(float(top_dds.get("zeta_potential_mv") or -10))
@@ -753,7 +753,7 @@ class NanotoxicityEngine:
     """
 
     @classmethod
-    def screen(cls, top_dds: Dict, mol_profile: Dict) -> Dict:
+    def screen(cls, top_dds: dict, mol_profile: dict) -> dict:
         size_nm  = float(top_dds.get("size_nm") or 80)
         zeta_mv  = float(top_dds.get("zeta_potential_mv") or -10)
         peg_pct  = float(top_dds.get("pegylation_degree_mol_pct") or 5)
@@ -897,7 +897,7 @@ class QSAR_ToxicityEngine:
     }
 
     @classmethod
-    def screen(cls, mol_profile: Dict, top_dds: Dict) -> Dict:
+    def screen(cls, mol_profile: dict, top_dds: dict) -> dict:
         """
         Run 50-receptor off-target QSAR panel.
         Uses ChEMBL-trained Random Forest models when cloud available.
@@ -998,7 +998,7 @@ class GlymphaticEngine:
     """
 
     @classmethod
-    def simulate(cls, top_dds: Dict, t_h: np.ndarray) -> Dict:
+    def simulate(cls, top_dds: dict, t_h: np.ndarray) -> dict:
         size_nm  = float(top_dds.get("size_nm") or 80)
         zeta_mv  = float(top_dds.get("zeta_potential_mv") or -10)
         peg_pct  = float(top_dds.get("pegylation_degree_mol_pct") or 5)
@@ -1089,9 +1089,9 @@ class DrugProblemEngine:
     """
 
     @classmethod
-    def identify(cls, mol_profile: Dict, top_dds: Dict,
-                  qsar_results: Dict,
-                  toxicity: Dict) -> List[Dict]:
+    def identify(cls, mol_profile: dict, top_dds: dict,
+                  qsar_results: dict,
+                  toxicity: dict) -> list[dict]:
         """Returns list of {problem, severity, evidence, dds_solution, why}."""
         problems = []
 
@@ -1177,7 +1177,7 @@ class DrugProblemEngine:
                 "problem":      "High plasma protein binding -- limited free drug",
                 "severity":     "MODERATE",
                 "evidence":     f"Protein binding = {pb:.0f}% (fu = {fu:.3f})",
-                "dds_solution": f"Encapsulation protects drug from albumin binding",
+                "dds_solution": "Encapsulation protects drug from albumin binding",
                 "why":          (f"Only {fu*100:.1f}% of free drug is pharmacologically active. "
                                   f"Encapsulated drug is sequestered from albumin, maintaining "
                                   f"effective payload concentration until CNS release."),
@@ -1246,7 +1246,7 @@ class DDSComparisonEngine:
     }
 
     @classmethod
-    def compare(cls, df_dds: pd.DataFrame, top_n: int = 5) -> Dict:
+    def compare(cls, df_dds: pd.DataFrame, top_n: int = 5) -> dict:
         if df_dds is None or df_dds.empty:
             return {}
 
@@ -1361,7 +1361,7 @@ class AllometricScalingEngine:
     }
 
     @classmethod
-    def scale(cls, mol_profile: Dict, source_species: str = "rat") -> Dict:
+    def scale(cls, mol_profile: dict, source_species: str = "rat") -> dict:
         BW_source = cls.SPECIES_BW.get(source_species, 0.25)
         BW_human  = cls.SPECIES_BW["human"]
 
@@ -1422,7 +1422,7 @@ class AdversarialStressEngine:
     """
 
     @classmethod
-    def test(cls, top_dds: Dict, mol_profile: Dict) -> Dict:
+    def test(cls, top_dds: dict, mol_profile: dict) -> dict:
         size_nm  = float(top_dds.get("size_nm") or 80)
         zeta_mv  = float(top_dds.get("zeta_potential_mv") or -10)
         peg_pct  = float(top_dds.get("pegylation_degree_mol_pct") or 5)
@@ -1522,12 +1522,12 @@ class AdversarialStressEngine:
 # ─────────────────────────────────────────────────────────────────────────────
 # MASTER RUNNER: execute all modules for a trial
 # ─────────────────────────────────────────────────────────────────────────────
-def run_all_science_modules(mol_profile: Dict,
-                              top_dds: Dict,
+def run_all_science_modules(mol_profile: dict,
+                              top_dds: dict,
                               df_dds: "pd.DataFrame",
                               output_dir: Path,
                               disease_state: str = "healthy",
-                              dose_mg: float = 1.0) -> Dict:
+                              dose_mg: float = 1.0) -> dict:
     """
     Run all science modules and return comprehensive results dict.
     All outputs are based on actual drug+DDS data -- no assumptions.

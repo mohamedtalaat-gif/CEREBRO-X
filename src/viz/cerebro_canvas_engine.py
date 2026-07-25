@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  HTML5 CANVAS VIDEO ENGINE
@@ -18,9 +17,11 @@ No ffmpeg, no imageio, no server needed — runs in any browser.
 ================================================================================
 """
 from __future__ import annotations
-import json, math, logging
+
+import json
+import logging
+import math
 from pathlib import Path
-from typing import Dict, List, Optional
 
 log = logging.getLogger("CEREBRO-CANVAS")
 
@@ -100,7 +101,7 @@ def _html_wrap(title: str, subtitle: str, canvas_id: str,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def make_v01_bbb(drug_name: str, top_dds: Dict, out_dir: Path) -> Path:
+def make_v01_bbb(drug_name: str, top_dds: dict, out_dir: Path) -> Path:
     """V01: BBB Crossing Animation — Canvas replacement for MP4."""
     carrier = str(top_dds.get("Carrier_Type","Vexosome"))
     ligand  = str(top_dds.get("Surface_Ligand","RVG29"))
@@ -250,7 +251,7 @@ anim.reset();
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def make_v02_pbpk(drug_name: str, pbpk: Dict, out_dir: Path) -> Path:
+def make_v02_pbpk(drug_name: str, pbpk: dict, out_dir: Path) -> Path:
     """V02: PBPK 6-compartment animated time-course."""
     t_arr  = pbpk.get("t_h", list(range(73))) or list(range(73))
     C_p    = pbpk.get("C_plasma",  [0]*len(t_arr)) or [0]*len(t_arr)
@@ -364,7 +365,7 @@ anim2.reset();
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def make_v03_release(drug_name: str, release: Dict, top_dds: Dict, out_dir: Path) -> Path:
+def make_v03_release(drug_name: str, release: dict, top_dds: dict, out_dir: Path) -> Path:
     """V03: Drug Release Kinetics animation."""
     t_arr  = release.get("t_h", list(range(49))) or list(range(49))
     rb     = release.get("release_blood_pct", []) or []
@@ -460,7 +461,7 @@ anim3.reset();
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def make_v04_ranking(drug_name: str, df_dds_data: List[Dict], top_dds: Dict, out_dir: Path) -> Path:
+def make_v04_ranking(drug_name: str, df_dds_data: list[dict], top_dds: dict, out_dir: Path) -> Path:
     """V04: DDS Ranking animated bar chart."""
     if not df_dds_data:
         return None
@@ -548,7 +549,7 @@ anim4.reset();
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def make_v05_biodist(drug_name: str, science: Dict, top_dds: Dict, out_dir: Path) -> Path:
+def make_v05_biodist(drug_name: str, science: dict, top_dds: dict, out_dir: Path) -> Path:
     """V05: Biodistribution organ map animation."""
     bd = science.get("biodistribution_map", {}) or {}
     organs = bd.get("organs") or {
@@ -645,8 +646,8 @@ anim5.reset();
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def run_all_canvas_videos(drug_name: str, top_dds: Dict, df_dds_data: List[Dict],
-                            science: Dict, out_dir: Path) -> Dict[str, Optional[Path]]:
+def run_all_canvas_videos(drug_name: str, top_dds: dict, df_dds_data: list[dict],
+                            science: dict, out_dir: Path) -> dict[str, Path | None]:
     """Generate all 5 HTML5 Canvas animations."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

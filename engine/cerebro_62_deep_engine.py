@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_62_deep_engine.py (Phase 3)
@@ -33,10 +32,12 @@ Returns dict:
 ================================================================================
 """
 from __future__ import annotations
-import math, logging
-from typing import Dict, Any, Optional, List
 
-from cerebro_resolved_bundles import b_value, b_tier, b_method
+import logging
+import math
+from typing import Any
+
+from cerebro_resolved_bundles import b_value
 
 log = logging.getLogger("CEREBRO-DEEP")
 
@@ -44,7 +45,7 @@ log = logging.getLogger("CEREBRO-DEEP")
 # ──────────────────────────────────────────────────────────────────────────
 # Bundle-aware extractors — CONTRACT: bundles required, not optional
 # ──────────────────────────────────────────────────────────────────────────
-def _bundle_drug_specs(drug_bundle: Dict) -> Dict[str, Any]:
+def _bundle_drug_specs(drug_bundle: dict) -> dict[str, Any]:
     """Pull drug-side values for ODE integrators with full provenance."""
     micro = drug_bundle.get("drug_microspecies", {}).get("value") or {}
     if not isinstance(micro, dict): micro = {}
@@ -78,7 +79,7 @@ def _bundle_drug_specs(drug_bundle: Dict) -> Dict[str, Any]:
     }
 
 
-def _bundle_dds_specs(dds_bundle: Dict, combo_bundle: Dict) -> Dict[str, Any]:
+def _bundle_dds_specs(dds_bundle: dict, combo_bundle: dict) -> dict[str, Any]:
     """Pull DDS values + Excel formulation-row data merged in."""
     dds_row = combo_bundle.get("_meta", {}).get("dds_row", {}) or {}
     def _r(key: str, default: Any) -> Any:
@@ -118,10 +119,10 @@ def _bundle_dds_specs(dds_bundle: Dict, combo_bundle: Dict) -> Dict[str, Any]:
     }
 
 
-def _collect_provenance(drug_bundle: Dict, dds_bundle: Dict,
-                          combo_bundle: Dict,
-                          drug_keys: List[str],
-                          dds_keys: List[str]) -> Dict[str, Dict]:
+def _collect_provenance(drug_bundle: dict, dds_bundle: dict,
+                          combo_bundle: dict,
+                          drug_keys: list[str],
+                          dds_keys: list[str]) -> dict[str, dict]:
     """Build provenance dict for values fed into the deep computation."""
     prov = {"drug": {}, "dds": {}, "combo": {}}
     for k in drug_keys:
@@ -151,7 +152,7 @@ def _collect_provenance(drug_bundle: Dict, dds_bundle: Dict,
     return prov
 
 
-def _failed(reason: str) -> Dict:
+def _failed(reason: str) -> dict:
     return {
         "validated": False, "value": 0, "score": 0,
         "method": "(deep computation skipped)",
@@ -166,8 +167,8 @@ def _failed(reason: str) -> Dict:
 # ──────────────────────────────────────────────────────────────────────────
 # DEEP P02 — Cross-Species PK Scaling
 # ──────────────────────────────────────────────────────────────────────────
-def deep_P02(drug_bundle: Dict, dds_bundle: Dict,
-              combo_bundle: Dict, surrogate: Dict) -> Dict:
+def deep_P02(drug_bundle: dict, dds_bundle: dict,
+              combo_bundle: dict, surrogate: dict) -> dict:
     """Multi-species allometric scaling with parameter-specific exponents."""
     d = _bundle_drug_specs(drug_bundle)
     mw = float(d["mw"])
@@ -219,12 +220,12 @@ def deep_P02(drug_bundle: Dict, dds_bundle: Dict,
 # ──────────────────────────────────────────────────────────────────────────
 # DEEP P13 — PBPK Digital Twin (3-compartment ODE)
 # ──────────────────────────────────────────────────────────────────────────
-def deep_P13(drug_bundle: Dict, dds_bundle: Dict,
-              combo_bundle: Dict, surrogate: Dict) -> Dict:
+def deep_P13(drug_bundle: dict, dds_bundle: dict,
+              combo_bundle: dict, surrogate: dict) -> dict:
     """3-compartment PBPK ODE: blood ⇌ brain ⇌ peripheral."""
     try:
-        from scipy.integrate import odeint
         import numpy as np
+        from scipy.integrate import odeint
         _trap = np.trapezoid if hasattr(np, "trapezoid") else np.trapezoid
     except ImportError:
         return _failed("scipy not installed")
@@ -294,12 +295,12 @@ def deep_P13(drug_bundle: Dict, dds_bundle: Dict,
 # ──────────────────────────────────────────────────────────────────────────
 # DEEP P44 — CNS-PBPK Time-Machine (4-compartment)
 # ──────────────────────────────────────────────────────────────────────────
-def deep_P44(drug_bundle: Dict, dds_bundle: Dict,
-              combo_bundle: Dict, surrogate: Dict) -> Dict:
+def deep_P44(drug_bundle: dict, dds_bundle: dict,
+              combo_bundle: dict, surrogate: dict) -> dict:
     """4-compartment ODE with glymphatic clearance."""
     try:
-        from scipy.integrate import odeint
         import numpy as np
+        from scipy.integrate import odeint
         _trap = np.trapezoid if hasattr(np, "trapezoid") else np.trapezoid
     except ImportError:
         return _failed("scipy not installed")
@@ -370,8 +371,8 @@ def deep_P44(drug_bundle: Dict, dds_bundle: Dict,
 # ──────────────────────────────────────────────────────────────────────────
 # DEEP P38 — Glymphatic Clearance (Stokes-Einstein)
 # ──────────────────────────────────────────────────────────────────────────
-def deep_P38(drug_bundle: Dict, dds_bundle: Dict,
-              combo_bundle: Dict, surrogate: Dict) -> Dict:
+def deep_P38(drug_bundle: dict, dds_bundle: dict,
+              combo_bundle: dict, surrogate: dict) -> dict:
     """Stokes-Einstein clearance in CSF, scaled to 50-nm reference."""
     s = _bundle_dds_specs(dds_bundle, combo_bundle)
     size_nm = float(s["size"])
@@ -418,8 +419,8 @@ def deep_P38(drug_bundle: Dict, dds_bundle: Dict,
 # ──────────────────────────────────────────────────────────────────────────
 # DEEP P47 — FEP+ enhanced surrogate
 # ──────────────────────────────────────────────────────────────────────────
-def deep_P47(drug_bundle: Dict, dds_bundle: Dict,
-              combo_bundle: Dict, surrogate: Dict) -> Dict:
+def deep_P47(drug_bundle: dict, dds_bundle: dict,
+              combo_bundle: dict, surrogate: dict) -> dict:
     """FEP+ binding ΔG with hydration + H-bond corrections."""
     d = _bundle_drug_specs(drug_bundle)
     mw   = float(d["mw"])
@@ -469,8 +470,8 @@ def deep_P47(drug_bundle: Dict, dds_bundle: Dict,
 # ──────────────────────────────────────────────────────────────────────────
 # DEEP P18 — Active Targeting (MM/GBSA-style)
 # ──────────────────────────────────────────────────────────────────────────
-def deep_P18(drug_bundle: Dict, dds_bundle: Dict,
-              combo_bundle: Dict, surrogate: Dict) -> Dict:
+def deep_P18(drug_bundle: dict, dds_bundle: dict,
+              combo_bundle: dict, surrogate: dict) -> dict:
     """Atomistic-style binding ΔG for surface ligand → BBB receptor."""
     s = _bundle_dds_specs(dds_bundle, combo_bundle)
     ligand = s["ligand"]
@@ -527,8 +528,8 @@ def deep_P18(drug_bundle: Dict, dds_bundle: Dict,
 # ──────────────────────────────────────────────────────────────────────────
 # DEEP P31 — Biodistribution (7-organ PBPK)
 # ──────────────────────────────────────────────────────────────────────────
-def deep_P31(drug_bundle: Dict, dds_bundle: Dict,
-              combo_bundle: Dict, surrogate: Dict) -> Dict:
+def deep_P31(drug_bundle: dict, dds_bundle: dict,
+              combo_bundle: dict, surrogate: dict) -> dict:
     """7-organ whole-body distribution."""
     d = _bundle_drug_specs(drug_bundle)
     s = _bundle_dds_specs(dds_bundle, combo_bundle)
@@ -581,9 +582,9 @@ def deep_P31(drug_bundle: Dict, dds_bundle: Dict,
 # ──────────────────────────────────────────────────────────────────────────
 # Enhanced surrogate wrapper (HPC-deferred principles)
 # ──────────────────────────────────────────────────────────────────────────
-def _enhanced_surrogate(label: str, ref: str, surrogate: Dict,
-                          drug_bundle: Dict, dds_bundle: Dict,
-                          combo_bundle: Dict) -> Dict:
+def _enhanced_surrogate(label: str, ref: str, surrogate: dict,
+                          drug_bundle: dict, dds_bundle: dict,
+                          combo_bundle: dict) -> dict:
     score = surrogate.get("score", 0)
     return {
         "validated": score >= 60,
@@ -667,12 +668,12 @@ HPC_ONLY_PRINCIPLES = {
 # ──────────────────────────────────────────────────────────────────────────
 # Public API — bundle-only signatures
 # ──────────────────────────────────────────────────────────────────────────
-def evaluate_deep_for_top1(drug_bundle: Dict, dds_bundle: Dict,
-                              combo_bundle: Dict,
-                              top1_surrogate_results: Dict[str, Dict]
-                              ) -> Dict[str, Dict]:
+def evaluate_deep_for_top1(drug_bundle: dict, dds_bundle: dict,
+                              combo_bundle: dict,
+                              top1_surrogate_results: dict[str, dict]
+                              ) -> dict[str, dict]:
     """Run Class B deep validation on the Top-1 DDS using bundles only."""
-    out: Dict[str, Dict] = {}
+    out: dict[str, dict] = {}
 
     for pid, fn in DEEP_FUNCTIONS.items():
         surrogate = top1_surrogate_results.get(pid, {})
@@ -694,7 +695,7 @@ def evaluate_deep_for_top1(drug_bundle: Dict, dds_bundle: Dict,
 _PASS_THROUGH_MARKER = "No improvement: full deep simulation requires external HPC run"
 
 
-def overall_deep_validation(deep_results: Dict[str, Dict]) -> Dict:
+def overall_deep_validation(deep_results: dict[str, dict]) -> dict:
     """
     Aggregate deep results into a verdict.
 
@@ -741,8 +742,8 @@ def overall_deep_validation(deep_results: Dict[str, Dict]) -> Dict:
             f"Of these, only {n_indep}/{n} principles ran independent deep "
             f"computation (passed {passed_indep}/{n_indep}"
             + (f" = {pct_indep*100:.1f}%" if pct_indep is not None else "")
-            + f"); the rest re-used their Class-A surrogate score pending a "
-              f"future full-physics HPC run. Cite independent_pct, not pct, "
-              f"as evidence of physics-based validation."
+            + "); the rest re-used their Class-A surrogate score pending a "
+              "future full-physics HPC run. Cite independent_pct, not pct, "
+              "as evidence of physics-based validation."
         ),
     }

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  3D VISUALISATION & VIDEO ENGINE
@@ -44,23 +43,24 @@ Architecture:
 ================================================================================
 """
 
-import os, sys, math, logging, warnings, io
+import io
+import logging
+import math
+import warnings
+
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
+
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import matplotlib.patheffects as pe
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Circle, Arc
-from matplotlib.colors import LinearSegmentedColormap, Normalize
-from matplotlib.gridspec import GridSpec
-from matplotlib.cm import ScalarMappable
-import matplotlib.patheffects as pe
-import seaborn as sns
-from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, List, Tuple, Any
+from pathlib import Path
+
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.patches import Circle, FancyBboxPatch
 
 warnings.filterwarnings("ignore")
 log = logging.getLogger("CEREBRO-VIZ")
@@ -121,7 +121,7 @@ def _doc(path: Path, overview: str, significance: str,
 # FIGURE 01:  BBB Engineering Score — Enhanced Ranking Bar
 # ─────────────────────────────────────────────────────────────────────────────
 def fig01_bbb_ranking(df_dds: pd.DataFrame, output_dir: Path,
-                       drug_name: str = "", top_n: int = 30) -> Optional[Path]:
+                       drug_name: str = "", top_n: int = 30) -> Path | None:
     """
     Horizontal bar chart of top-N formulations by BBB Engineering Score.
     Colour = carrier type. Marker = ADMET flag. Score label on each bar.
@@ -213,7 +213,7 @@ def fig01_bbb_ranking(df_dds: pd.DataFrame, output_dir: Path,
 # FIGURE 02:  PK/PD Multi-Compartment Kinetics
 # ─────────────────────────────────────────────────────────────────────────────
 def fig02_pkpd_kinetics(df_pk: pd.DataFrame, output_dir: Path,
-                         drug_name: str = "") -> Optional[Path]:
+                         drug_name: str = "") -> Path | None:
     """
     Multi-compartment PK/PD: plasma + brain concentration over time.
     Shaded 50% threshold zone. AUC annotation.
@@ -304,7 +304,7 @@ def fig02_pkpd_kinetics(df_pk: pd.DataFrame, output_dir: Path,
 # FIGURE 03:  PBPK Organ Heatmap
 # ─────────────────────────────────────────────────────────────────────────────
 def fig03_pbpk_heatmap(df_pbpk: pd.DataFrame, output_dir: Path,
-                        drug_name: str = "") -> Optional[Path]:
+                        drug_name: str = "") -> Path | None:
     """
     Heatmap: organs × time points, colour = drug concentration.
     Shows which organs accumulate drug (off-target) vs. target (brain).
@@ -381,7 +381,7 @@ def fig03_pbpk_heatmap(df_pbpk: pd.DataFrame, output_dir: Path,
 # FIGURE 04:  DLVO Colloidal Stability Map
 # ─────────────────────────────────────────────────────────────────────────────
 def fig04_dlvo_stability(df_bio: pd.DataFrame, output_dir: Path,
-                          drug_name: str = "") -> Optional[Path]:
+                          drug_name: str = "") -> Path | None:
     """
     Scatter: size (x) vs. zeta potential (y), colour = DLVO stability (kT),
     shape = carrier type, size = encapsulation efficiency.
@@ -466,7 +466,7 @@ def fig04_dlvo_stability(df_bio: pd.DataFrame, output_dir: Path,
 # FIGURE 05:  3D Pharmacological Performance Space
 # ─────────────────────────────────────────────────────────────────────────────
 def fig05_3d_space(df_ml: pd.DataFrame, output_dir: Path,
-                    drug_name: str = "") -> Optional[Path]:
+                    drug_name: str = "") -> Path | None:
     """
     3D scatter: half-life × |binding affinity| × ML success probability.
     Each point = one drug candidate. Colour = ML score.
@@ -547,7 +547,7 @@ def fig05_3d_space(df_ml: pd.DataFrame, output_dir: Path,
 # FIGURE 06:  Formulation Property Heatmap
 # ─────────────────────────────────────────────────────────────────────────────
 def fig06_formulation_heatmap(df_dds: pd.DataFrame, output_dir: Path,
-                               drug_name: str = "") -> Optional[Path]:
+                               drug_name: str = "") -> Path | None:
     """
     Heatmap: all 100 formulations × key parameters.
     Each cell normalised 0–1. Shows which systems have optimal parameter combinations.
@@ -633,7 +633,7 @@ def fig06_formulation_heatmap(df_dds: pd.DataFrame, output_dir: Path,
 # FIGURE 07:  Radar Fingerprint (multi-drug)
 # ─────────────────────────────────────────────────────────────────────────────
 def fig07_radar(df_ml: pd.DataFrame, output_dir: Path,
-                 drug_name: str = "") -> Optional[Path]:
+                 drug_name: str = "") -> Path | None:
     """
     Polar radar: drug(s) molecular attribute fingerprint.
     """
@@ -965,7 +965,7 @@ class VideoEngine:
 
     @classmethod
     def pkpd_video(cls, df_pk: pd.DataFrame, output_dir: Path,
-                    drug_name: str = "", fps: int = 20) -> Optional[Path]:
+                    drug_name: str = "", fps: int = 20) -> Path | None:
         """
         Animated MP4: PK/PD brain concentration curve builds frame-by-frame.
         """
@@ -1049,7 +1049,7 @@ class VideoEngine:
 
     @classmethod
     def bbb_reveal_video(cls, df_dds: pd.DataFrame, output_dir: Path,
-                          drug_name: str = "", fps: int = 8) -> Optional[Path]:
+                          drug_name: str = "", fps: int = 8) -> Path | None:
         """
         Animated MP4: BBB score bar chart revealed one bar at a time.
         """
@@ -1108,16 +1108,18 @@ class VideoEngine:
     def _write_mp4(frames: list, out: Path, fps: int):
         """Write list of PNG bytes to MP4 file."""
         try:
-            import imageio.v2 as imageio
             import io as _io
+
+            import imageio.v2 as imageio
             pil_frames = [imageio.imread(_io.BytesIO(f)) for f in frames]
             imageio.mimsave(str(out), pil_frames, fps=fps, format="mp4",
                             output_params=["-vcodec", "libx264", "-pix_fmt", "yuv420p"])
         except Exception:
             try:
+                import io as _io
+
                 import cv2
                 import numpy as np
-                import io as _io
                 from PIL import Image
                 first = Image.open(_io.BytesIO(frames[0]))
                 h, w = first.size[1], first.size[0]
@@ -1143,15 +1145,15 @@ class VisualisationOrchestrator:
     @classmethod
     def run_all(cls,
                  drug_name:   str,
-                 mol_profile: Dict,
-                 df_ml:       Optional[pd.DataFrame],
-                 df_dds:      Optional[pd.DataFrame],
-                 df_pk:       Optional[pd.DataFrame],
-                 df_pbpk:     Optional[pd.DataFrame],
-                 df_bio:      Optional[pd.DataFrame],
+                 mol_profile: dict,
+                 df_ml:       pd.DataFrame | None,
+                 df_dds:      pd.DataFrame | None,
+                 df_pk:       pd.DataFrame | None,
+                 df_pbpk:     pd.DataFrame | None,
+                 df_bio:      pd.DataFrame | None,
                  trial_dir:   Path,
                  make_videos: bool = True,
-    ) -> List[Path]:
+    ) -> list[Path]:
         """
         Run full visualisation suite. Returns list of produced file paths.
         """

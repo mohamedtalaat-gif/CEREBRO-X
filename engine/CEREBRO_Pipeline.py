@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  CEREBRO_Pipeline.py  —  Module Shim
@@ -12,7 +11,8 @@ Freezes os.chdir during import to prevent pipeline.py from changing the working
 directory to src/core/ when imported as a module.
 ================================================================================
 """
-import os, sys
+import os
+import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).parent.parent.resolve()  # engine/ -> project root

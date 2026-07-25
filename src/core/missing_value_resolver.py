@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  MISSING VALUE RESOLVER — NO-HARDCODE EDITION
@@ -29,8 +28,12 @@ and _tier metadata.
 ================================================================================
 """
 from __future__ import annotations
-import logging, math, json, urllib.request, urllib.parse
-from typing import Dict, Optional, Any
+
+import json
+import logging
+import urllib.parse
+import urllib.request
+from typing import Any
 
 log = logging.getLogger("CEREBRO-RESOLVER")
 
@@ -38,7 +41,7 @@ log = logging.getLogger("CEREBRO-RESOLVER")
 # These are NOT drug-name lookups — they are statistical means for a *class* of
 # molecules (e.g., "small_molecule" averages across DrugBank). Used only when
 # every other tier fails AND the molecule class is known.
-CLASS_TYPICAL_FALLBACK: Dict[str, Dict[str, Dict]] = {
+CLASS_TYPICAL_FALLBACK: dict[str, dict[str, dict]] = {
     "small_molecule": {
         "MW_Da":           {"value": 360,  "method": "DrugBank median for oral small molecules"},
         "LogP":            {"value": 2.5,  "method": "DrugBank median for oral small molecules"},
@@ -63,7 +66,7 @@ CLASS_TYPICAL_FALLBACK: Dict[str, Dict[str, Dict]] = {
 }
 
 
-def _pubchem_property(drug_name: str, prop: str) -> Optional[Dict]:
+def _pubchem_property(drug_name: str, prop: str) -> dict | None:
     """Live PubChem property fetch.
 
     prop ∈ {'CanonicalSMILES','MolecularWeight','XLogP','TPSA',
@@ -92,7 +95,7 @@ def _pubchem_property(drug_name: str, prop: str) -> Optional[Dict]:
     return None
 
 
-def _pubmed_search(drug_name: str, property_name: str) -> Optional[Dict]:
+def _pubmed_search(drug_name: str, property_name: str) -> dict | None:
     """
     Search PubMed for a drug property value.
     Returns {value, reference, doi, journal, year, confidence} or None.
@@ -129,9 +132,9 @@ def _pubmed_search(drug_name: str, property_name: str) -> Optional[Dict]:
 
 
 def resolve_property(drug_name: str, property_name: str,
-                      mol_profile: Dict = None,
+                      mol_profile: dict = None,
                       smiles: str = None,
-                      api_value: Any = None) -> Dict:
+                      api_value: Any = None) -> dict:
     """
     Resolve a missing molecular property through the full cascade.
     

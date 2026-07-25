@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/drug_identifiers.py
@@ -25,17 +24,26 @@ Tier cascade:
 ================================================================================
 """
 from __future__ import annotations
-import logging, urllib.parse, time, json
-from typing import Optional, List, Dict
-from .._core import (register, _resolved, _safe_get, cached_safe_get,
-                     _HAS_RDKIT, _HAS_THERMO, _HAS_REQUESTS)
+
+import json
+import logging
+import urllib.parse
+
+from .._core import (
+    _HAS_RDKIT,
+    _HAS_REQUESTS,
+    _HAS_THERMO,
+    _resolved,
+    cached_safe_get,
+    register,
+)
 
 log = logging.getLogger("CEREBRO-RESOLVER.identifiers")
 
 # ──────────────────────────────────────────────────────────────────────────
 # SMILES — Tier 1 live cascade
 # ──────────────────────────────────────────────────────────────────────────
-def _smiles_t1_pubchem(name: str) -> Optional[str]:
+def _smiles_t1_pubchem(name: str) -> str | None:
     if not name: return None
     enc = urllib.parse.quote(name)
     txt = cached_safe_get(
@@ -51,7 +59,7 @@ def _smiles_t1_pubchem(name: str) -> Optional[str]:
     return None
 
 
-def _smiles_t1_chembl(name: str) -> Optional[str]:
+def _smiles_t1_chembl(name: str) -> str | None:
     if not name: return None
     enc = urllib.parse.quote(name)
     # Pref-name exact
@@ -83,7 +91,7 @@ def _smiles_t1_chembl(name: str) -> Optional[str]:
     return None
 
 
-def _smiles_t1_rxnorm(name: str) -> Optional[str]:
+def _smiles_t1_rxnorm(name: str) -> str | None:
     if not name or not _HAS_REQUESTS: return None
     try:
         enc = urllib.parse.quote(name)
@@ -117,7 +125,7 @@ def _smiles_t1_rxnorm(name: str) -> Optional[str]:
     return None
 
 
-def _smiles_t1_cas(name: str) -> Optional[str]:
+def _smiles_t1_cas(name: str) -> str | None:
     if not name or not _HAS_REQUESTS: return None
     try:
         enc = urllib.parse.quote(name)
@@ -140,7 +148,7 @@ def _smiles_t1_cas(name: str) -> Optional[str]:
     return None
 
 
-def _smiles_t1_wikidata(name: str) -> Optional[str]:
+def _smiles_t1_wikidata(name: str) -> str | None:
     if not name or not _HAS_REQUESTS: return None
     try:
         sparql = f'''
@@ -166,7 +174,7 @@ def _smiles_t1_wikidata(name: str) -> Optional[str]:
     return None
 
 
-def _smiles_t1_unichem(name: str) -> Optional[str]:
+def _smiles_t1_unichem(name: str) -> str | None:
     """UniChem via PubChem CID cross-ref."""
     if not name: return None
     try:
@@ -204,7 +212,7 @@ SMILES_T1_CASCADE = [
 # ──────────────────────────────────────────────────────────────────────────
 # Tier-3 SMILES validation/canonicalization
 # ──────────────────────────────────────────────────────────────────────────
-def _smiles_t3_rdkit_canonical(smi: str) -> Optional[str]:
+def _smiles_t3_rdkit_canonical(smi: str) -> str | None:
     """Validate + canonicalize via RDKit. Returns the RDKit canonical form,
     or None if the SMILES is unparseable."""
     if not smi or not _HAS_RDKIT: return None
@@ -219,7 +227,7 @@ def _smiles_t3_rdkit_canonical(smi: str) -> Optional[str]:
         return None
 
 
-def _smiles_t5_thermo(name: str) -> Optional[str]:
+def _smiles_t5_thermo(name: str) -> str | None:
     """thermo's Chemical class can resolve names to SMILES via PubChem
     (its own cache). Used as a redundancy after our 6-tier cascade."""
     if not name or not _HAS_THERMO: return None
@@ -232,7 +240,7 @@ def _smiles_t5_thermo(name: str) -> Optional[str]:
         return None
 
 
-def _smiles_t7_sanitize(raw: str) -> Optional[str]:
+def _smiles_t7_sanitize(raw: str) -> str | None:
     """Last-ditch fallback: best-effort cleanup. Returns the input string
     minus whitespace, or None if it doesn't look like a SMILES at all."""
     if not raw: return None
@@ -248,7 +256,7 @@ def _smiles_t7_sanitize(raw: str) -> Optional[str]:
 # ──────────────────────────────────────────────────────────────────────────
 @register("drug_smiles")
 def resolve_drug_smiles(name: str = "", smiles: str = "",
-                          researcher_override: Optional[str] = None) -> Dict:
+                          researcher_override: str | None = None) -> dict:
     """Resolve and canonicalize a drug's SMILES from any input.
 
     Priority:
@@ -261,7 +269,7 @@ def resolve_drug_smiles(name: str = "", smiles: str = "",
 
     Returns a ResolvedValue whose `value` is the canonical SMILES string.
     """
-    db_misses: List[str] = []
+    db_misses: list[str] = []
 
     # Tier 0: researcher override (validate it, but never reject)
     if researcher_override:
@@ -346,7 +354,7 @@ def resolve_drug_smiles(name: str = "", smiles: str = "",
 # ──────────────────────────────────────────────────────────────────────────
 # FASTA — Tier 4 cascade
 # ──────────────────────────────────────────────────────────────────────────
-def _fasta_t4_uniprot_reviewed(query: str) -> Optional[str]:
+def _fasta_t4_uniprot_reviewed(query: str) -> str | None:
     if not query or not _HAS_REQUESTS: return None
     try:
         enc = urllib.parse.quote(query)
@@ -364,7 +372,7 @@ def _fasta_t4_uniprot_reviewed(query: str) -> Optional[str]:
     return None
 
 
-def _fasta_t4_uniprot_trembl(query: str) -> Optional[str]:
+def _fasta_t4_uniprot_trembl(query: str) -> str | None:
     if not query or not _HAS_REQUESTS: return None
     try:
         enc = urllib.parse.quote(query)
@@ -382,7 +390,7 @@ def _fasta_t4_uniprot_trembl(query: str) -> Optional[str]:
     return None
 
 
-def _fasta_t4_ncbi(query: str) -> Optional[str]:
+def _fasta_t4_ncbi(query: str) -> str | None:
     if not query or not _HAS_REQUESTS: return None
     try:
         import requests
@@ -407,7 +415,7 @@ def _fasta_t4_ncbi(query: str) -> Optional[str]:
     return None
 
 
-def _fasta_t4_pdb(query: str) -> Optional[str]:
+def _fasta_t4_pdb(query: str) -> str | None:
     if not query or not _HAS_REQUESTS: return None
     try:
         import requests
@@ -436,7 +444,7 @@ def _fasta_t4_pdb(query: str) -> Optional[str]:
     return None
 
 
-def _fasta_t4_ensembl(query: str) -> Optional[str]:
+def _fasta_t4_ensembl(query: str) -> str | None:
     if not query or not _HAS_REQUESTS: return None
     try:
         import requests
@@ -472,7 +480,7 @@ FASTA_T4_CASCADE = [
 ]
 
 
-def _validate_fasta(seq: str) -> Optional[str]:
+def _validate_fasta(seq: str) -> str | None:
     """Strip headers/whitespace, uppercase, validate amino acid alphabet."""
     if not seq: return None
     s = seq.strip()
@@ -488,7 +496,7 @@ def _validate_fasta(seq: str) -> Optional[str]:
 
 @register("drug_fasta")
 def resolve_drug_fasta(name: str = "", fasta: str = "",
-                         researcher_override: Optional[str] = None) -> Dict:
+                         researcher_override: str | None = None) -> dict:
     """Resolve and canonicalize a biologic drug's FASTA sequence.
 
     Priority:
@@ -497,7 +505,7 @@ def resolve_drug_fasta(name: str = "", fasta: str = "",
       4b. If only name: live 5-tier DB cascade
       7. Best-effort cleanup of raw input
     """
-    db_misses: List[str] = []
+    db_misses: list[str] = []
 
     # Tier 0
     if researcher_override:

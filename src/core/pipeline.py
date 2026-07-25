@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X — UNIFIED PIPELINE
@@ -38,8 +37,11 @@ All results appear next to this script — Windows / macOS / Linux compatible.
 # 0.  ANCHOR
 # ─────────────────────────────────────────────────────────────────────────────
 from pathlib import Path
+
 SCRIPT_DIR = Path(__file__).resolve().parent
-import os, sys
+import os
+import sys
+
 try:
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 except NameError:
@@ -49,28 +51,41 @@ except NameError:
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.  STANDARD IMPORTS
 # ─────────────────────────────────────────────────────────────────────────────
-import time, json, logging, warnings, requests, shutil, sqlite3, hashlib
-import threading, collections, random, math, re
+import collections
+import hashlib
+import json
+import logging
+import math
+import re
+import sqlite3
+import threading
+import time
+import warnings
+
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
+import requests
+
 matplotlib.use("Agg")
+from dataclasses import dataclass
+from datetime import datetime
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
-from datetime import datetime
-from typing import Optional, Dict, List, Tuple, Any
-from dataclasses import dataclass, field
-
-from sklearn.ensemble import (RandomForestRegressor, GradientBoostingRegressor,
-                               VotingRegressor, IsolationForest)
-from sklearn.svm import SVR
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-from sklearn.model_selection import KFold, cross_val_score, GridSearchCV
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-from sklearn.pipeline import Pipeline
 from sklearn.covariance import EllipticEnvelope
+from sklearn.decomposition import PCA
+from sklearn.ensemble import (
+    GradientBoostingRegressor,
+    RandomForestRegressor,
+    VotingRegressor,
+)
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import GridSearchCV, KFold, cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
+from sklearn.svm import SVR
 
 warnings.filterwarnings("ignore")
 
@@ -112,15 +127,15 @@ except ImportError:
     _HAS_PROM = False
 
 try:
-    from pydantic import BaseModel, validator, ValidationError
+    from pydantic import BaseModel, ValidationError, validator
     _HAS_PYDANTIC = True
 except ImportError:
     _HAS_PYDANTIC = False
 
 try:
     import torch
-    import torch.nn as nn
     import torch.nn.functional as F
+    from torch import nn
     from torch_geometric.data import Data
     from torch_geometric.nn import GCNConv, global_mean_pool
     _HAS_GNN = True
@@ -131,7 +146,7 @@ except ImportError:
 # 2.  OUTPUT FOLDER STRUCTURE  (single root — nothing written outside it)
 # ─────────────────────────────────────────────────────────────────────────────
 OUTPUT_ROOT = Path(SCRIPT_DIR) / "CEREBRO_RESULTS"
-PATHS: Dict[str, Path] = {
+PATHS: dict[str, Path] = {
     "data":        OUTPUT_ROOT / "data",
     "models":      OUTPUT_ROOT / "models",
     "figures":     OUTPUT_ROOT / "figures",
@@ -198,7 +213,7 @@ class _CB:
     failures:   int   = 0
     open_until: float = 0.0
 
-_circuits: Dict[str, _CB] = collections.defaultdict(_CB)
+_circuits: dict[str, _CB] = collections.defaultdict(_CB)
 _cb_lock = threading.Lock()
 
 def cb_allow(api: str) -> bool:
@@ -222,16 +237,15 @@ def cb_fail(api: str):
 # ─────────────────────────────────────────────────────────────────────────────
 # 6.  DATA LINEAGE
 # ─────────────────────────────────────────────────────────────────────────────
-def lineage_tag(source: str, doi: str = "") -> Dict[str, str]:
+def lineage_tag(source: str, doi: str = "") -> dict[str, str]:
     return {"_source": source, "_doi": doi,
             "_fetched_at": datetime.utcnow().isoformat(),
             "_pipeline": "CEREBRO-X"}
 
-def save_lineage(records: List[Dict], tag: Dict):
+def save_lineage(records: list[dict], tag: dict):
     path = PATHS["lineage"] / "provenance.jsonl"
     with open(path, "a", encoding="utf-8") as f:
-        for r in records:
-            f.write(json.dumps({**r, **tag}) + "\n")
+        f.writelines(json.dumps({**r, **tag}) + "\n" for r in records)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 7.  PYDANTIC SCHEMA VALIDATION + QUARANTINE
@@ -259,7 +273,7 @@ if _HAS_PYDANTIC:
             if not (-10 < v < 10): raise ValueError(f"LogP out of range: {v}")
             return v
 
-def validate_records(records: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+def validate_records(records: list[dict]) -> tuple[list[dict], list[dict]]:
     if not _HAS_PYDANTIC:
         return records, []
     clean, quarantine = [], []
@@ -356,13 +370,13 @@ def write_doc(file_path, doc: dict):
 # CLINICAL_HL — DELETED in v22.1 (no hardcoded drug → t½ lookups).
 # Use clinical_data_engine.get_clinical_pk_with_cascade() which queries
 # OpenFDA, ChEMBL, PubChem/DrugBank, WHO EML, and PharmGKB live.
-CLINICAL_HL: Dict[str, float] = {}
+CLINICAL_HL: dict[str, float] = {}
 
 
 # MW_REF — DELETED in v22.1 (no hardcoded drug → MW lookups). Use the
 # live cascade (PubChem, ChEMBL, RxNorm, CAS, Wikidata, UniChem) via
 # cerebro_molecule_extractor.fetch_smiles_cascade + RDKit MolWt instead.
-MW_REF: Dict[str, float] = {}
+MW_REF: dict[str, float] = {}
 
 
 def _log_missing(drug: str, reason: str):
@@ -382,7 +396,7 @@ def _log_missing(drug: str, reason: str):
 class CascadeDataEngine:
 
     @staticmethod
-    def _try_drugbank(drug: str) -> Optional[Dict]:
+    def _try_drugbank(drug: str) -> dict | None:
         key = os.environ.get("DRUGBANK_API_KEY","")
         if not key or not cb_allow("drugbank"): return None
         try:
@@ -402,7 +416,7 @@ class CascadeDataEngine:
         return None
 
     @staticmethod
-    def _try_chembl(drug: str) -> Optional[Dict]:
+    def _try_chembl(drug: str) -> dict | None:
         if not cb_allow("chembl"): return None
         try:
             from chembl_webresource_client.new_client import new_client as _nc
@@ -422,7 +436,7 @@ class CascadeDataEngine:
         return None
 
     @staticmethod
-    def _try_uniprot(drug: str) -> Optional[Dict]:
+    def _try_uniprot(drug: str) -> dict | None:
         if not cb_allow("uniprot"): return None
         try:
             r = requests.get(
@@ -443,7 +457,7 @@ class CascadeDataEngine:
         return None
 
     @staticmethod
-    def _try_pubchem(drug: str) -> Optional[Dict]:
+    def _try_pubchem(drug: str) -> dict | None:
         if not cb_allow("pubchem") or not _HAS_PCP: return None
         try:
             comps = pcp.get_compounds(drug,"name")
@@ -462,7 +476,7 @@ class CascadeDataEngine:
         return None
 
     @staticmethod
-    def _try_pubmed_scraper(drug: str) -> Optional[Dict]:
+    def _try_pubmed_scraper(drug: str) -> dict | None:
         """
         Scrape PubMed abstract for MW and half-life via regex.
         Production upgrade: replace with BioBERT NER model.
@@ -478,8 +492,8 @@ class CascadeDataEngine:
                 f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
                 f"?db=pubmed&id={ids[0]}&rettype=abstract&retmode=text",
                 timeout=8).text
-            mw_m = re.search(r"(\d[\d,]+)\s*(?:Da|kDa|dalton)", text, re.I)
-            hl_m = re.search(r"half[- ]life[^\d]*(\d+\.?\d*)\s*(?:day|d\b)", text, re.I)
+            mw_m = re.search(r"(\d[\d,]+)\s*(?:Da|kDa|dalton)", text, re.IGNORECASE)
+            hl_m = re.search(r"half[- ]life[^\d]*(\d+\.?\d*)\s*(?:day|d\b)", text, re.IGNORECASE)
             if mw_m:
                 mw = float(mw_m.group(1).replace(",",""))
                 snippet = text[mw_m.start():mw_m.end()+3]
@@ -496,7 +510,7 @@ class CascadeDataEngine:
         return None
 
     @classmethod
-    def fetch_drug(cls, drug: str) -> Optional[Dict]:
+    def fetch_drug(cls, drug: str) -> dict | None:
         """
         Run all tiers in cascade order.
         Tier 0 (OFFLINE, instant): CLINICAL_HL embedded library.
@@ -618,7 +632,7 @@ class CascadeDataEngine:
         return None
 
     @classmethod
-    def build_mab_dataset(cls, drug_list: List[str]) -> pd.DataFrame:
+    def build_mab_dataset(cls, drug_list: list[str]) -> pd.DataFrame:
         log.info(f"Building mAb dataset — {len(drug_list)} candidates …")
         records = []
         for drug in drug_list:
@@ -757,8 +771,8 @@ class CascadeDataEngine:
         return df
 
     @classmethod
-    def build_drug_aav_matrix(cls, drug_names: List[str],
-                               aav_serotypes: List[str]) -> pd.DataFrame:
+    def build_drug_aav_matrix(cls, drug_names: list[str],
+                               aav_serotypes: list[str]) -> pd.DataFrame:
         log.info("Building drug–AAV interaction matrix …")
         aav_props = {"AAV9":{"tropism":0.90},"AAV-PHP.eB":{"tropism":0.98},
                      "AAV5":{"tropism":0.65}}
@@ -807,7 +821,7 @@ class CascadeDataEngine:
 class AdvancedMLEngine:
 
     @staticmethod
-    def detect_outliers(df: pd.DataFrame, features: List[str]) -> pd.DataFrame:
+    def detect_outliers(df: pd.DataFrame, features: list[str]) -> pd.DataFrame:
         X = df[[c for c in features if c in df.columns]].fillna(0)
         if len(X) < 5:
             df["_is_outlier"] = False; return df
@@ -855,7 +869,7 @@ class AdvancedMLEngine:
         return Pipeline([("scaler", RobustScaler()), ("est", est)])
 
     @classmethod
-    def train(cls, df: pd.DataFrame, feature_cols: List[str],
+    def train(cls, df: pd.DataFrame, feature_cols: list[str],
               target_formula=None, run_id: str = None):
         if _HAS_PROM: t0 = time.time()
         log.info("AdvancedMLEngine.train() …")
@@ -1345,7 +1359,7 @@ class ADMETEngine:
 class AnalyticsEngine:
 
     @staticmethod
-    def simulate_vexosome_encapsulation(df: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+    def simulate_vexosome_encapsulation(df: pd.DataFrame | None = None) -> pd.DataFrame:
         """
         Illustrative formulation-design sweep of encapsulation efficiency (EE%)
         vs. lipid-to-protein ratio, per drug candidate.

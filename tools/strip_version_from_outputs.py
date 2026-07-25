@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 strip_version_from_outputs.py
 ==============================
@@ -21,6 +20,7 @@ version suffix and read just "CEREBRO-X".
 The script is idempotent and re-runnable.
 """
 from __future__ import annotations
+
 import re
 from pathlib import Path
 

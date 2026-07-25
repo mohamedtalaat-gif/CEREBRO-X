@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | cerebro_cinematic_engine.py
@@ -42,14 +41,19 @@ Usage:
 ================================================================================
 """
 from __future__ import annotations
-import json, hashlib, logging
+
+import hashlib
+import json
+import logging
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 from cerebro_cinematic_primitives import (
-    DRUG_VISUAL_PROFILES, DDS_VISUAL_PROFILES, LIGAND_RECEPTOR_MAP,
-    BASE_CSS, JS_DRAW_PRIMITIVES,
-    get_drug_profile, get_dds_profile, get_ligand_info,
+    BASE_CSS,
+    JS_DRAW_PRIMITIVES,
+    get_dds_profile,
+    get_drug_profile,
+    get_ligand_info,
 )
 
 log = logging.getLogger("CEREBRO-CINEMATIC")
@@ -58,7 +62,7 @@ log = logging.getLogger("CEREBRO-CINEMATIC")
 # ──────────────────────────────────────────────────────────────────────────
 # Helper functions
 # ──────────────────────────────────────────────────────────────────────────
-def _b_value(bundle: Dict, cat: str, default: Any = None) -> Any:
+def _b_value(bundle: dict, cat: str, default: Any = None) -> Any:
     """Pull resolved value from bundle, defaulting if missing."""
     if not isinstance(bundle, dict): return default
     rec = bundle.get(cat)
@@ -67,7 +71,7 @@ def _b_value(bundle: Dict, cat: str, default: Any = None) -> Any:
     return default if v is None else v
 
 
-def _b_tier(bundle: Dict, cat: str) -> int:
+def _b_tier(bundle: dict, cat: str) -> int:
     if not isinstance(bundle, dict): return 7
     rec = bundle.get(cat)
     return rec.get("tier", 7) if isinstance(rec, dict) else 7
@@ -90,7 +94,7 @@ def _write_html(out_path: Path, body: str) -> Path:
     return out_path
 
 
-def _drug_class_narrative(drug_type: str) -> Dict[str, str]:
+def _drug_class_narrative(drug_type: str) -> dict[str, str]:
     """Drug-class-specific scientific narrative for BBB scenes.
 
     Returns a dict with `permeability`, `mechanism_detail`, `barrier_challenge`,
@@ -165,8 +169,8 @@ def _drug_class_narrative(drug_type: str) -> Dict[str, str]:
 # ──────────────────────────────────────────────────────────────────────────
 # C01 — Identity Card (drug + DDS, animated, glassmorphic broadcast quality)
 # ──────────────────────────────────────────────────────────────────────────
-def make_c01_identity(drug_bundle: Dict, dds_bundle: Dict,
-                         top_dds: Dict, out_dir: Path) -> Path:
+def make_c01_identity(drug_bundle: dict, dds_bundle: dict,
+                         top_dds: dict, out_dir: Path) -> Path:
     """C01: Animated identity card.
 
     Layout:
@@ -393,8 +397,8 @@ loop();
 # ──────────────────────────────────────────────────────────────────────────
 # C02 — BBB Crossing (anatomically accurate barrier model)
 # ──────────────────────────────────────────────────────────────────────────
-def make_c02_bbb_crossing(drug_bundle: Dict, dds_bundle: Dict,
-                              top_dds: Dict, out_dir: Path) -> Path:
+def make_c02_bbb_crossing(drug_bundle: dict, dds_bundle: dict,
+                              top_dds: dict, out_dir: Path) -> Path:
     """C02: BBB crossing scene with anatomically-accurate barrier.
 
     Features:
@@ -697,8 +701,8 @@ loop();
 # ──────────────────────────────────────────────────────────────────────────
 # C03 — PK Profile (animated time course)
 # ──────────────────────────────────────────────────────────────────────────
-def make_c03_pk_profile(drug_bundle: Dict, dds_bundle: Dict,
-                            top_dds: Dict, out_dir: Path) -> Path:
+def make_c03_pk_profile(drug_bundle: dict, dds_bundle: dict,
+                            top_dds: dict, out_dir: Path) -> Path:
     """C03: Pharmacokinetic time course with plasma + brain ISF curves."""
     import math
     drug_name = drug_bundle.get("_meta", {}).get("name", "Drug")
@@ -967,8 +971,8 @@ loop();
 # ──────────────────────────────────────────────────────────────────────────
 # C04 — Release Mechanics (carrier-specific dynamics)
 # ──────────────────────────────────────────────────────────────────────────
-def make_c04_release(drug_bundle: Dict, dds_bundle: Dict,
-                       top_dds: Dict, out_dir: Path) -> Path:
+def make_c04_release(drug_bundle: dict, dds_bundle: dict,
+                       top_dds: dict, out_dir: Path) -> Path:
     """C04: Release mechanics scene with carrier-specific kinetics."""
     drug_name = drug_bundle.get("_meta", {}).get("name", "Drug")
     drug_type = drug_bundle.get("_meta", {}).get("drug_type", "small_molecule")
@@ -1163,8 +1167,8 @@ loop();
 # ──────────────────────────────────────────────────────────────────────────
 # C05 — Therapeutic Effect
 # ──────────────────────────────────────────────────────────────────────────
-def make_c05_therapeutic(drug_bundle: Dict, dds_bundle: Dict,
-                            top_dds: Dict, out_dir: Path) -> Path:
+def make_c05_therapeutic(drug_bundle: dict, dds_bundle: dict,
+                            top_dds: dict, out_dir: Path) -> Path:
     """C05: Target receptor binding scene driven by composite score."""
     drug_name = drug_bundle.get("_meta", {}).get("name", "Drug")
     drug_type = drug_bundle.get("_meta", {}).get("drug_type", "small_molecule")
@@ -1373,9 +1377,9 @@ loop();
 # ──────────────────────────────────────────────────────────────────────────
 # Public API: master generator
 # ──────────────────────────────────────────────────────────────────────────
-def generate_cinematic_suite(drug_bundle: Dict, dds_bundle: Dict,
-                                  top_dds: Dict, out_dir: Path
-                                  ) -> List[Path]:
+def generate_cinematic_suite(drug_bundle: dict, dds_bundle: dict,
+                                  top_dds: dict, out_dir: Path
+                                  ) -> list[Path]:
     """Generate all 5 cinematic scenes for a drug+DDS combination.
 
     Args:
@@ -1397,7 +1401,7 @@ def generate_cinematic_suite(drug_bundle: Dict, dds_bundle: Dict,
 
     log.info(f"[CINEMATIC] Generating suite: {drug_name} × {dds_name} → {out_dir}")
 
-    paths: List[Path] = []
+    paths: list[Path] = []
     generators = [
         ("C01 Identity",          make_c01_identity),
         ("C02 BBB Crossing",       make_c02_bbb_crossing),
@@ -1427,7 +1431,7 @@ if __name__ == "__main__":
     import sys
     sys.path.insert(0, str(Path(__file__).parent))
 
-    from cerebro_resolved_bundles import resolve_drug_bundle, resolve_dds_bundle
+    from cerebro_resolved_bundles import resolve_dds_bundle, resolve_drug_bundle
     logging.basicConfig(level=logging.INFO)
 
     # Demo with Temozolomide + PLGA

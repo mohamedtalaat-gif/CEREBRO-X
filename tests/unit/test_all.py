@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  UNIT TESTS
@@ -14,18 +13,11 @@ Coverage:
   6. Compliance (PHI detection, audit trail, data masking)
 ================================================================================
 """
-import os
-import sys
 import time
-import json
-import pytest
-import hashlib
-import numpy as np
-import pandas as pd
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
 
+import numpy as np
+import pytest
 
 # ═════════════════════════════════════════════════════════════════════════════
 # 1. AUTHENTICATION & RBAC
@@ -115,7 +107,7 @@ class TestAuth:
         assert reuse is None
 
     def test_rbac_permissions(self):
-        from src.api.auth import has_permission, Role
+        from src.api.auth import Role, has_permission
         assert has_permission(Role.ADMIN, "pipeline:run")
         assert has_permission(Role.ADMIN, "user:delete")
         assert has_permission(Role.RESEARCHER, "pipeline:run")
@@ -211,7 +203,7 @@ class TestMLOps:
     """Model registry, drift detection, experiment tracking."""
 
     def test_model_registry_lifecycle(self, tmp_db):
-        from src.ml.mlops import ModelRegistry, ModelVersion, ModelStage
+        from src.ml.mlops import ModelRegistry, ModelStage, ModelVersion
         reg = ModelRegistry(tmp_db)
 
         # Register v1
@@ -242,7 +234,7 @@ class TestMLOps:
         assert versions[0].version == "1.0.0"
 
     def test_rollback(self, tmp_db):
-        from src.ml.mlops import ModelRegistry, ModelVersion, ModelStage
+        from src.ml.mlops import ModelRegistry, ModelStage, ModelVersion
         reg = ModelRegistry(tmp_db)
         reg.register(ModelVersion(model_name="m", version="1.0.0"))
         reg.register(ModelVersion(model_name="m", version="2.0.0"))
@@ -301,7 +293,11 @@ class TestOrchestrator:
     """DAG execution, retry logic, circuit breaker."""
 
     def test_circuit_breaker_trips_on_failures(self):
-        from src.workers.orchestrator import CircuitBreaker, CircuitBreakerConfig, CircuitState
+        from src.workers.orchestrator import (
+            CircuitBreaker,
+            CircuitBreakerConfig,
+            CircuitState,
+        )
         cb = CircuitBreaker("test", CircuitBreakerConfig(
             failure_threshold=3, recovery_timeout=1
         ))
@@ -312,7 +308,11 @@ class TestOrchestrator:
         assert not cb.can_execute()
 
     def test_circuit_breaker_recovers(self):
-        from src.workers.orchestrator import CircuitBreaker, CircuitBreakerConfig, CircuitState
+        from src.workers.orchestrator import (
+            CircuitBreaker,
+            CircuitBreakerConfig,
+            CircuitState,
+        )
         cb = CircuitBreaker("test", CircuitBreakerConfig(
             failure_threshold=2, recovery_timeout=0.1, success_threshold=1
         ))
@@ -325,7 +325,7 @@ class TestOrchestrator:
         assert cb.state == CircuitState.CLOSED
 
     def test_retry_decorator(self):
-        from src.workers.orchestrator import retry_with_backoff, RetryPolicy
+        from src.workers.orchestrator import RetryPolicy, retry_with_backoff
         call_count = 0
 
         @retry_with_backoff(RetryPolicy(max_retries=3, base_delay=0.01))
@@ -352,7 +352,11 @@ class TestOrchestrator:
         assert levels[2] == ["d"]
 
     def test_dag_execution(self):
-        from src.workers.orchestrator import PipelineOrchestrator, TaskDefinition, TaskState
+        from src.workers.orchestrator import (
+            PipelineOrchestrator,
+            TaskDefinition,
+            TaskState,
+        )
         results = []
         orch = PipelineOrchestrator()
         orch.register(TaskDefinition("step1", func=lambda: results.append(1) or "done1"))
@@ -365,7 +369,10 @@ class TestOrchestrator:
 
     def test_dag_failure_cascades(self):
         from src.workers.orchestrator import (
-            PipelineOrchestrator, TaskDefinition, TaskState, RetryPolicy
+            PipelineOrchestrator,
+            RetryPolicy,
+            TaskDefinition,
+            TaskState,
         )
         def fail_fn():
             raise RuntimeError("boom")
@@ -519,7 +526,7 @@ class TestCompliance:
             assert pt == "sensitive data"
 
     def test_retention_check(self):
-        from src.compliance.privacy import RetentionManager, DataClass
+        from src.compliance.privacy import DataClass, RetentionManager
         old_date = datetime.utcnow() - timedelta(days=365 * 11)
         result = RetentionManager.check_retention(old_date, DataClass.PUBLIC)
         assert result["expired"] is True
@@ -611,9 +618,13 @@ class TestDDSInverseDesign:
 
     @pytest.mark.slow
     def test_ga_search_returns_real_scored_candidates(self):
-        import src.path_resolver  # noqa: F401 — ensures engine/ is on sys.path
+        from cerebro_dds_inverse_design import (
+            ALL_PARAMS,
+            generate_candidate_formulations,
+        )
         from cerebro_resolved_bundles import resolve_drug_bundle
-        from cerebro_dds_inverse_design import generate_candidate_formulations, ALL_PARAMS
+
+        import src.path_resolver  # noqa: F401 — ensures engine/ is on sys.path
 
         drug_bundle = resolve_drug_bundle(
             name="Donepezil",

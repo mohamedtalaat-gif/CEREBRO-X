@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  KNOWLEDGE GRAPH & GNN ENGINE
@@ -40,18 +39,13 @@ References:
 ================================================================================
 """
 
-import os
-import sys
 import json
-import math
 import logging
+import math
 import warnings
-import hashlib
-from pathlib import Path
-from datetime import datetime
-from typing import Optional, Dict, List, Tuple, Any, Set
 from dataclasses import dataclass, field
-from collections import defaultdict
+from datetime import datetime
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -70,15 +64,15 @@ except ImportError:
 
 try:
     import torch
-    import torch.nn as nn
     import torch.nn.functional as F
+    from torch import nn
     _HAS_TORCH = True
 except ImportError:
     _HAS_TORCH = False
 
 try:
     from torch_geometric.data import Data, HeteroData
-    from torch_geometric.nn import GCNConv, GATConv, SAGEConv, HeteroConv, Linear
+    from torch_geometric.nn import GATConv, GCNConv, HeteroConv, Linear, SAGEConv
     from torch_geometric.utils import from_networkx, to_networkx
     _HAS_PYG = True
 except ImportError:
@@ -86,7 +80,7 @@ except ImportError:
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.preprocessing import StandardScaler, LabelEncoder
+    from sklearn.preprocessing import LabelEncoder, StandardScaler
     _HAS_SKLEARN = True
 except ImportError:
     _HAS_SKLEARN = False
@@ -124,7 +118,7 @@ class EdgeType:
 class KGNode:
     node_id:    str
     node_type:  str
-    properties: Dict[str, Any] = field(default_factory=dict)
+    properties: dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class KGEdge:
@@ -132,7 +126,7 @@ class KGEdge:
     target:     str
     edge_type:  str
     weight:     float = 1.0
-    properties: Dict[str, Any] = field(default_factory=dict)
+    properties: dict[str, Any] = field(default_factory=dict)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -158,12 +152,12 @@ class CerebroKnowledgeGraph:
     """
 
     def __init__(self):
-        self.nodes: Dict[str, KGNode] = {}
-        self.edges: List[KGEdge] = []
-        self.graph: Optional[Any] = None  # networkx graph
+        self.nodes: dict[str, KGNode] = {}
+        self.edges: list[KGEdge] = []
+        self.graph: Any | None = None  # networkx graph
 
     def add_node(self, node_id: str, node_type: str,
-                 properties: Dict = None):
+                 properties: dict = None):
         self.nodes[node_id] = KGNode(
             node_id=node_id,
             node_type=node_type,
@@ -171,7 +165,7 @@ class CerebroKnowledgeGraph:
         )
 
     def add_edge(self, source: str, target: str, edge_type: str,
-                 weight: float = 1.0, properties: Dict = None):
+                 weight: float = 1.0, properties: dict = None):
         self.edges.append(KGEdge(
             source=source, target=target, edge_type=edge_type,
             weight=weight, properties=properties or {},
@@ -183,7 +177,7 @@ class CerebroKnowledgeGraph:
         self,
         drug_df:          pd.DataFrame = None,
         formulation_df:   pd.DataFrame = None,
-        drug_profile:     Dict = None,
+        drug_profile:     dict = None,
     ):
         """
         Populate the KG from CEREBRO-X pipeline outputs.
@@ -224,7 +218,7 @@ class CerebroKnowledgeGraph:
 
         # Formulation nodes + DDS carrier nodes
         if formulation_df is not None:
-            carrier_set: Set[str] = set()
+            carrier_set: set[str] = set()
 
             for _, row in formulation_df.iterrows():
                 form_id = str(row.get("Formulation_ID", "F_unknown"))
@@ -326,7 +320,7 @@ class CerebroKnowledgeGraph:
 
     # ── Graph Analytics ──────────────────────────────────────────────────
 
-    def centrality_analysis(self) -> Dict[str, Dict]:
+    def centrality_analysis(self) -> dict[str, dict]:
         """
         Compute centrality metrics for all nodes.
         Identifies the most 'connected' drugs, carriers, and ligands.
@@ -354,7 +348,7 @@ class CerebroKnowledgeGraph:
 
         return results
 
-    def find_top_carriers(self, top_n: int = 10) -> List[Dict]:
+    def find_top_carriers(self, top_n: int = 10) -> list[dict]:
         """Rank DDS carriers by graph centrality (versatility)."""
         centrality = self.centrality_analysis()
         carriers = [
@@ -365,7 +359,7 @@ class CerebroKnowledgeGraph:
         carriers.sort(key=lambda x: x["pagerank"], reverse=True)
         return carriers[:top_n]
 
-    def find_path(self, source: str, target: str) -> List[str]:
+    def find_path(self, source: str, target: str) -> list[str]:
         """Shortest path between two nodes in the KG."""
         if not _HAS_NX or self.graph is None:
             self.to_networkx()
@@ -374,7 +368,7 @@ class CerebroKnowledgeGraph:
         except nx.NetworkXNoPath:
             return []
 
-    def community_detection(self) -> Dict[str, int]:
+    def community_detection(self) -> dict[str, int]:
         """
         Detect communities (clusters of related drug-carrier pairs).
         Uses Louvain algorithm on undirected projection.
@@ -401,7 +395,7 @@ class CerebroKnowledgeGraph:
             return node_to_community
 
     def suggest_combinations(self, drug_id: str,
-                             top_n: int = 5) -> List[Dict]:
+                             top_n: int = 5) -> list[dict]:
         """
         Link prediction: suggest new drug–carrier combinations
         based on graph structure (common neighbors, Jaccard).
@@ -603,7 +597,7 @@ class MultimodalFeatureBuilder:
 
     def fit_transform(
         self,
-        texts:    List[str],
+        texts:    list[str],
         numerics: np.ndarray,
         fingerprints: np.ndarray = None,
     ) -> np.ndarray:
@@ -636,7 +630,7 @@ class MultimodalFeatureBuilder:
 
     def transform(
         self,
-        texts:    List[str],
+        texts:    list[str],
         numerics: np.ndarray,
         fingerprints: np.ndarray = None,
     ) -> np.ndarray:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  PDB ID AUTO-RESOLVER
@@ -29,9 +28,13 @@ References:
 ================================================================================
 """
 from __future__ import annotations
-import json, logging, urllib.request, urllib.parse, time
+
+import json
+import logging
+import time
+import urllib.parse
+import urllib.request
 from functools import lru_cache
-from typing import Optional, List, Dict
 
 log = logging.getLogger("CEREBRO-PDBRESOLVER")
 
@@ -41,10 +44,10 @@ log = logging.getLogger("CEREBRO-PDBRESOLVER")
 # RCSB / PubChem / ChEMBL / UniProt cascades. This prevents hardcoded drug
 # names (such as Temozolomide) from appearing in outputs that should only
 # reflect the researcher's actual input.
-PDB_REF: Dict[str, List[str]] = {}
+PDB_REF: dict[str, list[str]] = {}
 
 
-def _safe_get(url: str, timeout: int = 8) -> Optional[dict]:
+def _safe_get(url: str, timeout: int = 8) -> dict | None:
     """HTTP GET with timeout — returns parsed JSON or None."""
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "CEREBRO-X/22.1"})
@@ -65,7 +68,7 @@ def _cached_pdb_for_drug(drug_name_lower: str) -> tuple:
     return tuple(_fetch_pdb_cascade(drug_name_lower))
 
 
-def _fetch_pdb_cascade(drug_name_lower: str) -> List[str]:
+def _fetch_pdb_cascade(drug_name_lower: str) -> list[str]:
     """Try all data sources in order. Drug-specific — never shares state."""
     results = []
     enc = urllib.parse.quote(drug_name_lower)
@@ -185,7 +188,7 @@ def resolve_pdb_for_drug(drug_name: str,
         log.info(f"[PDBRESOLVER] Auto-resolved: {drug_name} → {best} ({len(candidates)} candidates)")
         return {
             "pdb_id":         best,
-            "source":         f"Auto-resolved (CEREBRO-X PDB cascade)",
+            "source":         "Auto-resolved (CEREBRO-X PDB cascade)",
             "confidence":     "HIGH" if drug_lower in PDB_REF else "MODERATE",
             "all_candidates": candidates,
         }

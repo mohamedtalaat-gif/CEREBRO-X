@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 normalize_excel_brand_colors.py
 ================================
@@ -14,6 +13,7 @@ print-ability on white pages and remain compliant with the conditional-
 formatting convention pharma reviewers expect.
 """
 from __future__ import annotations
+
 import re
 from pathlib import Path
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | cerebro_molecule_extractor.py — Molecule-Aware Refactor
@@ -34,8 +33,10 @@ Public entry:
 ================================================================================
 """
 from __future__ import annotations
-import logging, math, re
-from typing import Dict, Any, Optional, Tuple
+
+import logging
+import math
+from typing import Any
 
 log = logging.getLogger("CEREBRO-MOL")
 
@@ -70,7 +71,7 @@ PKA_GROUPS = [
 ]
 
 
-def _pka_from_groups(mol) -> Tuple[Optional[float], Optional[float], Optional[float], str]:
+def _pka_from_groups(mol) -> tuple[float | None, float | None, float | None, str]:
     """Heuristic group-contribution pKa.
 
     Returns (pka_acidic, pka_basic, pka_dominant, label_string).
@@ -110,11 +111,11 @@ def _pka_from_groups(mol) -> Tuple[Optional[float], Optional[float], Optional[fl
         return None, None, None, ""
 
 
-def _rdkit_descriptors(smiles: str) -> Dict[str, Any]:
+def _rdkit_descriptors(smiles: str) -> dict[str, Any]:
     """Compute the RDKit-derived descriptor pack."""
     try:
         from rdkit import Chem
-        from rdkit.Chem import Descriptors, Lipinski, Crippen, rdMolDescriptors
+        from rdkit.Chem import Crippen, Descriptors, Lipinski, rdMolDescriptors
     except ImportError:
         log.warning("[MOL] RDKit not available — molecule extractor disabled")
         return {}
@@ -256,7 +257,7 @@ def _rdkit_descriptors(smiles: str) -> Dict[str, Any]:
     }
 
 
-def _fasta_descriptors(fasta: str) -> Dict[str, Any]:
+def _fasta_descriptors(fasta: str) -> dict[str, Any]:
     """Biopython ProtParam descriptors for protein/peptide drugs."""
     try:
         from Bio.SeqUtils.ProtParam import ProteinAnalysis
@@ -339,7 +340,7 @@ def _aliphatic_index(seq: str) -> float:
 # SMILES is used. If ALL fail, returns None and the pipeline is told the
 # drug cannot be resolved (no invented values).
 # ──────────────────────────────────────────────────────────────────────────
-def _fetch_smiles_pubchem(name: str, timeout: int = 10) -> Optional[str]:
+def _fetch_smiles_pubchem(name: str, timeout: int = 10) -> str | None:
     """Tier 1: PubChem PUG REST."""
     try:
         import requests
@@ -355,7 +356,7 @@ def _fetch_smiles_pubchem(name: str, timeout: int = 10) -> Optional[str]:
     return None
 
 
-def _fetch_smiles_chembl(name: str, timeout: int = 10) -> Optional[str]:
+def _fetch_smiles_chembl(name: str, timeout: int = 10) -> str | None:
     """Tier 2: ChEMBL REST API."""
     try:
         import requests
@@ -384,7 +385,7 @@ def _fetch_smiles_chembl(name: str, timeout: int = 10) -> Optional[str]:
     return None
 
 
-def _fetch_smiles_rxnorm(name: str, timeout: int = 10) -> Optional[str]:
+def _fetch_smiles_rxnorm(name: str, timeout: int = 10) -> str | None:
     """Tier 3: NIH NLM RxNorm → RxNav → unii → PubChem CID → SMILES."""
     try:
         import requests
@@ -417,7 +418,7 @@ def _fetch_smiles_rxnorm(name: str, timeout: int = 10) -> Optional[str]:
     return None
 
 
-def _fetch_smiles_cas_common_chem(name: str, timeout: int = 10) -> Optional[str]:
+def _fetch_smiles_cas_common_chem(name: str, timeout: int = 10) -> str | None:
     """Tier 4: CAS Common Chemistry."""
     try:
         import requests
@@ -440,7 +441,7 @@ def _fetch_smiles_cas_common_chem(name: str, timeout: int = 10) -> Optional[str]
     return None
 
 
-def _fetch_smiles_wikidata(name: str, timeout: int = 10) -> Optional[str]:
+def _fetch_smiles_wikidata(name: str, timeout: int = 10) -> str | None:
     """Tier 5: Wikidata SPARQL — pulls SMILES property P233."""
     try:
         import requests
@@ -466,7 +467,7 @@ def _fetch_smiles_wikidata(name: str, timeout: int = 10) -> Optional[str]:
     return None
 
 
-def _fetch_smiles_unichem(name: str, timeout: int = 10) -> Optional[str]:
+def _fetch_smiles_unichem(name: str, timeout: int = 10) -> str | None:
     """Tier 6: UniChem — EBI's federated cross-database identifier resolver.
     UniChem doesn't accept names directly, so we use it via PubChem CID
     cross-reference as a redundancy check."""
@@ -504,12 +505,12 @@ SMILES_FETCH_TIERS = [
 ]
 
 
-def fetch_smiles_from_pubchem(drug_name: str, timeout: int = 10) -> Optional[str]:
+def fetch_smiles_from_pubchem(drug_name: str, timeout: int = 10) -> str | None:
     """Backward-compat alias — runs full 6-tier cascade and returns first hit."""
     return fetch_smiles_cascade(drug_name, timeout=timeout)
 
 
-def fetch_smiles_cascade(drug_name: str, timeout: int = 10) -> Optional[str]:
+def fetch_smiles_cascade(drug_name: str, timeout: int = 10) -> str | None:
     """Run the full 6-tier SMILES-resolution cascade.
 
     Returns the canonical SMILES string from the first responsive database,
@@ -534,7 +535,7 @@ def fetch_smiles_cascade(drug_name: str, timeout: int = 10) -> Optional[str]:
 # ──────────────────────────────────────────────────────────────────────────
 # Live FASTA fetcher — 5+ database cascade for biologics
 # ──────────────────────────────────────────────────────────────────────────
-def _fetch_fasta_uniprot(query: str, timeout: int = 10) -> Optional[str]:
+def _fetch_fasta_uniprot(query: str, timeout: int = 10) -> str | None:
     """Tier 1: UniProt REST (reviewed entries)."""
     try:
         import requests
@@ -552,7 +553,7 @@ def _fetch_fasta_uniprot(query: str, timeout: int = 10) -> Optional[str]:
     return None
 
 
-def _fetch_fasta_uniprot_unreviewed(query: str, timeout: int = 10) -> Optional[str]:
+def _fetch_fasta_uniprot_unreviewed(query: str, timeout: int = 10) -> str | None:
     """Tier 2: UniProt REST (TrEMBL, unreviewed)."""
     try:
         import requests
@@ -570,7 +571,7 @@ def _fetch_fasta_uniprot_unreviewed(query: str, timeout: int = 10) -> Optional[s
     return None
 
 
-def _fetch_fasta_ncbi(query: str, timeout: int = 10) -> Optional[str]:
+def _fetch_fasta_ncbi(query: str, timeout: int = 10) -> str | None:
     """Tier 3: NCBI Protein E-utilities."""
     try:
         import requests
@@ -597,7 +598,7 @@ def _fetch_fasta_ncbi(query: str, timeout: int = 10) -> Optional[str]:
     return None
 
 
-def _fetch_fasta_pdb(query: str, timeout: int = 10) -> Optional[str]:
+def _fetch_fasta_pdb(query: str, timeout: int = 10) -> str | None:
     """Tier 4: RCSB PDB sequence search."""
     try:
         import requests
@@ -627,7 +628,7 @@ def _fetch_fasta_pdb(query: str, timeout: int = 10) -> Optional[str]:
     return None
 
 
-def _fetch_fasta_ensembl(query: str, timeout: int = 10) -> Optional[str]:
+def _fetch_fasta_ensembl(query: str, timeout: int = 10) -> str | None:
     """Tier 5: Ensembl REST API."""
     try:
         import requests
@@ -666,12 +667,12 @@ FASTA_FETCH_TIERS = [
 ]
 
 
-def fetch_fasta_from_uniprot(query: str, timeout: int = 10) -> Optional[str]:
+def fetch_fasta_from_uniprot(query: str, timeout: int = 10) -> str | None:
     """Backward-compat alias — runs full 5-tier cascade."""
     return fetch_fasta_cascade(query, timeout=timeout)
 
 
-def fetch_fasta_cascade(query: str, timeout: int = 10) -> Optional[str]:
+def fetch_fasta_cascade(query: str, timeout: int = 10) -> str | None:
     """Run the full 5-tier FASTA-resolution cascade."""
     if not query or not query.strip():
         return None
@@ -693,7 +694,7 @@ def fetch_fasta_cascade(query: str, timeout: int = 10) -> Optional[str]:
 # ──────────────────────────────────────────────────────────────────────────
 # Public API
 # ──────────────────────────────────────────────────────────────────────────
-def enrich_mol_profile(mol_profile: Dict) -> Dict:
+def enrich_mol_profile(mol_profile: dict) -> dict:
     """
     Enrich an input mol_profile with RDKit-derived (or FASTA-derived)
     descriptors. Returns a NEW dict; does not mutate input.
@@ -755,7 +756,7 @@ def enrich_mol_profile(mol_profile: Dict) -> Dict:
         primary_source = "none"
 
     # Provenance dict — what came from where
-    provenance: Dict[str, Dict] = {}
+    provenance: dict[str, dict] = {}
 
     # Merge: researcher override wins, descriptor fills gap
     for key, desc_record in descriptors.items():
@@ -803,7 +804,6 @@ def enrich_mol_profile(mol_profile: Dict) -> Dict:
 # Self-test
 # ──────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    import json
     DESCRIPTORS = ("MW_Da","LogP","TPSA_A2","HBD","HBA","RotBonds",
                     "AromaticRings","FormalCharge","Stereocenters",
                     "pKa","pKa_acidic","pKa_basic","NetCharge_pH74",

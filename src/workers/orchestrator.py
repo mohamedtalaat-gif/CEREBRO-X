@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  TASK ORCHESTRATOR & RETRY ENGINE
@@ -41,22 +40,19 @@ References:
 ================================================================================
 """
 
-import os
-import sys
-import time
-import math
-import json
-import random
 import logging
-import hashlib
+import os
+import random
+import sys
 import threading
-import traceback
-from enum import Enum
-from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Any, Callable, Tuple
-from dataclasses import dataclass, field
-from functools import wraps
+import time
 from collections import defaultdict
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from functools import wraps
+from typing import Any
 
 log = logging.getLogger("CEREBRO-ORCH")
 
@@ -116,7 +112,7 @@ class CircuitBreaker:
         self._last_failure   = 0.0
         self._half_open_calls = 0
         self._lock = threading.Lock()
-        self._listeners: List[Callable] = []
+        self._listeners: list[Callable] = []
 
     def add_listener(self, callback: Callable):
         """Register a callback: callback(breaker_name, old_state, new_state)."""
@@ -200,13 +196,13 @@ class CircuitBreaker:
                 result = func(*args, **kwargs)
                 self.record_success()
                 return result
-            except Exception as e:
+            except Exception:
                 self.record_failure()
                 raise
         return wrapper
 
     @property
-    def status(self) -> Dict:
+    def status(self) -> dict:
         return {
             "name":          self.name,
             "state":         self.state.value,
@@ -296,13 +292,13 @@ class TaskDefinition:
     """Definition of a task in the pipeline DAG."""
     name:           str
     func:           Callable
-    depends_on:     List[str] = field(default_factory=list)
+    depends_on:     list[str] = field(default_factory=list)
     retry_policy:   RetryPolicy = field(default_factory=RetryPolicy)
     timeout_sec:    float = 300.0
     queue:          str = "default"     # celery queue name
     priority:       int = 5             # 0 = highest, 9 = lowest
     resource_class: str = "cpu"         # cpu | gpu | io
-    tags:           Dict = field(default_factory=dict)
+    tags:           dict = field(default_factory=dict)
 
 
 @dataclass
@@ -312,11 +308,11 @@ class TaskExecution:
     task_name:  str
     state:      TaskState = TaskState.PENDING
     attempt:    int = 0
-    started_at: Optional[str] = None
-    finished_at: Optional[str] = None
+    started_at: str | None = None
+    finished_at: str | None = None
     result:     Any = None
-    error:      Optional[str] = None
-    celery_id:  Optional[str] = None
+    error:      str | None = None
+    celery_id:  str | None = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -339,10 +335,10 @@ class PipelineOrchestrator:
     """
 
     def __init__(self):
-        self.tasks: Dict[str, TaskDefinition] = {}
-        self.executions: Dict[str, TaskExecution] = {}
-        self.breakers: Dict[str, CircuitBreaker] = {}
-        self._dead_letter: List[TaskExecution] = []
+        self.tasks: dict[str, TaskDefinition] = {}
+        self.executions: dict[str, TaskExecution] = {}
+        self.breakers: dict[str, CircuitBreaker] = {}
+        self._dead_letter: list[TaskExecution] = []
 
     def register(self, task: TaskDefinition):
         """Register a task definition in the DAG."""
@@ -355,7 +351,7 @@ class PipelineOrchestrator:
             )
         )
 
-    def _topological_sort(self) -> List[List[str]]:
+    def _topological_sort(self) -> list[list[str]]:
         """
         Kahn's algorithm: returns list of levels.
         Each level contains tasks that can run in parallel.
@@ -391,7 +387,7 @@ class PipelineOrchestrator:
 
         return levels
 
-    def execute(self, run_id: str = None) -> Dict[str, TaskExecution]:
+    def execute(self, run_id: str = None) -> dict[str, TaskExecution]:
         """
         Execute the full DAG.
         Tasks at each level run in parallel (via threads).
@@ -483,7 +479,7 @@ class PipelineOrchestrator:
 
             except Exception as e:
                 breaker.record_failure()
-                execution.error = f"{type(e).__name__}: {str(e)}"
+                execution.error = f"{type(e).__name__}: {e!s}"
                 log.warning(f"[TASK] {task_name} attempt {attempt + 1} failed: {e}")
 
                 if attempt >= policy.max_retries:
@@ -502,7 +498,7 @@ class PipelineOrchestrator:
                 time.sleep(delay)
 
     @property
-    def dead_letter_queue(self) -> List[Dict]:
+    def dead_letter_queue(self) -> list[dict]:
         return [
             {"task_id": e.task_id, "task_name": e.task_name,
              "error": e.error, "attempts": e.attempt}
@@ -510,7 +506,7 @@ class PipelineOrchestrator:
         ]
 
     @property
-    def status(self) -> Dict:
+    def status(self) -> dict:
         return {
             "tasks": {
                 name: {
@@ -702,12 +698,11 @@ if _HAS_CELERY:
     def generate_report_task(report_config: dict = None):
         """Report generation as isolated task."""
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        import CEREBRO_Pipeline as cp
         # Report generation logic here
         return {"status": "success", "task": "report"}
 
     # ── Pipeline chains ──────────────────────────────────────────────────
-    def build_pipeline_chain(drugs: List[str]):
+    def build_pipeline_chain(drugs: list[str]):
         """
         Build a Celery chain: fetch → train → report.
         Each step runs only after the previous succeeds.

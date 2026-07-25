@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  PBBM ENGINE
@@ -67,14 +66,17 @@ All engines:
 ================================================================================
 """
 
-import os, sys, re, math, json, time, logging, warnings, copy
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
-from pathlib import Path
+import logging
+import math
+import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from typing import Optional, Dict, List, Tuple, Any, Union
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from scipy import stats, optimize, integrate
+from scipy import integrate, stats
 
 warnings.filterwarnings("ignore")
 log = logging.getLogger("CEREBRO-PBBM")
@@ -118,7 +120,7 @@ PHYSIOLOGY = {
 # ─────────────────────────────────────────────────────────────────────────────
 # DOCUMENTATION WRITER
 # ─────────────────────────────────────────────────────────────────────────────
-def _doc(path: Path, sections: Dict[str, str]):
+def _doc(path: Path, sections: dict[str, str]):
     sep = "=" * 70
     lines = [sep, "  CEREBRO-X PBBM  |  FILE DOCUMENTATION",
              f"  File      : {path.name}",
@@ -167,14 +169,14 @@ class PBBMEngine:
                   dose_mg:      float,
                   mw_da:        float,
                   logp:         float,
-                  pka_acid:     Optional[float] = None,
-                  pka_base:     Optional[float] = None,
+                  pka_acid:     float | None = None,
+                  pka_base:     float | None = None,
                   peff_cm_s:    float = 1e-4,
                   solubility_mg_mL: float = 10.0,
                   particle_size_um: float = 50.0,
                   dissolution_rate: float = 0.5,
                   route:        str = "oral",
-                  n_points:     int = 200) -> Dict:
+                  n_points:     int = 200) -> dict:
         """
         ACAT oral absorption model.
 
@@ -275,7 +277,7 @@ class PBBMEngine:
                   route:        str = "iv",
                   time_h:       float = 48.0,
                   n_pts:        int   = 200,
-                  output_dir:   Optional[Path] = None) -> pd.DataFrame:
+                  output_dir:   Path | None = None) -> pd.DataFrame:
         """
         8-compartment PBPK model with flow-limited kinetics.
 
@@ -445,7 +447,7 @@ class NCAEngine:
     @staticmethod
     def analyse(time_h: np.ndarray, conc: np.ndarray,
                  dose_mg: float = 1.0, iv: bool = True,
-                 n_terminal_pts: int = 4) -> Dict[str, float]:
+                 n_terminal_pts: int = 4) -> dict[str, float]:
         """
         Full NCA from concentration-time arrays.
 
@@ -552,7 +554,7 @@ class NCAEngine:
                            drug_col: str = "Drug",
                            organ:    str = "blood",
                            dose_mg:  float = 10.0,
-                           output_dir: Optional[Path] = None) -> pd.DataFrame:
+                           output_dir: Path | None = None) -> pd.DataFrame:
         """Run NCA on all drugs in a PBPK DataFrame."""
         results = []
         grp_col = drug_col if drug_col in df_pk.columns else None
@@ -629,11 +631,11 @@ class MetaboliteTracker:
             cls,
             parent_name:   str,
             parent_conc:   float,           # µM
-            cyp_profile:   Optional[Dict] = None,
+            cyp_profile:   dict | None = None,
             max_depth:     int = 3,
             time_h:        float = 24.0,
-            output_dir:    Optional[Path] = None
-    ) -> Dict:
+            output_dir:    Path | None = None
+    ) -> dict:
         """
         Simulate metabolite formation and elimination for up to max_depth generations.
 
@@ -749,7 +751,7 @@ class OptimisationEngine:
     @staticmethod
     def saem(objective_fn, theta0: np.ndarray, bounds=None,
              n_iter: int = 200, n_chains: int = 4,
-             fast_mode: bool = False) -> Dict:
+             fast_mode: bool = False) -> dict:
         """
         SAEM parameter estimation.
 
@@ -822,9 +824,9 @@ class OptimisationEngine:
         }
 
     @staticmethod
-    def pso_lci(objective_fn, bounds: List[Tuple[float,float]],
+    def pso_lci(objective_fn, bounds: list[tuple[float,float]],
                 n_particles: int = 30, n_iter: int = 100,
-                w: float = 0.7, c1: float = 1.5, c2: float = 1.5) -> Dict:
+                w: float = 0.7, c1: float = 1.5, c2: float = 1.5) -> dict:
         """
         Hybrid PSO-LCI (Particle Swarm + Lateral Constraint Inversion).
 
@@ -891,7 +893,7 @@ class OptimisationEngine:
     @staticmethod
     def calibrate(observed_t: np.ndarray, observed_C: np.ndarray,
                    model_fn, theta0: np.ndarray,
-                   bounds=None, method: str = "SAEM") -> Dict:
+                   bounds=None, method: str = "SAEM") -> dict:
         """
         Calibrate model parameters to observed PK data.
 
@@ -955,7 +957,7 @@ class ADMETPredictor:
     # ── Physicochemical properties ────────────────────────────────────────
 
     @staticmethod
-    def predict_pka(smiles: str) -> Dict:
+    def predict_pka(smiles: str) -> dict:
         """
         Multiprotic pKa prediction.
         Method: Henderson-Hasselbalch + Hammett substituent constants + ML.
@@ -1013,7 +1015,7 @@ class ADMETPredictor:
         return result
 
     @staticmethod
-    def predict_logp_logd(smiles: str, pH: float = 7.4) -> Dict:
+    def predict_logp_logd(smiles: str, pH: float = 7.4) -> dict:
         """
         logP (ANN ensemble + Moriguchi MlogP) and logD at specified pH.
         Reference: Moriguchi 1992; Wildman & Crippen 1999.
@@ -1063,7 +1065,7 @@ class ADMETPredictor:
     @staticmethod
     def predict_solubility(smiles: str,
                             pH: float = 6.8,
-                            logp: float = None) -> Dict:
+                            logp: float = None) -> dict:
         """
         Aqueous solubility models (S+Sw, intrinsic, pH-dependent, biorelevant).
 
@@ -1130,7 +1132,7 @@ class ADMETPredictor:
 
     @staticmethod
     def predict_permeability(smiles: str, mw: float = None,
-                              logp: float = None) -> Dict:
+                              logp: float = None) -> dict:
         """
         Permeability predictions (Peff, MDCK, BBB, corneal, skin).
 
@@ -1211,7 +1213,7 @@ class ADMETPredictor:
 
     @staticmethod
     def predict_transport(smiles: str, logp: float = None,
-                           mw: float = None) -> Dict:
+                           mw: float = None) -> dict:
         """
         Transporter interactions (P-gp, OATP1B1, BCRP).
 
@@ -1264,7 +1266,7 @@ class ADMETPredictor:
     @staticmethod
     def predict_pk_parameters(smiles: str, mw: float = None,
                                logp: float = None,
-                               prot_bind_pct: float = None) -> Dict:
+                               prot_bind_pct: float = None) -> dict:
         """
         Systemic PK parameter prediction (Vd, fu, RBP, fumic).
 
@@ -1324,7 +1326,7 @@ class ADMETPredictor:
                             mw: float = None, logp: float = None,
                             pH: float = 6.8,
                             prot_bind_pct: float = None,
-                            output_dir: Optional[Path] = None) -> Dict:
+                            output_dir: Path | None = None) -> dict:
         """
         Run the complete ADMET M.A.P. workflow:
           Molecular discovery → ADMET prediction → PK prediction
@@ -1408,7 +1410,7 @@ class FormulationAdvisor:
     @staticmethod
     def assess_ddi(drug_name: str, logp: float, fu: float,
                    cyp_inhibitor_flag: bool = False,
-                   cyp_substrate_flag: bool = True) -> Dict:
+                   cyp_substrate_flag: bool = True) -> dict:
         """
         Drug-drug interaction (DDI) risk assessment.
         Uses Ito-Sugiyama mechanistic approach (basic static model).
@@ -1440,7 +1442,7 @@ class FormulationAdvisor:
     def biowaiver_assessment(bcs_class: str, dose_mg: float,
                               solubility_mg_mL: float,
                               permeability_cm_s: float,
-                              dissolution_pct_15min: float = None) -> Dict:
+                              dissolution_pct_15min: float = None) -> dict:
         """
         BCS-based biowaiver eligibility (FDA 2000 + ICH M9 2021).
 
@@ -1482,7 +1484,7 @@ class FormulationAdvisor:
     @staticmethod
     def liver_safety_score(logp: float, mw: float,
                             daily_dose_mg: float,
-                            reactive_metabolite: bool = False) -> Dict:
+                            reactive_metabolite: bool = False) -> dict:
         """
         DILI (Drug-Induced Liver Injury) risk assessment.
 
@@ -1543,7 +1545,7 @@ class SensitivityAnalyser:
 
     @staticmethod
     def ota_sensitivity(model_fn, theta: np.ndarray,
-                         param_names: List[str],
+                         param_names: list[str],
                          perturbation: float = 0.1) -> pd.DataFrame:
         """
         One-at-a-time sensitivity analysis.
@@ -1581,7 +1583,7 @@ class SensitivityAnalyser:
     def uncertainty_propagation(model_fn, theta: np.ndarray,
                                  param_cv: float = 0.15,
                                  n_samples: int = 500,
-                                 seed: int = 42) -> Dict:
+                                 seed: int = 42) -> dict:
         """
         Monte Carlo uncertainty propagation (Latin Hypercube Sampling).
         Estimates output distribution given ±CV% uncertainty in each parameter.
@@ -1624,9 +1626,9 @@ class ParallelEngine:
     """
 
     @staticmethod
-    def run_parallel_admet(smiles_names: List[Tuple[str, str]],
+    def run_parallel_admet(smiles_names: list[tuple[str, str]],
                             n_workers: int = 4,
-                            output_dir: Optional[Path] = None) -> pd.DataFrame:
+                            output_dir: Path | None = None) -> pd.DataFrame:
         """Run ADMET predictions in parallel for all molecules."""
         def _predict_one(args):
             smiles, name = args
@@ -1653,9 +1655,9 @@ class ParallelEngine:
         return df
 
     @staticmethod
-    def run_parallel_pbpk(drug_configs: List[Dict],
+    def run_parallel_pbpk(drug_configs: list[dict],
                            n_workers: int = 4,
-                           output_dir: Optional[Path] = None) -> pd.DataFrame:
+                           output_dir: Path | None = None) -> pd.DataFrame:
         """Run PBPK simulations in parallel for all drug configs."""
         def _sim_one(cfg):
             try:
@@ -1689,15 +1691,15 @@ class PBBMOrchestrator:
     @classmethod
     def run_full(cls,
                   drug_name:       str,
-                  smiles:          Optional[str],
-                  mol_profile:     Dict,
-                  df_dds:          Optional[pd.DataFrame],
+                  smiles:          str | None,
+                  mol_profile:     dict,
+                  df_dds:          pd.DataFrame | None,
                   trial_dir:       Path,
                   dose_mg:         float = 10.0,
                   route:           str   = "oral",
-                  cyp_profile:     Optional[Dict] = None,
+                  cyp_profile:     dict | None = None,
                   n_workers:       int   = 4,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Full PBBM analysis pipeline covering all 37 requirements.
         """
@@ -1825,7 +1827,7 @@ class PBBMOrchestrator:
         return results
 
 
-def _write_pbbm_report(results: Dict, drug_name: str,
+def _write_pbbm_report(results: dict, drug_name: str,
                         dose_mg: float, route: str,
                         out_dir: Path):
     """Write the master PBBM text report with all results."""

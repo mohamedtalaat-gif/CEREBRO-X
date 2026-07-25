@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/material_lipid.py
@@ -13,9 +12,10 @@ Categories:
 ================================================================================
 """
 from __future__ import annotations
+
 import logging
-from typing import Optional, Dict, List
-from .._core import register, _resolved
+
+from .._core import _resolved, register
 
 log = logging.getLogger("CEREBRO-RESOLVER.lipid")
 
@@ -41,8 +41,8 @@ def _build_lipid_resolver(category: str, prop_key: str, unit: str,
                             t7_default: float):
     @register(category)
     def resolver(carrier: str = "", lipid_type: str = "",
-                  researcher_override: Optional[float] = None) -> Dict:
-        db_misses: List[str] = []
+                  researcher_override: float | None = None) -> dict:
+        db_misses: list[str] = []
         if researcher_override is not None:
             return _resolved(value=float(researcher_override), tier=0,
                               source="researcher_override",

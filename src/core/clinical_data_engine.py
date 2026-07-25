@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  CLINICAL DATA ENGINE
@@ -55,13 +54,19 @@ DOCUMENTATION:
 ================================================================================
 """
 
-import os, re, sys, math, json, time, logging, hashlib, warnings
-import requests
+import json
+import logging
+import os
+import re
+import time
+import warnings
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from datetime import datetime
-from typing import Optional, Dict, List, Tuple, Any
+import requests
 
 warnings.filterwarnings("ignore")
 log = logging.getLogger("CEREBRO-CLINICAL")
@@ -88,15 +93,15 @@ log = logging.getLogger("CEREBRO-CLINICAL")
 #   4. WHO Essential Medicines List
 #   5. NIH PharmGKB clinical annotations
 # ─────────────────────────────────────────────────────────────────────────────
-CLINICAL_PK_LIBRARY: Dict[str, Dict] = {}
+CLINICAL_PK_LIBRARY: dict[str, dict] = {}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPER: DOCUMENTATION WRITER
 # ─────────────────────────────────────────────────────────────────────────────
 def _write_clinical_doc(output_dir: Path, drug_name: str,
-                         result: Dict, tiers_tried: List[str],
-                         alignment_used: Optional[Dict] = None):
+                         result: dict, tiers_tried: list[str],
+                         alignment_used: dict | None = None):
     """Write a full documentation file for the clinical data fetch result."""
     doc_path = output_dir / f"clinical_pk_{drug_name}_DOCUMENTATION.txt"
     sep = "=" * 70
@@ -166,7 +171,7 @@ def _write_clinical_doc(output_dir: Path, drug_name: str,
 # ─────────────────────────────────────────────────────────────────────────────
 # TIER 1: DrugBank API
 # ─────────────────────────────────────────────────────────────────────────────
-def _tier_drugbank(drug: str) -> Optional[Dict]:
+def _tier_drugbank(drug: str) -> dict | None:
     key = os.environ.get("DRUGBANK_API_KEY", "")
     if not key:
         return None
@@ -183,10 +188,10 @@ def _tier_drugbank(drug: str) -> Optional[Dict]:
         hl_h = None
         hl_raw = d.get("half_life") or d.get("half_life_value", "")
         if hl_raw:
-            m = re.search(r"(\d+\.?\d*)\s*h", str(hl_raw), re.I)
+            m = re.search(r"(\d+\.?\d*)\s*h", str(hl_raw), re.IGNORECASE)
             if m:
                 hl_h = float(m.group(1))
-            m2 = re.search(r"(\d+\.?\d*)\s*day", str(hl_raw), re.I)
+            m2 = re.search(r"(\d+\.?\d*)\s*day", str(hl_raw), re.IGNORECASE)
             if m2:
                 hl_h = float(m2.group(1)) * 24
 
@@ -210,7 +215,7 @@ def _tier_drugbank(drug: str) -> Optional[Dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 # TIER 2: DailyMed (FDA Drug Labels)
 # ─────────────────────────────────────────────────────────────────────────────
-def _tier_dailymed(drug: str) -> Optional[Dict]:
+def _tier_dailymed(drug: str) -> dict | None:
     """
     Fetch FDA drug label from DailyMed API.
     Extracts PK section using regex on label text.
@@ -258,7 +263,7 @@ def _tier_dailymed(drug: str) -> Optional[Dict]:
             r"t½[^0-9]*(\d+\.?\d*)\s*(?:to\s*(\d+\.?\d*)\s*)?h",
             r"elimination half[- ]?life[^0-9]*(\d+\.?\d*)",
         ]:
-            m = re.search(pat, pk_text, re.I)
+            m = re.search(pat, pk_text, re.IGNORECASE)
             if m:
                 lo = float(m.group(1))
                 hi = float(m.group(2)) if m.lastindex >= 2 and m.group(2) else lo
@@ -268,22 +273,22 @@ def _tier_dailymed(drug: str) -> Optional[Dict]:
                 break
 
         # Volume of distribution
-        m = re.search(r"volume of distribution[^0-9]*(\d+\.?\d*)\s*L/kg", pk_text, re.I)
+        m = re.search(r"volume of distribution[^0-9]*(\d+\.?\d*)\s*L/kg", pk_text, re.IGNORECASE)
         if m:
             result["Vd_L_kg"] = float(m.group(1))
 
         # Clearance
-        m = re.search(r"clearance[^0-9]*(\d+\.?\d*)\s*mL/min", pk_text, re.I)
+        m = re.search(r"clearance[^0-9]*(\d+\.?\d*)\s*mL/min", pk_text, re.IGNORECASE)
         if m:
             result["CL_mL_min_kg"] = float(m.group(1))
 
         # Protein binding
-        m = re.search(r"protein binding[^0-9]*(\d+\.?\d*)\s*%", pk_text, re.I)
+        m = re.search(r"protein binding[^0-9]*(\d+\.?\d*)\s*%", pk_text, re.IGNORECASE)
         if m:
             result["Protein_Binding_pct"] = float(m.group(1))
 
         # Bioavailability
-        m = re.search(r"bioavailability[^0-9]*(\d+\.?\d*)\s*%", pk_text, re.I)
+        m = re.search(r"bioavailability[^0-9]*(\d+\.?\d*)\s*%", pk_text, re.IGNORECASE)
         if m:
             result["F_oral_pct"] = float(m.group(1))
 
@@ -293,7 +298,7 @@ def _tier_dailymed(drug: str) -> Optional[Dict]:
             r"CSF[/ ]plasma\s*ratio[^0-9]*(\d+\.?\d*)",
             r"cerebrospinal fluid[^0-9]*(\d+\.?\d*)\s*%",
         ]:
-            m = re.search(pat, pk_text, re.I)
+            m = re.search(pat, pk_text, re.IGNORECASE)
             if m:
                 val = float(m.group(1))
                 result["CSF_Plasma_Ratio"] = val / 100 if val > 1 else val
@@ -314,7 +319,7 @@ def _tier_dailymed(drug: str) -> Optional[Dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 # TIER 3: OpenFDA Drug Label API
 # ─────────────────────────────────────────────────────────────────────────────
-def _tier_openfda(drug: str) -> Optional[Dict]:
+def _tier_openfda(drug: str) -> dict | None:
     """
     OpenFDA structured label API — excellent coverage of FDA-approved drugs.
     Searches the clinical_pharmacology section for PK data.
@@ -361,7 +366,7 @@ def _tier_openfda(drug: str) -> Optional[Dict]:
             r"t½[^0-9]*(\d+\.?\d*)\s*(?:to\s*(\d+\.?\d*)\s*)?h",
             r"terminal half[- ]?life[^0-9]*(\d+\.?\d*)",
         ]:
-            m = re.search(pat, pk_text, re.I)
+            m = re.search(pat, pk_text, re.IGNORECASE)
             if m:
                 lo = float(m.group(1))
                 hi = float(m.group(2)) if m.lastindex >= 2 and m.group(2) else lo
@@ -370,11 +375,11 @@ def _tier_openfda(drug: str) -> Optional[Dict]:
                 result["Half_Life_Days"] = round(hl_h / 24, 4)
                 break
 
-        m = re.search(r"volume of distribution[^0-9]*(\d+\.?\d*)\s*L/kg", pk_text, re.I)
+        m = re.search(r"volume of distribution[^0-9]*(\d+\.?\d*)\s*L/kg", pk_text, re.IGNORECASE)
         if m:
             result["Vd_L_kg"] = float(m.group(1))
 
-        m = re.search(r"protein binding[^0-9]*(\d+\.?\d*)\s*%", pk_text, re.I)
+        m = re.search(r"protein binding[^0-9]*(\d+\.?\d*)\s*%", pk_text, re.IGNORECASE)
         if m:
             result["Protein_Binding_pct"] = float(m.group(1))
 
@@ -383,7 +388,7 @@ def _tier_openfda(drug: str) -> Optional[Dict]:
             r"CSF[/ ]plasma[^0-9]*(\d+\.?\d*)",
             r"cerebrospinal[^0-9]*(\d+\.?\d*)\s*%",
         ]:
-            m = re.search(pat, pk_text, re.I)
+            m = re.search(pat, pk_text, re.IGNORECASE)
             if m:
                 val = float(m.group(1))
                 result["CSF_Plasma_Ratio"] = round(val / 100 if val > 1 else val, 4)
@@ -403,7 +408,7 @@ def _tier_openfda(drug: str) -> Optional[Dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 # TIER 4: PubChem Pharmacology section
 # ─────────────────────────────────────────────────────────────────────────────
-def _tier_pubchem_pharmacology(drug: str) -> Optional[Dict]:
+def _tier_pubchem_pharmacology(drug: str) -> dict | None:
     """
     PubChem has a Pharmacology section with PK data from multiple sources.
     Also fetches from the Drug and Medication Ontology (DRON) annotations.
@@ -444,7 +449,7 @@ def _tier_pubchem_pharmacology(drug: str) -> Optional[Dict]:
             r"t½[^0-9]*(\d+\.?\d*)\s*(?:to\s*(\d+\.?\d*)\s*)?h",
             r'"(\d+\.?\d*)\s*(?:to\s*\d+\.?\d*\s*)?hours?\s*half[- ]?life"',
         ]:
-            m = re.search(pat, text_all, re.I)
+            m = re.search(pat, text_all, re.IGNORECASE)
             if m:
                 lo = float(m.group(1))
                 hi = float(m.group(2)) if m.lastindex >= 2 and m.group(2) else lo
@@ -454,7 +459,7 @@ def _tier_pubchem_pharmacology(drug: str) -> Optional[Dict]:
                 break
 
         # CSF
-        m = re.search(r"CSF[/ ]plasma[^0-9]*(\d+\.?\d*)", text_all, re.I)
+        m = re.search(r"CSF[/ ]plasma[^0-9]*(\d+\.?\d*)", text_all, re.IGNORECASE)
         if m:
             val = float(m.group(1))
             result["CSF_Plasma_Ratio"] = val / 100 if val > 1 else val
@@ -473,7 +478,7 @@ def _tier_pubchem_pharmacology(drug: str) -> Optional[Dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 # TIER 5: PubMed NLP Scraper  (multiple papers)
 # ─────────────────────────────────────────────────────────────────────────────
-def _tier_pubmed_nlp(drug: str, n_papers: int = 10) -> Optional[Dict]:
+def _tier_pubmed_nlp(drug: str, n_papers: int = 10) -> dict | None:
     """
     Searches PubMed for PK papers, fetches abstracts + full-text where available.
     Extracts PK values using comprehensive regex patterns.
@@ -512,7 +517,7 @@ def _tier_pubmed_nlp(drug: str, n_papers: int = 10) -> Optional[Dict]:
                 timeout=8).text
             papers_tried.append(pmid)
 
-            result = {"_source": f"PubMed_NLP", "_doi": f"PMID:{pmid}"}
+            result = {"_source": "PubMed_NLP", "_doi": f"PMID:{pmid}"}
 
             # Half-life patterns (hours)
             for pat in [
@@ -522,7 +527,7 @@ def _tier_pubmed_nlp(drug: str, n_papers: int = 10) -> Optional[Dict]:
                 r"elimination half[- ]?life[^0-9]*(\d+\.?\d*)\s*h",
                 r"(\d+\.?\d*)\s*h\s*half[- ]?life",
             ]:
-                m = re.search(pat, text, re.I)
+                m = re.search(pat, text, re.IGNORECASE)
                 if m:
                     hl_h = float(m.group(1))
                     if 0.5 <= hl_h <= 2000:   # sanity: 30min to 83 days
@@ -536,7 +541,7 @@ def _tier_pubmed_nlp(drug: str, n_papers: int = 10) -> Optional[Dict]:
                     r"half[- ]?life[^0-9]*(\d+\.?\d*)\s*days?",
                     r"t½[^0-9]*(\d+\.?\d*)\s*days?",
                 ]:
-                    m = re.search(pat, text, re.I)
+                    m = re.search(pat, text, re.IGNORECASE)
                     if m:
                         hl_d = float(m.group(1))
                         if 0.02 <= hl_d <= 365:
@@ -545,12 +550,12 @@ def _tier_pubmed_nlp(drug: str, n_papers: int = 10) -> Optional[Dict]:
                             break
 
             # Vd
-            m = re.search(r"Vd[^0-9]*(\d+\.?\d*)\s*L/kg", text, re.I)
+            m = re.search(r"Vd[^0-9]*(\d+\.?\d*)\s*L/kg", text, re.IGNORECASE)
             if m:
                 result["Vd_L_kg"] = float(m.group(1))
 
             # CL
-            m = re.search(r"clearance[^0-9]*(\d+\.?\d*)\s*mL/min", text, re.I)
+            m = re.search(r"clearance[^0-9]*(\d+\.?\d*)\s*mL/min", text, re.IGNORECASE)
             if m:
                 result["CL_mL_min_kg"] = float(m.group(1))
 
@@ -559,7 +564,7 @@ def _tier_pubmed_nlp(drug: str, n_papers: int = 10) -> Optional[Dict]:
                 r"CSF[/ ]plasma\s*(?:ratio)?[^0-9]*(\d+\.?\d*)",
                 r"cerebrospinal fluid[^0-9]*(\d+\.?\d*)\s*%",
             ]:
-                m = re.search(pat, text, re.I)
+                m = re.search(pat, text, re.IGNORECASE)
                 if m:
                     val = float(m.group(1))
                     result["CSF_Plasma_Ratio"] = round(val / 100 if val > 1 else val, 4)
@@ -581,7 +586,7 @@ def _tier_pubmed_nlp(drug: str, n_papers: int = 10) -> Optional[Dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 # TIER 6: Embedded Reference Library
 # ─────────────────────────────────────────────────────────────────────────────
-def _tier_embedded_library(drug: str) -> Optional[Dict]:
+def _tier_embedded_library(drug: str) -> dict | None:
     """
     Check curated embedded library — covers ~500 common drugs.
     This is the guaranteed fallback before chemical alignment.
@@ -616,7 +621,7 @@ def _compute_tanimoto_smiles(smiles1: str, smiles2: str) -> float:
         return 0.0
 
 
-def _physicochemical_similarity(props1: Dict, props2: Dict) -> float:
+def _physicochemical_similarity(props1: dict, props2: dict) -> float:
     """
     Physicochemical similarity when fingerprints unavailable.
     Uses MW, LogP, H-donors, H-acceptors, TPSA.
@@ -634,10 +639,10 @@ def _physicochemical_similarity(props1: Dict, props2: Dict) -> float:
 
 
 def _tier_chemical_alignment(drug: str,
-                               drug_smiles: Optional[str] = None,
-                               drug_mw: Optional[float] = None,
-                               drug_logp: Optional[float] = None,
-                               tiers_tried: List[str] = None) -> Optional[Dict]:
+                               drug_smiles: str | None = None,
+                               drug_mw: float | None = None,
+                               drug_logp: float | None = None,
+                               tiers_tried: list[str] = None) -> dict | None:
     """
     Chemical Alignment fallback.
 
@@ -658,7 +663,7 @@ def _tier_chemical_alignment(drug: str,
     # LIBRARY_SMILES — DELETED v22.1 (no hardcoded drug → SMILES lookups).
     # All SMILES resolution flows through cerebro_molecule_extractor's
     # 6-tier live cascade.
-    LIBRARY_SMILES: Dict[str, str] = {}
+    LIBRARY_SMILES: dict[str, str] = {}
 
     for lib_name, lib_pk in CLINICAL_PK_LIBRARY.items():
         sim = 0.0
@@ -724,11 +729,11 @@ def _tier_chemical_alignment(drug: str,
 # ─────────────────────────────────────────────────────────────────────────────
 def fetch_clinical_pk(
     drug_name:   str,
-    drug_smiles: Optional[str] = None,
-    drug_mw:     Optional[float] = None,
-    drug_logp:   Optional[float] = None,
-    output_dir:  Optional[Path] = None,
-) -> Dict[str, Any]:
+    drug_smiles: str | None = None,
+    drug_mw:     float | None = None,
+    drug_logp:   float | None = None,
+    output_dir:  Path | None = None,
+) -> dict[str, Any]:
     """
     MASTER FUNCTION. Tries all 7 tiers in order.
     Never returns None — always returns a dict with whatever was found
@@ -825,7 +830,7 @@ def fetch_clinical_pk(
 # ─────────────────────────────────────────────────────────────────────────────
 # INTEGRATION PATCH for CEREBRO_Pipeline.build_mab_dataset
 # ─────────────────────────────────────────────────────────────────────────────
-def patch_build_mab_dataset(cp_module, output_dir: Optional[Path] = None):
+def patch_build_mab_dataset(cp_module, output_dir: Path | None = None):
     """
     Monkey-patches CascadeDataEngine.build_mab_dataset to:
     1. After each cascade tier, call fetch_clinical_pk if HL is still None
@@ -834,13 +839,12 @@ def patch_build_mab_dataset(cp_module, output_dir: Optional[Path] = None):
 
     Call this once after: import CEREBRO_Pipeline as cp
     """
-    import pandas as pd
     from datetime import datetime as _dt
 
     _original_build = cp_module.CascadeDataEngine.build_mab_dataset.__func__
 
     def _patched_build(cls, drug_list):
-        log.info(f"[PATCHED] build_mab_dataset — clinical PK engine enabled")
+        log.info("[PATCHED] build_mab_dataset — clinical PK engine enabled")
         records = []
 
         for drug in drug_list:
@@ -935,7 +939,6 @@ def patch_build_mab_dataset(cp_module, output_dir: Optional[Path] = None):
         log.info(f"  {len(df)} valid records (incl. {n_aligned} aligned) → {path}")
         return df
 
-    import types
     cp_module.CascadeDataEngine.build_mab_dataset = classmethod(
         lambda cls, *a, **kw: _patched_build(cls, *a, **kw))
     log.info("[PATCH] CascadeDataEngine.build_mab_dataset → clinical PK engine enabled")

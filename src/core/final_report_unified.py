@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  UNIFIED PDF REPORT ENGINE
@@ -27,9 +26,10 @@ Structure:
 """
 
 from __future__ import annotations
-import io, json, math, logging, datetime
+
+import datetime
+import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Any
 
 import pandas as pd
 
@@ -74,32 +74,39 @@ class UnifiedPDFReport:
     def generate(cls,
                   drug_name:       str,
                   trial_dir:       Path,
-                  mol_profile:     Dict,
-                  df_dds:          Optional[pd.DataFrame],
-                  top_dds:         Dict,
-                  science_results: Dict,
-                  df_ml:           Optional[pd.DataFrame] = None,
-                  df_pk:           Optional[pd.DataFrame] = None,
-                  pbbm_results:    Optional[Dict] = None,
+                  mol_profile:     dict,
+                  df_dds:          pd.DataFrame | None,
+                  top_dds:         dict,
+                  science_results: dict,
+                  df_ml:           pd.DataFrame | None = None,
+                  df_pk:           pd.DataFrame | None = None,
+                  pbbm_results:    dict | None = None,
                   # v22 — C+ Flow data
-                  dds_principle_breakdown: Optional[List] = None,
-                  dds_principle_matrix: Optional[List] = None,
-                  deep_results:    Optional[Dict] = None,
-                  deep_summary:    Optional[Dict] = None,
-                  translational:   Optional[Dict] = None,
-                  fallback_chain:  Optional[List] = None) -> Optional[Path]:
+                  dds_principle_breakdown: list | None = None,
+                  dds_principle_matrix: list | None = None,
+                  deep_results:    dict | None = None,
+                  deep_summary:    dict | None = None,
+                  translational:   dict | None = None,
+                  fallback_chain:  list | None = None) -> Path | None:
         """
         Build and save the unified PDF report.
         All sections driven by actual computed data. No placeholders.
         """
         try:
-            from reportlab.lib.pagesizes import A4
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.units import cm
             from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.lib.units import cm
             from reportlab.platypus import (
-                SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-                PageBreak, HRFlowable, KeepTogether)
+                HRFlowable,
+                KeepTogether,
+                PageBreak,
+                Paragraph,
+                SimpleDocTemplate,
+                Spacer,
+                Table,
+                TableStyle,
+            )
         except ImportError:
             log.warning("[PDF] reportlab not installed")
             return None
@@ -165,7 +172,8 @@ class UnifiedPDFReport:
         # ── Helper: metric box row ─────────────────────────────────────────────
         def metric_row(items):
             """Items = list of (label, value, color_tuple)."""
-            from reportlab.platypus import Table as RLTable, TableStyle as RLTableStyle
+            from reportlab.platypus import Table as RLTable
+            from reportlab.platypus import TableStyle as RLTableStyle
             cells = []
             for lbl, val, col in items:
                 cells.append(
@@ -193,7 +201,7 @@ class UnifiedPDFReport:
                                       textColor=GOLD_RL, alignment=1, spaceAfter=12)
         story.append(Paragraph("CEREBRO-X", cover_style))
         story.append(Paragraph(
-            f"<font color='#0f2040'>Computational Drug-DDS Engineering Report</font>",
+            "<font color='#0f2040'>Computational Drug-DDS Engineering Report</font>",
             ParagraphStyle("sub", fontSize=16, fontName="Helvetica", alignment=1,
                             textColor=NAVY_RL, spaceAfter=8)))
         story.append(HRFlowable(width="100%", thickness=2, color=GOLD_RL))

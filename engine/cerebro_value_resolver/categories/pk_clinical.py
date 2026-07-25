@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/pk_clinical.py
@@ -37,10 +36,13 @@ Cascade (ordered by data quality / accessibility):
 ================================================================================
 """
 from __future__ import annotations
-import logging, urllib.parse, json, re
-from typing import Optional, Dict, List
-from .._core import (register, _resolved, cached_safe_get,
-                     _HAS_REQUESTS, _HAS_THERMO)
+
+import json
+import logging
+import re
+import urllib.parse
+
+from .._core import _HAS_REQUESTS, _resolved, cached_safe_get, register
 
 log = logging.getLogger("CEREBRO-RESOLVER.pk")
 
@@ -48,7 +50,7 @@ log = logging.getLogger("CEREBRO-RESOLVER.pk")
 # ──────────────────────────────────────────────────────────────────────────
 # Tier-1 sources
 # ──────────────────────────────────────────────────────────────────────────
-def _openfda_label_search(name: str) -> Optional[str]:
+def _openfda_label_search(name: str) -> str | None:
     """Returns the raw 'clinical_pharmacology' or 'pharmacokinetics' text from
     OpenFDA drug label, or None."""
     if not name or not _HAS_REQUESTS: return None
@@ -76,7 +78,7 @@ def _openfda_label_search(name: str) -> Optional[str]:
     return None
 
 
-def _extract_halflife_hours(text: str) -> Optional[float]:
+def _extract_halflife_hours(text: str) -> float | None:
     """Regex-extract a half-life value in hours from clinical-pharm text.
     Returns hours or None."""
     if not text: return None
@@ -102,7 +104,7 @@ def _extract_halflife_hours(text: str) -> Optional[float]:
     return None
 
 
-def _extract_clearance_lph(text: str) -> Optional[float]:
+def _extract_clearance_lph(text: str) -> float | None:
     """Extract total clearance in L/h."""
     if not text: return None
     patterns = [
@@ -124,7 +126,7 @@ def _extract_clearance_lph(text: str) -> Optional[float]:
     return None
 
 
-def _extract_vd_L(text: str) -> Optional[float]:
+def _extract_vd_L(text: str) -> float | None:
     """Extract volume of distribution in L."""
     if not text: return None
     patterns = [
@@ -147,7 +149,7 @@ def _extract_vd_L(text: str) -> Optional[float]:
     return None
 
 
-def _extract_protein_binding(text: str) -> Optional[float]:
+def _extract_protein_binding(text: str) -> float | None:
     """Extract fraction protein bound (0..1)."""
     if not text: return None
     patterns = [
@@ -163,7 +165,7 @@ def _extract_protein_binding(text: str) -> Optional[float]:
     return None
 
 
-def _extract_bioavailability(text: str) -> Optional[float]:
+def _extract_bioavailability(text: str) -> float | None:
     """Extract oral bioavailability (0..1)."""
     if not text: return None
     patterns = [
@@ -178,7 +180,7 @@ def _extract_bioavailability(text: str) -> Optional[float]:
     return None
 
 
-def _chembl_pk(name: str) -> Optional[Dict]:
+def _chembl_pk(name: str) -> dict | None:
     """ChEMBL stores t½, clearance, Vd in 'mechanism', 'drug_indications'."""
     if not name or not _HAS_REQUESTS: return None
     try:
@@ -254,12 +256,12 @@ def _empirical_halflife(mw_Da: float, logp: float, mclass: str) -> float:
 # ──────────────────────────────────────────────────────────────────────────
 @register("pk_halflife")
 def resolve_pk_halflife(name: str = "", smiles: str = "",
-                          mw_Da: Optional[float] = None,
-                          logp: Optional[float] = None,
+                          mw_Da: float | None = None,
+                          logp: float | None = None,
                           molecule_class: str = "small_molecule",
-                          researcher_override: Optional[float] = None) -> Dict:
+                          researcher_override: float | None = None) -> dict:
     """Returns terminal elimination half-life in DAYS."""
-    db_misses: List[str] = []
+    db_misses: list[str] = []
 
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
@@ -380,12 +382,12 @@ def resolve_pk_halflife(name: str = "", smiles: str = "",
 # ──────────────────────────────────────────────────────────────────────────
 @register("pk_clearance")
 def resolve_pk_clearance(name: str = "", smiles: str = "",
-                          mw_Da: Optional[float] = None,
-                          logp: Optional[float] = None,
+                          mw_Da: float | None = None,
+                          logp: float | None = None,
                           molecule_class: str = "small_molecule",
-                          researcher_override: Optional[float] = None) -> Dict:
+                          researcher_override: float | None = None) -> dict:
     """Total body clearance (L/h)."""
-    db_misses: List[str] = []
+    db_misses: list[str] = []
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
@@ -416,7 +418,6 @@ def resolve_pk_clearance(name: str = "", smiles: str = "",
     # Tier 6: empirical CL = (MW^-0.25 × 60) for small molecules
     # (allometric, Mahmood 2007)
     if mw_Da is not None:
-        import math
         cl = 60 * (mw_Da ** -0.25) if molecule_class == "small_molecule" else 0.5
         return _resolved(value=round(cl, 3), tier=6,
                           source="cerebro_value_resolver:allometric_cl",
@@ -439,12 +440,12 @@ def resolve_pk_clearance(name: str = "", smiles: str = "",
 
 @register("pk_volume_distribution")
 def resolve_pk_volume_distribution(name: str = "", smiles: str = "",
-                                      mw_Da: Optional[float] = None,
-                                      logp: Optional[float] = None,
+                                      mw_Da: float | None = None,
+                                      logp: float | None = None,
                                       molecule_class: str = "small_molecule",
-                                      researcher_override: Optional[float] = None) -> Dict:
+                                      researcher_override: float | None = None) -> dict:
     """Volume of distribution (L)."""
-    db_misses: List[str] = []
+    db_misses: list[str] = []
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
@@ -498,10 +499,10 @@ def resolve_pk_volume_distribution(name: str = "", smiles: str = "",
 
 @register("pk_protein_binding")
 def resolve_pk_protein_binding(name: str = "", smiles: str = "",
-                                  logp: Optional[float] = None,
-                                  researcher_override: Optional[float] = None) -> Dict:
+                                  logp: float | None = None,
+                                  researcher_override: float | None = None) -> dict:
     """Fraction protein bound (0..1)."""
-    db_misses: List[str] = []
+    db_misses: list[str] = []
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
@@ -543,9 +544,9 @@ def resolve_pk_protein_binding(name: str = "", smiles: str = "",
 
 @register("pk_oral_bioavailability")
 def resolve_pk_oral_bioavailability(name: str = "", smiles: str = "",
-                                       researcher_override: Optional[float] = None) -> Dict:
+                                       researcher_override: float | None = None) -> dict:
     """Oral bioavailability F (0..1)."""
-    db_misses: List[str] = []
+    db_misses: list[str] = []
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",

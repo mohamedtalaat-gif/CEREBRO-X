@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/drug_pka.py
@@ -13,18 +12,28 @@ Categories registered:
 ================================================================================
 """
 from __future__ import annotations
-import logging, urllib.parse, json
-from typing import Optional, List, Dict
-from .._core import (register, _resolved, cached_safe_get,
-                     _HAS_RDKIT, _HAS_THERMO, _HAS_REQUESTS)
-from ..computations import (hh_microspeciation,
-                              find_x_h_bonds_in_smiles,
-                              select_dominant_pka,
-                              compute_pka_from_first_principles)
+
+import json
+import logging
+import urllib.parse
+
+from .._core import (
+    _HAS_REQUESTS,
+    _HAS_THERMO,
+    _resolved,
+    cached_safe_get,
+    register,
+)
+from ..computations import (
+    compute_pka_from_first_principles,
+    find_x_h_bonds_in_smiles,
+    hh_microspeciation,
+    select_dominant_pka,
+)
 from ..computations.pka_first_principles import (
+    compute_pka_BH_plus_from_first_principles,
     find_basic_sites_in_smiles,
     select_dominant_pka_BH_plus,
-    compute_pka_BH_plus_from_first_principles,
 )
 
 log = logging.getLogger("CEREBRO-RESOLVER.pka")
@@ -33,7 +42,7 @@ log = logging.getLogger("CEREBRO-RESOLVER.pka")
 # ──────────────────────────────────────────────────────────────────────────
 # Tier-1: live DBs that report pKa
 # ──────────────────────────────────────────────────────────────────────────
-def _pka_chembl(name: str) -> Optional[Dict]:
+def _pka_chembl(name: str) -> dict | None:
     """ChEMBL records 'acd_logp', 'acd_logd', 'acd_most_apka', 'acd_most_bpka'.
     Returns dict {acidic, basic} or None."""
     if not name or not _HAS_REQUESTS: return None
@@ -57,12 +66,12 @@ def _pka_chembl(name: str) -> Optional[Dict]:
     return None
 
 
-def _pka_drugbank_xref(name: str) -> Optional[Dict]:
+def _pka_drugbank_xref(name: str) -> dict | None:
     """DrugBank's pKa via ChEMBL xref (DrugBank API requires license)."""
     return _pka_chembl(name)    # ChEMBL aggregates DrugBank
 
 
-def _pka_pubchem_classification(name: str) -> Optional[Dict]:
+def _pka_pubchem_classification(name: str) -> dict | None:
     """PubChem rarely exposes pKa as a property, but we can try."""
     return None
 
@@ -70,7 +79,7 @@ def _pka_pubchem_classification(name: str) -> Optional[Dict]:
 # ──────────────────────────────────────────────────────────────────────────
 # Tier-5: thermo
 # ──────────────────────────────────────────────────────────────────────────
-def _pka_thermo(name: str) -> Optional[Dict]:
+def _pka_thermo(name: str) -> dict | None:
     if not _HAS_THERMO or not name: return None
     try:
         from thermo import Chemical
@@ -101,7 +110,7 @@ PKA_GROUPS = [
 ]
 
 
-def _pka_t7_groups(smiles: str) -> Optional[Dict]:
+def _pka_t7_groups(smiles: str) -> dict | None:
     """First-principles pKa via Bordwell-Hammett-Born hybrid.
 
     Identifies ALL ionizable X-H bonds in the SMILES and computes a pKa
@@ -173,8 +182,8 @@ def _pka_t7_groups(smiles: str) -> Optional[Dict]:
 # ──────────────────────────────────────────────────────────────────────────
 @register("drug_pka_acidic")
 def resolve_drug_pka_acidic(name: str = "", smiles: str = "",
-                              researcher_override: Optional[float] = None) -> Dict:
-    db_misses: List[str] = []
+                              researcher_override: float | None = None) -> dict:
+    db_misses: list[str] = []
 
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
@@ -241,8 +250,8 @@ def resolve_drug_pka_acidic(name: str = "", smiles: str = "",
 
 @register("drug_pka_basic")
 def resolve_drug_pka_basic(name: str = "", smiles: str = "",
-                             researcher_override: Optional[float] = None) -> Dict:
-    db_misses: List[str] = []
+                             researcher_override: float | None = None) -> dict:
+    db_misses: list[str] = []
 
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
@@ -305,7 +314,7 @@ def resolve_drug_pka_basic(name: str = "", smiles: str = "",
 
 @register("drug_pka_dominant")
 def resolve_drug_pka_dominant(name: str = "", smiles: str = "",
-                                researcher_override: Optional[float] = None) -> Dict:
+                                researcher_override: float | None = None) -> dict:
     """The pKa closest to physiological pH 7.4 — most relevant for
     membrane partitioning."""
     if researcher_override is not None:
@@ -341,9 +350,9 @@ def resolve_drug_pka_dominant(name: str = "", smiles: str = "",
 
 @register("drug_microspecies")
 def resolve_drug_microspecies(name: str = "", smiles: str = "",
-                                researcher_pka_acid: Optional[float] = None,
-                                researcher_pka_base: Optional[float] = None,
-                                pH: float = 7.4) -> Dict:
+                                researcher_pka_acid: float | None = None,
+                                researcher_pka_base: float | None = None,
+                                pH: float = 7.4) -> dict:
     """Returns Bjerrum 4-microspecies fractions at the given pH."""
     pka_a_rec = resolve_drug_pka_acidic(
         name=name, smiles=smiles, researcher_override=researcher_pka_acid)

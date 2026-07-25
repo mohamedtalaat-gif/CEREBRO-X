@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  ASYNC API GATEWAY
@@ -31,14 +30,12 @@ Startup sequence:
 ================================================================================
 """
 
-import os
-import sys
 import asyncio
 import logging
-import time
-from pathlib import Path
+import os
+import sys
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from pathlib import Path
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Anchor
@@ -53,47 +50,61 @@ sys.path.insert(0, str(SCRIPT_DIR))
 # used by the imports below. Required here because this module is also the
 # process entrypoint when launched directly via `uvicorn src.api.app:app`
 # (docker-compose.prod.yml), which never goes through run.py.
-import src.path_resolver  # noqa: F401,E402
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Core imports
-# ─────────────────────────────────────────────────────────────────────────────
-from fastapi import (
-    FastAPI, Depends, HTTPException, BackgroundTasks,
-    status, Query, UploadFile, File,
-)
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
-from pydantic import BaseModel, Field
 import uvicorn
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CEREBRO modules
 # ─────────────────────────────────────────────────────────────────────────────
 from cerebro_auth import (
-    AuthService, UserModel, UserCreate, UserResponse,
-    TokenResponse, Role, has_permission, TokenEngine,
-    AuthBase, bootstrap_admin,
-)
-from cerebro_mlops import (
-    ModelRegistry, ModelVersion, ModelStage,
-    ModelDriftDetector, DataDriftDetector,
-    ExperimentTracker, DriftEventLogger, MLOpsPipeline,
-)
-from cerebro_orchestrator import (
-    PipelineOrchestrator, TaskDefinition, RetryPolicy,
-    CircuitBreaker, CircuitBreakerConfig,
-    retry_with_backoff, create_cerebro_pipeline_dag,
+    AuthBase,
+    AuthService,
+    Role,
+    TokenEngine,
+    TokenResponse,
+    UserCreate,
+    UserModel,
+    UserResponse,
+    bootstrap_admin,
+    has_permission,
 )
 from cerebro_knowledge_graph import (
-    CerebroKnowledgeGraph, export_kg_to_json,
+    CerebroKnowledgeGraph,
+    export_kg_to_json,
+)
+from cerebro_mlops import (
+    DriftEventLogger,
+    ExperimentTracker,
+    ModelDriftDetector,
+    ModelRegistry,
+    ModelStage,
 )
 from cerebro_monitoring import (
-    setup_structured_logging, start_metrics_server,
-    HealthChecker, AlertEngine, setup_default_alerts,
-    PipelineTimer, track_pipeline_execution,
+    AlertEngine,
+    HealthChecker,
     collect_system_metrics,
+    setup_default_alerts,
+    setup_structured_logging,
+    start_metrics_server,
 )
+from cerebro_orchestrator import (
+    create_cerebro_pipeline_dag,
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Core imports
+# ─────────────────────────────────────────────────────────────────────────────
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    status,
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, Field
+
+import src.path_resolver  # noqa: F401
 
 # Conditional: request tracking middleware
 try:
@@ -105,8 +116,11 @@ except ImportError:
 # Conditional: Celery tasks
 try:
     from cerebro_orchestrator import (
-        celery_app, pipeline_full_task, train_model_task,
-        fetch_data_task, generate_report_task,
+        celery_app,
+        fetch_data_task,
+        generate_report_task,
+        pipeline_full_task,
+        train_model_task,
     )
     _HAS_CELERY = True
 except ImportError:
@@ -115,8 +129,11 @@ except ImportError:
 # Conditional: Prometheus
 try:
     from cerebro_monitoring import (
-        PIPELINE_RUNS, MODEL_R2_SCORE, MODEL_PREDICTIONS,
-        CELERY_QUEUE_DEPTH, DRIFT_EVENTS,
+        CELERY_QUEUE_DEPTH,
+        DRIFT_EVENTS,
+        MODEL_PREDICTIONS,
+        MODEL_R2_SCORE,
+        PIPELINE_RUNS,
     )
     _HAS_PROMETHEUS = True
 except ImportError:
@@ -128,7 +145,7 @@ log = logging.getLogger("CEREBRO-API")
 # Database setup (SQLAlchemy)
 # ─────────────────────────────────────────────────────────────────────────────
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
@@ -169,15 +186,15 @@ def get_db():
 # ─────────────────────────────────────────────────────────────────────────────
 # Auth dependency (wired with DB)
 # ─────────────────────────────────────────────────────────────────────────────
-from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
+from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 async def get_current_user(
-    token:   Optional[str] = Depends(oauth2_scheme),
-    api_key: Optional[str] = Depends(api_key_header),
+    token:   str | None = Depends(oauth2_scheme),
+    api_key: str | None = Depends(api_key_header),
     db:      Session = Depends(get_db),
 ) -> UserModel:
     """Universal auth: JWT first, then API key."""
@@ -209,10 +226,10 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    token:   Optional[str] = Depends(oauth2_scheme),
-    api_key: Optional[str] = Depends(api_key_header),
+    token:   str | None = Depends(oauth2_scheme),
+    api_key: str | None = Depends(api_key_header),
     db:      Session = Depends(get_db),
-) -> Optional[UserModel]:
+) -> UserModel | None:
     """Like get_current_user but returns None instead of 401."""
     try:
         return await get_current_user(token, api_key, db)
@@ -236,13 +253,13 @@ def require_role(*roles: str):
 # Pydantic schemas
 # ─────────────────────────────────────────────────────────────────────────────
 class PipelineRunRequest(BaseModel):
-    drugs:       List[str] = Field(default_factory=list,
+    drugs:       list[str] = Field(default_factory=list,
                                      description="Drug names — required, no defaults")
-    aav_vectors: List[str] = Field(default=["AAV9", "AAV-PHP.eB"])
+    aav_vectors: list[str] = Field(default=["AAV9", "AAV-PHP.eB"])
     async_mode:  bool      = True
 
 class DDSRunRequest(BaseModel):
-    config_path: Optional[str] = None
+    config_path: str | None = None
 
 class PredictRequest(BaseModel):
     molecule_input: str
@@ -304,11 +321,14 @@ from fastapi import APIRouter
 
 _auth = APIRouter(prefix="/auth", tags=["Authentication"])
 
-from fastapi.security import OAuth2PasswordRequestForm
 from cerebro_auth import (
-    UserCreate, UserRegister, TokenResponse, TokenRefreshRequest,
-    APIKeyCreate, APIKeyResponse,
+    APIKeyCreate,
+    APIKeyResponse,
+    TokenRefreshRequest,
+    UserRegister,
 )
+from fastapi.security import OAuth2PasswordRequestForm
+
 
 @_auth.post("/register", response_model=UserResponse)
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
@@ -559,7 +579,7 @@ async def predict_molecule(
 @app.get("/mlops/models", tags=["MLOps"])
 async def list_models(
     model_name: str = "cerebro_ensemble",
-    stage: Optional[str] = None,
+    stage: str | None = None,
     user: UserModel = Depends(get_current_user),
 ):
     """List all model versions."""
@@ -848,7 +868,7 @@ async def shutdown():
 # ─────────────────────────────────────────────────────────────────────────────
 # Sync helpers (for background thread fallback when Celery unavailable)
 # ─────────────────────────────────────────────────────────────────────────────
-def _sync_pipeline_run(drugs: List[str]):
+def _sync_pipeline_run(drugs: list[str]):
     try:
         sys.path.insert(0, str(SCRIPT_DIR))
         import CEREBRO_Pipeline as cp

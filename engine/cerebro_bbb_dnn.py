@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_bbb_dnn.py  —  BBB Permeability DNN Classifier
@@ -72,7 +71,6 @@ import logging
 import os
 import urllib.request
 from pathlib import Path
-from typing import Dict, Optional
 
 log = logging.getLogger("CEREBRO-BBB-DNN")
 
@@ -104,7 +102,7 @@ except ImportError:
 _HAS_BBB_DNN = _HAS_RDKIT and _HAS_TF
 
 
-def _fetch_bbbp_csv() -> Optional[Path]:
+def _fetch_bbbp_csv() -> Path | None:
     """Download the real BBBP.csv once and cache it locally."""
     _DATA_CACHE.mkdir(parents=True, exist_ok=True)
     dest = _DATA_CACHE / "BBBP.csv"
@@ -129,7 +127,7 @@ def _featurize_smiles(smiles: str):
     return np.array(fp, dtype=np.float32)
 
 
-def _build_model() -> "keras.Model":
+def _build_model() -> keras.Model:
     model = keras.Sequential([
         keras.layers.Input(shape=(2048,)),
         keras.layers.Dense(256, activation="relu"),
@@ -143,7 +141,7 @@ def _build_model() -> "keras.Model":
     return model
 
 
-def train_and_evaluate(epochs: int = 30, seed: int = 42) -> Dict:
+def train_and_evaluate(epochs: int = 30, seed: int = 42) -> dict:
     """
     Train the BBB DNN on the real BBBP dataset and evaluate on a genuinely
     held-out test split. Returns the real metrics (and writes them to
@@ -157,8 +155,8 @@ def train_and_evaluate(epochs: int = 30, seed: int = 42) -> Dict:
             f"tensorflow={'OK' if _HAS_TF else 'MISSING'}"
         )
     import pandas as pd
+    from sklearn.metrics import accuracy_score, confusion_matrix, roc_auc_score
     from sklearn.model_selection import train_test_split
-    from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix
 
     csv_path = _fetch_bbbp_csv()
     if csv_path is None:
@@ -191,12 +189,12 @@ def train_and_evaluate(epochs: int = 30, seed: int = 42) -> Dict:
     y_pred_proba = model.predict(X_test, verbose=0).flatten()
     y_pred = (y_pred_proba >= 0.5).astype(int)
     metrics = {
-        "n_total_compounds": int(len(df)),
+        "n_total_compounds": len(df),
         "n_dropped_invalid_smiles": int(dropped),
-        "n_used": int(len(X)),
-        "n_train": int(len(X_train)),
-        "n_valid": int(len(X_valid)),
-        "n_test": int(len(X_test)),
+        "n_used": len(X),
+        "n_train": len(X_train),
+        "n_valid": len(X_valid),
+        "n_test": len(X_test),
         "test_accuracy": float(accuracy_score(y_test, y_pred)),
         "test_roc_auc": float(roc_auc_score(y_test, y_pred_proba)),
         "test_confusion_matrix": confusion_matrix(y_test, y_pred).tolist(),
@@ -236,7 +234,7 @@ def _load_or_train():
     return _model_cache, _metrics_cache
 
 
-def predict_bbb_class(smiles: str) -> Dict:
+def predict_bbb_class(smiles: str) -> dict:
     """
     Predict BBB permeability class for a small-molecule SMILES string.
 

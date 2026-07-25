@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  SCIENCE ENGINES
@@ -47,12 +46,19 @@ Architecture:
 ================================================================================
 """
 
-import os, sys, math, json, logging, warnings, subprocess, time
+import json
+import logging
+import math
+import subprocess
+import sys
+import time
+import warnings
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from datetime import datetime
-from typing import Optional, Dict, List, Tuple, Any
 
 warnings.filterwarnings("ignore")
 log = logging.getLogger("CEREBRO-SCI")
@@ -145,7 +151,7 @@ class QuantumChemEngine:
     """
 
     @staticmethod
-    def compute_homo_lumo(smiles: str, name: str = "molecule") -> Dict[str, Any]:
+    def compute_homo_lumo(smiles: str, name: str = "molecule") -> dict[str, Any]:
         """
         Compute HOMO/LUMO energies and gap.
 
@@ -174,7 +180,8 @@ class QuantumChemEngine:
 
         # ── Path 1: PySCF ─────────────────────────────────────────────────
         try:
-            from pyscf import gto, scf, dft as pyscf_dft
+            from pyscf import dft as pyscf_dft
+            from pyscf import gto, scf
             from rdkit import Chem
             from rdkit.Chem import AllChem
 
@@ -230,10 +237,10 @@ class QuantumChemEngine:
 
         # ── Path 2: xTB semi-empirical ────────────────────────────────────
         try:
+            import numpy as np
             import xtb.interface as xtb_iface
             from rdkit import Chem
             from rdkit.Chem import AllChem
-            import numpy as np
 
             mol_rdk = Chem.MolFromSmiles(smiles)
             if mol_rdk is None:
@@ -274,8 +281,9 @@ class QuantumChemEngine:
 
         # ── Path 3: Electronegativity heuristic ───────────────────────────
         try:
-            from mendeleev import element as mendel_el
             import re
+
+            from mendeleev import element as mendel_el
 
             atoms_in_smiles = re.findall(r'[A-Z][a-z]?', smiles)
             en_values = []
@@ -306,7 +314,7 @@ class QuantumChemEngine:
         return result
 
     @staticmethod
-    def compute_descriptors_batch(smiles_list: List[Tuple[str, str]],
+    def compute_descriptors_batch(smiles_list: list[tuple[str, str]],
                                    output_dir: Path) -> pd.DataFrame:
         """
         Compute QM descriptors for a list of (smiles, name) pairs.
@@ -361,7 +369,7 @@ class MordredEngine:
 
     @staticmethod
     def compute(smiles: str, name: str = "mol",
-                include_3d: bool = False) -> Dict[str, float]:
+                include_3d: bool = False) -> dict[str, float]:
         """
         Compute all Mordred descriptors for a SMILES string.
 
@@ -369,9 +377,10 @@ class MordredEngine:
         NaN descriptors are excluded (no imputation of descriptor values).
         """
         try:
+            from mordred import Calculator
+            from mordred import descriptors as mordred_descriptors
             from rdkit import Chem
             from rdkit.Chem import AllChem
-            from mordred import Calculator, descriptors as mordred_descriptors
 
             mol = Chem.MolFromSmiles(smiles)
             if mol is None:
@@ -407,7 +416,7 @@ class MordredEngine:
             return {}
 
     @classmethod
-    def batch_to_dataframe(cls, smiles_names: List[Tuple[str,str]],
+    def batch_to_dataframe(cls, smiles_names: list[tuple[str,str]],
                             output_dir: Path) -> pd.DataFrame:
         """Compute Mordred descriptors for all molecules → DataFrame → CSV."""
         records = []
@@ -461,7 +470,7 @@ class ThermodynamicsEngine:
 
     @staticmethod
     def get_thermo_properties(drug_name: str,
-                               cas: str = None) -> Dict[str, Any]:
+                               cas: str = None) -> dict[str, Any]:
         """
         Fetch thermodynamic properties for a drug compound.
 
@@ -571,7 +580,7 @@ class ThermodynamicsEngine:
         return result
 
     @classmethod
-    def batch(cls, drugs: List[Dict],
+    def batch(cls, drugs: list[dict],
                output_dir: Path) -> pd.DataFrame:
         """
         Compute thermodynamic properties for all drugs.
@@ -748,7 +757,7 @@ class MultiCompartmentPKEngine:
         return df
 
     @classmethod
-    def simulate_all_drugs(cls, drugs: List[Dict],
+    def simulate_all_drugs(cls, drugs: list[dict],
                             output_dir: Path) -> pd.DataFrame:
         """
         Run 2-compartment CNS simulation for all drugs.
@@ -854,7 +863,7 @@ class BiophysicsEngine:
     @classmethod
     def dlvo_stability_index(cls, diameter_nm: float,
                                zeta_mv: float,
-                               hamaker_J: float = 1e-20) -> Dict[str, float]:
+                               hamaker_J: float = 1e-20) -> dict[str, float]:
         """
         DLVO colloidal stability theory.
         Combines van der Waals attraction (V_vdW) and electrostatic
@@ -902,7 +911,7 @@ class BiophysicsEngine:
     @classmethod
     def transcytosis_energy_barrier(cls, diameter_nm: float,
                                       elasticity_kpa: float,
-                                      ligand_density: float) -> Dict[str, float]:
+                                      ligand_density: float) -> dict[str, float]:
         """
         Bell model for receptor-mediated endocytosis energy barrier.
 
@@ -1082,7 +1091,7 @@ class PBPKEngine:
         return df
 
     @classmethod
-    def run_all(cls, drugs: List[Dict], output_dir: Path) -> pd.DataFrame:
+    def run_all(cls, drugs: list[dict], output_dir: Path) -> pd.DataFrame:
         all_dfs = []
         for d in drugs:
             try:
@@ -1134,9 +1143,9 @@ class ScienceOrchestrator:
     @classmethod
     def run_full(cls,
                   drug_name:        str,
-                  smiles:           Optional[str],
-                  mol_profile:      Dict,
-                  df_dds:           Optional[pd.DataFrame],
+                  smiles:           str | None,
+                  mol_profile:      dict,
+                  df_dds:           pd.DataFrame | None,
                   trial_dir:        Path,
                   run_quantum:      bool = True,
                   run_mordred:      bool = True,
@@ -1144,7 +1153,7 @@ class ScienceOrchestrator:
                   run_pkpd:         bool = True,
                   run_pbpk:         bool = True,
                   run_biophysics:   bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Full science pipeline. Returns dict of result DataFrames.
         All outputs saved to trial_dir/ with _DOCUMENTATION.txt.

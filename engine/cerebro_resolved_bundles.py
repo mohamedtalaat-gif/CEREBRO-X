@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | cerebro_resolved_bundles.py — Milestone 2
@@ -31,8 +30,11 @@ EVERY VALUE in the returned bundle carries ResolvedValue metadata
 ================================================================================
 """
 from __future__ import annotations
-import logging, hashlib, json
-from typing import Dict, Any, Optional, List
+
+import hashlib
+import logging
+from typing import Any
+
 from cerebro_value_resolver import resolve_value
 
 log = logging.getLogger("CEREBRO-BUNDLES")
@@ -40,9 +42,9 @@ log = logging.getLogger("CEREBRO-BUNDLES")
 # ──────────────────────────────────────────────────────────────────────────
 # 3-layer cache (in-memory; cleared per pipeline run if requested)
 # ──────────────────────────────────────────────────────────────────────────
-_drug_cache: Dict[str, Dict] = {}
-_dds_cache:  Dict[str, Dict] = {}
-_combo_cache: Dict[str, Dict] = {}
+_drug_cache: dict[str, dict] = {}
+_dds_cache:  dict[str, dict] = {}
+_combo_cache: dict[str, dict] = {}
 
 # Stats counters
 _cache_stats = {
@@ -105,8 +107,8 @@ DRUG_BUNDLE_CATEGORIES = [
 def resolve_drug_bundle(name: str = "", smiles: str = "",
                           fasta: str = "", sequence: str = "",
                           molecule_class: str = "",
-                          researcher_overrides: Optional[Dict] = None,
-                          **extra_kwargs) -> Dict:
+                          researcher_overrides: dict | None = None,
+                          **extra_kwargs) -> dict:
     """Resolve ALL drug-side properties in a single bundle.
 
     Args:
@@ -134,7 +136,7 @@ def resolve_drug_bundle(name: str = "", smiles: str = "",
         return _drug_cache[cache_key]
     _cache_stats["drug_misses"] += 1
 
-    bundle: Dict[str, Any] = {
+    bundle: dict[str, Any] = {
         "_meta": {
             "cache_key": cache_key,
             "name":      name,
@@ -255,8 +257,8 @@ DDS_BUNDLE_CATEGORIES = [
 def resolve_dds_bundle(carrier_type: str = "", ligand: str = "",
                          formulation_id: str = "",
                          formulation_name: str = "",
-                         researcher_overrides: Optional[Dict] = None,
-                         **extra_kwargs) -> Dict:
+                         researcher_overrides: dict | None = None,
+                         **extra_kwargs) -> dict:
     """Resolve all DDS-side properties for a given carrier."""
     researcher_overrides = researcher_overrides or {}
     cache_key = _dds_cache_key(carrier_type, ligand, formulation_id)
@@ -267,7 +269,7 @@ def resolve_dds_bundle(carrier_type: str = "", ligand: str = "",
         return _dds_cache[cache_key]
     _cache_stats["dds_misses"] += 1
 
-    bundle: Dict[str, Any] = {
+    bundle: dict[str, Any] = {
         "_meta": {
             "cache_key": cache_key,
             "carrier_type": carrier_type,
@@ -315,8 +317,8 @@ COMBO_BUNDLE_CATEGORIES = [
 ]
 
 
-def resolve_combo_bundle(drug_bundle: Dict, dds_bundle: Dict,
-                            researcher_overrides: Optional[Dict] = None) -> Dict:
+def resolve_combo_bundle(drug_bundle: dict, dds_bundle: dict,
+                            researcher_overrides: dict | None = None) -> dict:
     """Resolve drug-DDS interaction properties.
 
     These are properties that depend on BOTH the drug and the DDS:
@@ -333,7 +335,7 @@ def resolve_combo_bundle(drug_bundle: Dict, dds_bundle: Dict,
         return _combo_cache[cache_key]
     _cache_stats["combo_misses"] += 1
 
-    bundle: Dict[str, Any] = {
+    bundle: dict[str, Any] = {
         "_meta": {
             "cache_key": cache_key,
             "drug_key":  drug_key,
@@ -374,7 +376,7 @@ def clear_all_caches() -> None:
     log.info("[bundle] all caches cleared")
 
 
-def cache_stats() -> Dict[str, Any]:
+def cache_stats() -> dict[str, Any]:
     return {
         **_cache_stats,
         "drug_cache_size": len(_drug_cache),
@@ -386,16 +388,16 @@ def cache_stats() -> Dict[str, Any]:
 # ──────────────────────────────────────────────────────────────────────────
 # Convenience: extract scalar values from bundle (for surrogate functions)
 # ──────────────────────────────────────────────────────────────────────────
-def b_value(bundle: Dict, category: str, default: Any = None) -> Any:
+def b_value(bundle: dict, category: str, default: Any = None) -> Any:
     """Extract just the resolved value from a bundle category."""
     return bundle.get(category, {}).get("value", default)
 
 
-def b_tier(bundle: Dict, category: str) -> int:
+def b_tier(bundle: dict, category: str) -> int:
     """Extract the tier of a bundle category (for confidence checks)."""
     return bundle.get(category, {}).get("tier", 7)
 
 
-def b_method(bundle: Dict, category: str) -> str:
+def b_method(bundle: dict, category: str) -> str:
     """Extract the computational method string."""
     return bundle.get(category, {}).get("_computational_method", "")

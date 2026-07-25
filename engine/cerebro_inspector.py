@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_inspector.py  —  Bundle Inspector CLI
@@ -34,23 +33,31 @@ Output formats:
 ================================================================================
 """
 from __future__ import annotations
-import sys, argparse, json
+
+import argparse
+import json
+import sys
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Any
 
 # Allow running from anywhere
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 try:
     from cerebro_resolved_bundles import (
-        resolve_drug_bundle, resolve_dds_bundle, resolve_combo_bundle,
-        cache_stats, b_value, b_tier, b_method,
+        b_method,
+        b_tier,
+        b_value,
+        cache_stats,
+        resolve_combo_bundle,
+        resolve_dds_bundle,
+        resolve_drug_bundle,
     )
     from cerebro_value_resolver import list_categories
 except ImportError as e:
     print(f"❌ Import error: {e}", file=sys.stderr)
-    print(f"  Make sure cerebro_value_resolver and cerebro_resolved_bundles "
-          f"are on PYTHONPATH or in the same folder as this script.",
+    print("  Make sure cerebro_value_resolver and cerebro_resolved_bundles "
+          "are on PYTHONPATH or in the same folder as this script.",
           file=sys.stderr)
     sys.exit(1)
 
@@ -99,7 +106,7 @@ def _fmt_value(v: Any) -> str:
     return str(v)
 
 
-def _print_terminal_table(bundle: Dict[str, Dict], title: str) -> None:
+def _print_terminal_table(bundle: dict[str, dict], title: str) -> None:
     """Print a bundle as a colorized terminal table."""
     print(f"\n{C.BOLD}{C.BLUE}{'═'*100}{C.RESET}")
     print(f"{C.BOLD}{C.BLUE}  {title}{C.RESET}")
@@ -131,7 +138,7 @@ def _print_terminal_table(bundle: Dict[str, Dict], title: str) -> None:
     print()
 
 
-def _print_computational_methods(bundle: Dict[str, Dict], title: str) -> None:
+def _print_computational_methods(bundle: dict[str, dict], title: str) -> None:
     """Print the _computational_method for every category (verbose)."""
     print(f"\n{C.BOLD}{C.YELLOW}─── {title} — computational methods ───{C.RESET}\n")
     for cat, rec in sorted(bundle.items()):
@@ -151,7 +158,7 @@ def _print_computational_methods(bundle: Dict[str, Dict], title: str) -> None:
         print()
 
 
-def _to_json(drug_b: Dict, dds_b: Dict, combo_b: Optional[Dict] = None) -> str:
+def _to_json(drug_b: dict, dds_b: dict, combo_b: dict | None = None) -> str:
     """Serialize bundles to JSON."""
     out = {"drug": drug_b, "dds": dds_b}
     if combo_b is not None:
@@ -159,10 +166,10 @@ def _to_json(drug_b: Dict, dds_b: Dict, combo_b: Optional[Dict] = None) -> str:
     return json.dumps(out, indent=2, default=str)
 
 
-def _to_markdown(drug_b: Dict, dds_b: Dict,
-                   combo_b: Optional[Dict] = None) -> str:
+def _to_markdown(drug_b: dict, dds_b: dict,
+                   combo_b: dict | None = None) -> str:
     """Serialize bundles to a markdown supplementary table."""
-    lines: List[str] = []
+    lines: list[str] = []
     for label, bundle in [("Drug", drug_b), ("DDS", dds_b)]:
         lines.append(f"\n## {label} bundle\n")
         meta = bundle.get("_meta", {})
@@ -192,13 +199,13 @@ def _to_markdown(drug_b: Dict, dds_b: Dict,
     return "\n".join(lines)
 
 
-def _summary_table(drug_b: Dict, dds_b: Dict, combo_b: Optional[Dict]) -> None:
+def _summary_table(drug_b: dict, dds_b: dict, combo_b: dict | None) -> None:
     """Print a 1-line summary."""
     drug_type = drug_b.get("_meta", {}).get("drug_type", "?")
     dds_type  = dds_b.get("_meta", {}).get("dds_type", "?")
 
     # Count by tier
-    tier_counts: Dict[int, int] = {}
+    tier_counts: dict[int, int] = {}
     for b in (drug_b, dds_b, *([combo_b] if combo_b else [])):
         for cat, rec in b.items():
             if cat == "_meta" or not isinstance(rec, dict): continue
@@ -211,7 +218,7 @@ def _summary_table(drug_b: Dict, dds_b: Dict, combo_b: Optional[Dict]) -> None:
     print(f"  DDS type:   {C.BOLD}{dds_type}{C.RESET}")
     total = sum(tier_counts.values())
     print(f"  Total resolved values: {total}")
-    print(f"  Tier distribution:")
+    print("  Tier distribution:")
     for t in sorted(tier_counts.keys()):
         n = tier_counts[t]
         pct = 100 * n / total
@@ -221,8 +228,8 @@ def _summary_table(drug_b: Dict, dds_b: Dict, combo_b: Optional[Dict]) -> None:
     print()
 
 
-def _to_pdf_supplementary(drug_b: Dict, dds_b: Dict,
-                            combo_b: Optional[Dict],
+def _to_pdf_supplementary(drug_b: dict, dds_b: dict,
+                            combo_b: dict | None,
                             output_path: Path,
                             include_methods: bool = True) -> Path:
     """Generate a paper-supplementary PDF with full provenance for every value.
@@ -234,13 +241,19 @@ def _to_pdf_supplementary(drug_b: Dict, dds_b: Dict,
         Last page: combo bundle table + summary
     """
     try:
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import cm
         from reportlab.lib import colors
-        from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
-                                            Paragraph, Spacer, PageBreak,
-                                            KeepTogether)
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.lib.units import cm
+        from reportlab.platypus import (
+            KeepTogether,
+            PageBreak,
+            Paragraph,
+            SimpleDocTemplate,
+            Spacer,
+            Table,
+            TableStyle,
+        )
     except ImportError:
         print("❌ reportlab not installed. Install: pip install reportlab",
               file=sys.stderr)
@@ -265,7 +278,7 @@ def _to_pdf_supplementary(drug_b: Dict, dds_b: Dict,
         title="CEREBRO-X Bundle Provenance — Supplementary Material",
         author="Muhammad Talaat / CEREBRO Therapeutics",
     )
-    story: List[Any] = []
+    story: list[Any] = []
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle("H1", parent=styles["Heading1"],
                           fontSize=18, textColor=colors.HexColor("#1F2937"),
@@ -288,7 +301,7 @@ def _to_pdf_supplementary(drug_b: Dict, dds_b: Dict,
 
     # ── Page 1: Title + summary ─────────────────────────────────────
     story.append(Paragraph(
-        f"CEREBRO-X — Bundle Provenance Report", h1))
+        "CEREBRO-X — Bundle Provenance Report", h1))
     story.append(Paragraph(
         f"Drug: <b>{drug_name}</b> · Type: <b>{drug_type}</b> ·  "
         f"Carrier: <b>{carrier}</b> · DDS Type: <b>{dds_type}</b>", h2))
@@ -302,7 +315,7 @@ def _to_pdf_supplementary(drug_b: Dict, dds_b: Dict,
     story.append(Spacer(1, 0.5*cm))
 
     # Tier-distribution summary
-    tier_counts: Dict[int, int] = {}
+    tier_counts: dict[int, int] = {}
     for b in (drug_b, dds_b, *([combo_b] if combo_b else [])):
         for cat, rec in b.items():
             if cat == "_meta" or not isinstance(rec, dict): continue
@@ -349,7 +362,7 @@ def _to_pdf_supplementary(drug_b: Dict, dds_b: Dict,
     story.append(PageBreak())
 
     # ── Helper to render a bundle as a table ────────────────────────
-    def _bundle_to_table(b: Dict, title: str) -> None:
+    def _bundle_to_table(b: dict, title: str) -> None:
         story.append(Paragraph(title, h1))
         meta = b.get("_meta", {})
         story.append(Paragraph(

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  MONITORING & OBSERVABILITY ENGINE
@@ -43,27 +42,30 @@ References:
 ================================================================================
 """
 
-import os
-import sys
-import time
 import json
-import uuid
 import logging
-import threading
-from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Any, Callable
+import os
+import time
+import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from collections import defaultdict
+from datetime import datetime
 from functools import wraps
-from contextlib import contextmanager
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Optional imports
 # ─────────────────────────────────────────────────────────────────────────────
 try:
     from prometheus_client import (
-        Counter, Histogram, Gauge, Summary, Info,
-        generate_latest, CONTENT_TYPE_LATEST,
+        CONTENT_TYPE_LATEST,
+        Counter,
+        Gauge,
+        Histogram,
+        Info,
+        Summary,
+        generate_latest,
+    )
+    from prometheus_client import (
         start_http_server as prom_start_server,
     )
     _HAS_PROMETHEUS = True
@@ -284,7 +286,7 @@ if _HAS_FASTAPI:
             try:
                 response = await call_next(request)
                 status = response.status_code
-            except Exception as e:
+            except Exception:
                 status = 500
                 raise
             finally:
@@ -312,7 +314,7 @@ class HealthCheckResult:
     service:  str
     healthy:  bool
     latency_ms: float = 0
-    details:  Dict = field(default_factory=dict)
+    details:  dict = field(default_factory=dict)
 
 
 class HealthChecker:
@@ -394,7 +396,7 @@ class HealthChecker:
         )
 
     @classmethod
-    def deep_health(cls) -> Dict:
+    def deep_health(cls) -> dict:
         checks = [
             cls.check_postgres(),
             cls.check_redis(),
@@ -432,7 +434,7 @@ class AlertRule:
     severity:    str = AlertSeverity.WARNING
     cooldown_sec: int = 300          # minimum seconds between alerts
     message:     str = ""
-    channels:    List[str] = field(default_factory=lambda: ["log"])
+    channels:    list[str] = field(default_factory=lambda: ["log"])
 
 
 @dataclass
@@ -441,7 +443,7 @@ class Alert:
     severity:   str
     message:    str
     fired_at:   str
-    details:    Dict = field(default_factory=dict)
+    details:    dict = field(default_factory=dict)
 
 
 class AlertEngine:
@@ -450,10 +452,10 @@ class AlertEngine:
     """
 
     def __init__(self):
-        self.rules: Dict[str, AlertRule] = {}
-        self._last_fired: Dict[str, float] = {}
-        self._alert_history: List[Alert] = []
-        self._channels: Dict[str, Callable] = {
+        self.rules: dict[str, AlertRule] = {}
+        self._last_fired: dict[str, float] = {}
+        self._alert_history: list[Alert] = []
+        self._channels: dict[str, Callable] = {
             "log": self._send_log,
         }
 
@@ -464,7 +466,7 @@ class AlertEngine:
         """Register a custom alert channel (e.g., webhook, email)."""
         self._channels[name] = handler
 
-    def evaluate(self) -> List[Alert]:
+    def evaluate(self) -> list[Alert]:
         """Evaluate all rules and fire alerts for triggered conditions."""
         fired = []
         now = time.time()
@@ -515,7 +517,7 @@ class AlertEngine:
                        f"{alert.rule_name}: {alert.message}")
 
     @property
-    def history(self) -> List[Dict]:
+    def history(self) -> list[dict]:
         return [
             {"rule": a.rule_name, "severity": a.severity,
              "message": a.message, "fired_at": a.fired_at}
@@ -567,7 +569,7 @@ def track_pipeline_execution(func):
             if _HAS_PROMETHEUS:
                 PIPELINE_RUNS.labels("success").inc()
             return result
-        except Exception as e:
+        except Exception:
             if _HAS_PROMETHEUS:
                 PIPELINE_RUNS.labels("failed").inc()
             raise

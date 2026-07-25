@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 cleanup_duplicate_versions.py
 ==============================
@@ -12,6 +11,7 @@ Examples:
   CEREBRO-X v22.1 | foo | v22.1\n                → CEREBRO-X v22.1 | foo\n
 """
 from __future__ import annotations
+
 import re
 from pathlib import Path
 

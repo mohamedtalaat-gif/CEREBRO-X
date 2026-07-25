@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  DATA ENGINEERING MATURITY ENGINE
@@ -33,13 +32,19 @@ Integration:
 ================================================================================
 """
 
-import os, sys, re, json, csv, time, math, queue, logging, warnings
-import hashlib, sqlite3, threading, shutil, glob
-from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Tuple, Any, Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import hashlib
+import json
+import logging
+import queue
+import sqlite3
+import threading
+import time
+import warnings
 from collections import defaultdict
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -51,7 +56,7 @@ log = logging.getLogger("CEREBRO-DE")
 # ─────────────────────────────────────────────────────────────────────────────
 # PATHS (all relative to CEREBRO_RESULTS/)
 # ─────────────────────────────────────────────────────────────────────────────
-def _get_de_paths(results_root: Path) -> Dict[str, Path]:
+def _get_de_paths(results_root: Path) -> dict[str, Path]:
     paths = {
         "lakehouse":       results_root / "lakehouse",
         "lineage_db":      results_root / "lineage" / "lineage.db",
@@ -145,7 +150,7 @@ class ETLEngine:
     ETL_VERSION = "1.0.0"
 
     @classmethod
-    def extract_trial(cls, trial_dir: Path) -> Dict[str, pd.DataFrame]:
+    def extract_trial(cls, trial_dir: Path) -> dict[str, pd.DataFrame]:
         """
         Extract all data from one trial directory.
         Returns dict: {table_name: DataFrame}
@@ -199,7 +204,7 @@ class ETLEngine:
         return extracted
 
     @classmethod
-    def transform(cls, raw: Dict[str, pd.DataFrame],
+    def transform(cls, raw: dict[str, pd.DataFrame],
                    trial_id: str, drug_name: str = "unknown") -> pd.DataFrame:
         """
         Transform all extracted tables into a canonical unified schema.
@@ -332,7 +337,7 @@ class ETLEngine:
     @classmethod
     def run_trial_etl(cls, trial_dir: Path, lakehouse_dir: Path,
                        drug_name: str = "unknown",
-                       etl_log_dir: Optional[Path] = None) -> Dict:
+                       etl_log_dir: Path | None = None) -> dict:
         """
         Full ETL pipeline for one trial: Extract → Transform → Load.
         Returns ETL run report.
@@ -394,13 +399,13 @@ class EventBus:
     """
 
     _queue:    queue.Queue = queue.Queue(maxsize=10_000)
-    _handlers: Dict[str, List[Callable]] = defaultdict(list)
-    _worker:   Optional[threading.Thread] = None
+    _handlers: dict[str, list[Callable]] = defaultdict(list)
+    _worker:   threading.Thread | None = None
     _running:  bool = False
-    _event_log: Optional[Path] = None
+    _event_log: Path | None = None
 
     @classmethod
-    def configure(cls, event_log_path: Optional[Path] = None):
+    def configure(cls, event_log_path: Path | None = None):
         cls._event_log = event_log_path
 
     @classmethod
@@ -410,7 +415,7 @@ class EventBus:
         log.debug(f"  [EventBus] Subscribed: {handler.__name__} → '{event_type}'")
 
     @classmethod
-    def publish(cls, event_type: str, payload: Dict,
+    def publish(cls, event_type: str, payload: dict,
                 source: str = "pipeline"):
         """Publish an event to the bus."""
         event = {
@@ -468,7 +473,7 @@ class EventBus:
                 log.debug(f"  [EventBus] dispatch error: {e}")
 
     @classmethod
-    def _dispatch(cls, event: Dict):
+    def _dispatch(cls, event: dict):
         """Call all handlers registered for this event type."""
         handlers = cls._handlers.get(event["type"], [])
         handlers += cls._handlers.get("*", [])   # wildcard handlers
@@ -486,11 +491,11 @@ class FileWatcher:
     Used as the entry point for event-driven ingestion.
     """
 
-    def __init__(self, watch_dirs: List[Path], poll_interval_s: float = 30.0):
+    def __init__(self, watch_dirs: list[Path], poll_interval_s: float = 30.0):
         self.watch_dirs     = watch_dirs
         self.poll_interval  = poll_interval_s
-        self._known_files:  Dict[str, float] = {}  # path → mtime
-        self._thread:       Optional[threading.Thread] = None
+        self._known_files:  dict[str, float] = {}  # path → mtime
+        self._thread:       threading.Thread | None = None
         self._running       = False
 
     def start(self):
@@ -617,7 +622,7 @@ class LakehouseEngine:
             return combined
         return pd.DataFrame()
 
-    def register_schema(self, table_name: str, schema: Dict[str, str]):
+    def register_schema(self, table_name: str, schema: dict[str, str]):
         """Register a table schema in the metadata catalog."""
         schema_path = self.meta_dir / "schema.json"
         existing = {}
@@ -632,7 +637,7 @@ class LakehouseEngine:
         }
         schema_path.write_text(json.dumps(existing, indent=2))
 
-    def catalog_snapshot(self) -> Dict:
+    def catalog_snapshot(self) -> dict:
         """Return current state of the lakehouse: partitions, row counts, sizes."""
         catalog = {"root": str(self.root), "partitions": [], "total_rows": 0,
                    "total_size_mb": 0.0, "generated": datetime.utcnow().isoformat()}
@@ -648,7 +653,7 @@ class LakehouseEngine:
                 })
                 catalog["total_rows"] += rows
                 catalog["total_size_mb"] += size
-            except Exception as e:
+            except Exception:
                 # CSV fallback files
                 for csv_file in pq.parent.glob("*.csv"):
                     try:
@@ -805,7 +810,7 @@ class LineageEngine:
             pass
 
     def record_from_drug_data(self, trial_id: str, drug_name: str,
-                               data: Dict):
+                               data: dict):
         """
         Record lineage for all fields in a drug data dict (from fetch_drug).
         Automatically extracts source, tier, alignment flag from the dict.
@@ -844,7 +849,7 @@ class LineageEngine:
                     alignment=alignment)
 
     def get_feature_lineage(self, drug_name: str,
-                             feature: Optional[str] = None) -> pd.DataFrame:
+                             feature: str | None = None) -> pd.DataFrame:
         """Query lineage for a drug (and optionally a specific feature)."""
         conn = sqlite3.connect(self.db_path)
         if feature:
@@ -860,7 +865,7 @@ class LineageEngine:
         conn.close()
         return df
 
-    def compute_summary(self, trial_id: str, drug_name: str) -> Dict:
+    def compute_summary(self, trial_id: str, drug_name: str) -> dict:
         """Compute lineage coverage summary for a trial."""
         conn = sqlite3.connect(self.db_path)
         rows = conn.execute(
@@ -976,7 +981,7 @@ class ObservabilityEngine:
     def run_checks(cls, df: pd.DataFrame,
                     drug_name: str = "unknown",
                     trial_id:  str = "unknown",
-                    custom_rules: Optional[List] = None) -> Dict:
+                    custom_rules: list | None = None) -> dict:
         """
         Run all quality checks on a DataFrame.
         Returns a quality report dict.
@@ -1081,7 +1086,7 @@ class ObservabilityEngine:
         return report
 
     @classmethod
-    def write_report(cls, report: Dict, output_dir: Path) -> Path:
+    def write_report(cls, report: dict, output_dir: Path) -> Path:
         """Write observability report as JSON + human-readable text."""
         trial_id  = report.get("trial_id","?")
         drug_name = report.get("drug_name","?")
@@ -1170,7 +1175,7 @@ class DriftDetector:
 
     @staticmethod
     def psi(expected: np.ndarray, actual: np.ndarray,
-             n_bins: int = 10) -> Dict:
+             n_bins: int = 10) -> dict:
         """Population Stability Index."""
         exp = np.array(expected, dtype=float)
         act = np.array(actual,   dtype=float)
@@ -1212,7 +1217,7 @@ class DriftDetector:
         }
 
     @staticmethod
-    def ks_test(reference: np.ndarray, current: np.ndarray) -> Dict:
+    def ks_test(reference: np.ndarray, current: np.ndarray) -> dict:
         """Kolmogorov-Smirnov two-sample test."""
         ref = np.array(reference, dtype=float)
         cur = np.array(current,   dtype=float)
@@ -1233,7 +1238,7 @@ class DriftDetector:
 
     @staticmethod
     def js_divergence(p: np.ndarray, q: np.ndarray,
-                       n_bins: int = 20) -> Dict:
+                       n_bins: int = 20) -> dict:
         """Jensen-Shannon divergence (symmetric KL divergence)."""
         p_arr = np.array(p, dtype=float)
         q_arr = np.array(q, dtype=float)
@@ -1264,7 +1269,7 @@ class DriftDetector:
         }
 
     @staticmethod
-    def wasserstein(p: np.ndarray, q: np.ndarray) -> Dict:
+    def wasserstein(p: np.ndarray, q: np.ndarray) -> dict:
         """Wasserstein-1 (Earth Mover's) distance."""
         p_arr = np.array(p, dtype=float)
         q_arr = np.array(q, dtype=float)
@@ -1279,9 +1284,9 @@ class DriftDetector:
     def detect_drift(cls,
                       reference_df: pd.DataFrame,
                       current_df:   pd.DataFrame,
-                      features:     Optional[List[str]] = None,
+                      features:     list[str] | None = None,
                       trial_id:     str = "?",
-                      output_dir:   Optional[Path] = None) -> Dict:
+                      output_dir:   Path | None = None) -> dict:
         """
         Run drift detection for all numeric features.
         Compares reference (previous trials) vs current trial.
@@ -1438,8 +1443,8 @@ class HarmonizationEngine:
     }
 
     @classmethod
-    def harmonize_drug_records(cls, records: List[Dict],
-                                drug_name: str) -> Dict:
+    def harmonize_drug_records(cls, records: list[dict],
+                                drug_name: str) -> dict:
         """
         Merge multiple source records for one drug into a single canonical record.
 
@@ -1569,7 +1574,7 @@ class HarmonizationEngine:
                 src = prov.get("source","?") if isinstance(prov,dict) else "?"
                 pri = prov.get("priority",0) if isinstance(prov,dict) else 0
                 conflict_flag = "⚠ CONFLICT" if field in conflicts else ""
-                lines.append(f"  {field:20s} {str(val):14s} {src} ({pri}) {conflict_flag}")
+                lines.append(f"  {field:20s} {val!s:14s} {src} ({pri}) {conflict_flag}")
 
             if isinstance(conflicts, dict) and conflicts:
                 lines += ["", "  Conflicts resolved:"]
@@ -1613,9 +1618,9 @@ class DataEngineeringOrchestrator:
                   trial_dir:    Path,
                   results_root: Path,
                   drug_name:    str,
-                  drug_data:    Optional[Dict] = None,
-                  reference_df: Optional[pd.DataFrame] = None,
-                  n_workers:    int = 4) -> Dict:
+                  drug_data:    dict | None = None,
+                  reference_df: pd.DataFrame | None = None,
+                  n_workers:    int = 4) -> dict:
         """
         Run all 7 Data Engineering pillars:
           1. ETL          → Extract, Transform, Load to Parquet lakehouse
@@ -1640,7 +1645,7 @@ class DataEngineeringOrchestrator:
         }, source="DataEngineeringOrchestrator")
 
         # ── 1. ETL ────────────────────────────────────────────────────────
-        log.info(f"[DE] 1/7 ETL …")
+        log.info("[DE] 1/7 ETL …")
         try:
             etl_report = ETLEngine.run_trial_etl(
                 trial_dir, paths["lakehouse"],
@@ -1651,7 +1656,7 @@ class DataEngineeringOrchestrator:
             results["etl"] = {"status": "failed", "error": str(e)}
 
         # ── 3. Lakehouse catalog ──────────────────────────────────────────
-        log.info(f"[DE] 3/7 Lakehouse …")
+        log.info("[DE] 3/7 Lakehouse …")
         try:
             lh = LakehouseEngine(paths["lakehouse"])
             catalog = lh.catalog_snapshot()
@@ -1661,7 +1666,7 @@ class DataEngineeringOrchestrator:
             results["lakehouse"] = {"error": str(e)}
 
         # ── 4. Lineage ────────────────────────────────────────────────────
-        log.info(f"[DE] 4/7 Lineage …")
+        log.info("[DE] 4/7 Lineage …")
         try:
             lineage = LineageEngine(paths["lineage_db"], paths["lineage_jsonl"])
             if drug_data:
@@ -1676,7 +1681,7 @@ class DataEngineeringOrchestrator:
             results["lineage"] = {"error": str(e)}
 
         # ── 5. Observability ──────────────────────────────────────────────
-        log.info(f"[DE] 5/7 Observability …")
+        log.info("[DE] 5/7 Observability …")
         try:
             # Load the ETL output for quality checking
             df_for_obs = pd.DataFrame()
@@ -1713,7 +1718,7 @@ class DataEngineeringOrchestrator:
             results["observability"] = {"error": str(e)}
 
         # ── 6. Drift detection ────────────────────────────────────────────
-        log.info(f"[DE] 6/7 Drift Detection …")
+        log.info("[DE] 6/7 Drift Detection …")
         try:
             if reference_df is not None and not reference_df.empty and not df_for_obs.empty:
                 drift_report = DriftDetector.detect_drift(
@@ -1729,7 +1734,7 @@ class DataEngineeringOrchestrator:
             results["drift"] = {"error": str(e)}
 
         # ── 7. Harmonization ──────────────────────────────────────────────
-        log.info(f"[DE] 7/7 Harmonization …")
+        log.info("[DE] 7/7 Harmonization …")
         try:
             if drug_data and isinstance(drug_data, dict):
                 harmonized = HarmonizationEngine.harmonize_drug_records(
@@ -1756,7 +1761,7 @@ class DataEngineeringOrchestrator:
         return results
 
 
-def _write_de_master_report(results: Dict, trial_id: str,
+def _write_de_master_report(results: dict, trial_id: str,
                               drug_name: str, results_root: Path):
     """Write the master Data Engineering report."""
     sep = "=" * 70

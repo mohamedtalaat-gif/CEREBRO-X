@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  DATA PRIVACY & COMPLIANCE
@@ -44,19 +43,16 @@ References:
 ================================================================================
 """
 
-import os
-import re
-import json
 import hashlib
 import hmac
+import json
 import logging
+import os
+import re
 import sqlite3
-import time
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Optional, Dict, List, Any, Set
-from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
 
 log = logging.getLogger("CEREBRO-COMPLIANCE")
 
@@ -111,7 +107,7 @@ class DataClass(str, Enum):
 
 
 # Fields and their classification
-FIELD_CLASSIFICATION: Dict[str, str] = {
+FIELD_CLASSIFICATION: dict[str, str] = {
     # Public — published drug properties
     "Drug":              DataClass.PUBLIC,
     "MW_Da":             DataClass.PUBLIC,
@@ -164,16 +160,16 @@ class PHIDetector:
         "ssn":           re.compile(r'\b\d{3}-\d{2}-\d{4}\b'),
         "phone":         re.compile(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b'),
         "email":         re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'),
-        "mrn":           re.compile(r'\bMRN[:\s#]*\d{4,12}\b', re.I),
-        "date_of_birth": re.compile(r'\b(?:DOB|Date of Birth)[:\s]*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b', re.I),
+        "mrn":           re.compile(r'\bMRN[:\s#]*\d{4,12}\b', re.IGNORECASE),
+        "date_of_birth": re.compile(r'\b(?:DOB|Date of Birth)[:\s]*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b', re.IGNORECASE),
         "ip_address":    re.compile(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'),
-        "patient_id":    re.compile(r'\b(?:patient|subject|pt)[_\s#-]*(?:id|no|number)[:\s#]*\w{3,15}\b', re.I),
+        "patient_id":    re.compile(r'\b(?:patient|subject|pt)[_\s#-]*(?:id|no|number)[:\s#]*\w{3,15}\b', re.IGNORECASE),
     }
 
     REDACTION = "[REDACTED]"
 
     @classmethod
-    def scan(cls, text: str) -> List[Dict]:
+    def scan(cls, text: str) -> list[dict]:
         """Scan text for PHI. Returns list of findings."""
         findings = []
         for phi_type, pattern in cls.PATTERNS.items():
@@ -284,7 +280,7 @@ class AuditTrail:
         conn.close()
 
     def log(self, actor: str, action: str, resource: str = "",
-            data_class: str = "", details: Dict = None,
+            data_class: str = "", details: dict = None,
             ip_address: str = ""):
         conn = sqlite3.connect(self.db_path)
         last = conn.execute(
@@ -309,7 +305,7 @@ class AuditTrail:
         conn.commit()
         conn.close()
 
-    def verify_chain(self) -> Dict:
+    def verify_chain(self) -> dict:
         """Verify the hash chain integrity — detects tampering."""
         conn = sqlite3.connect(self.db_path)
         rows = conn.execute(
@@ -342,7 +338,7 @@ class AuditTrail:
         }
 
     def query(self, actor: str = None, action: str = None,
-              since: str = None, limit: int = 100) -> List[Dict]:
+              since: str = None, limit: int = 100) -> list[dict]:
         conn = sqlite3.connect(self.db_path)
         query = "SELECT * FROM audit_trail WHERE 1=1"
         params = []
@@ -385,7 +381,7 @@ class DataMasker:
     }
 
     @classmethod
-    def mask_record(cls, record: Dict, user_role: str) -> Dict:
+    def mask_record(cls, record: dict, user_role: str) -> dict:
         max_level = cls.CLASS_HIERARCHY.get(
             ROLE_ACCESS_LEVEL.get(user_role, DataClass.PUBLIC), 0
         )
@@ -402,7 +398,6 @@ class DataMasker:
 
     @classmethod
     def mask_dataframe(cls, df: "pd.DataFrame", user_role: str) -> "pd.DataFrame":
-        import pandas as pd
         max_level = cls.CLASS_HIERARCHY.get(
             ROLE_ACCESS_LEVEL.get(user_role, DataClass.PUBLIC), 0
         )
@@ -430,7 +425,7 @@ class RetentionManager:
 
     @staticmethod
     def check_retention(created_at: datetime,
-                        data_class: str) -> Dict:
+                        data_class: str) -> dict:
         max_days = RETENTION_DAYS.get(data_class, 365 * 5)
         age_days = (datetime.utcnow() - created_at).days
         expired = age_days > max_days
@@ -457,7 +452,7 @@ class RetentionManager:
 # ─────────────────────────────────────────────────────────────────────────────
 # 7. Compliance Report
 # ─────────────────────────────────────────────────────────────────────────────
-def generate_compliance_report() -> Dict:
+def generate_compliance_report() -> dict:
     """Generate a compliance status report."""
     audit = AuditTrail()
     chain = audit.verify_chain()

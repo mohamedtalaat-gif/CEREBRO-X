@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_enterprise_infra.py  —  Module Shim
@@ -9,7 +8,8 @@ Fallback shim: maps cerebro_enterprise_infra → src/dds/enterprise_infra.py
 Freezes os.chdir + patches SCRIPT_DIR to project root.
 ================================================================================
 """
-import os, sys
+import os
+import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).parent.parent.resolve()  # engine/ -> project root

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  FINAL DECISION REPORT ENGINE
@@ -36,12 +35,13 @@ Generates the comprehensive decision-ready PDF/HTML report for each trial:
 ================================================================================
 """
 
-import os, sys, json, math, logging, warnings
-from pathlib import Path
+import logging
+import math
+import warnings
 from datetime import datetime
-from typing import Optional, Dict, List, Any
+from pathlib import Path
+from typing import Any
 
-import numpy as np
 import pandas as pd
 
 warnings.filterwarnings("ignore")
@@ -91,8 +91,8 @@ class NovelDrugExplainer:
     }
 
     @classmethod
-    def build_explanation(cls, mol_profile: Dict,
-                           drug_name: str) -> Dict[str, Any]:
+    def build_explanation(cls, mol_profile: dict,
+                           drug_name: str) -> dict[str, Any]:
         """
         Extract alignment explanation from mol_profile.
         Returns structured explanation dict.
@@ -131,7 +131,7 @@ class NovelDrugExplainer:
         return explanation
 
     @classmethod
-    def format_text(cls, expl: Dict, drug_name: str) -> str:
+    def format_text(cls, expl: dict, drug_name: str) -> str:
         """Format explanation as human-readable text block."""
         if not expl.get("is_novel"):
             src = expl.get("source","")
@@ -208,27 +208,35 @@ class FinalReportGenerator:
                   drug_name:    str,
                   trial_dir:    Path,
                   excel_name:   str,
-                  mol_profile:  Dict,
-                  df_ml:        Optional[pd.DataFrame],
-                  df_dds:       Optional[pd.DataFrame],
-                  df_pk:        Optional[pd.DataFrame],
-                  metrics:      Dict,
-                  pbbm_results: Optional[Dict] = None,
-                  de_results:   Optional[Dict] = None,
-                  admet_profile:Optional[Dict] = None) -> Path:
+                  mol_profile:  dict,
+                  df_ml:        pd.DataFrame | None,
+                  df_dds:       pd.DataFrame | None,
+                  df_pk:        pd.DataFrame | None,
+                  metrics:      dict,
+                  pbbm_results: dict | None = None,
+                  de_results:   dict | None = None,
+                  admet_profile:dict | None = None) -> Path:
         """
         Generate the complete final report PDF + HTML.
         Returns path to the PDF.
         """
         try:
-            from reportlab.lib.pagesizes import A4
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.units import cm
             from reportlab.lib import colors
+            from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.lib.units import cm
             from reportlab.platypus import (
-                SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-                Image as RLImage, PageBreak, HRFlowable, KeepTogether)
-            from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+                HRFlowable,
+                KeepTogether,
+                PageBreak,
+                Paragraph,
+                SimpleDocTemplate,
+                Spacer,
+                Table,
+                TableStyle,
+            )
+            from reportlab.platypus import Image as RLImage
 
         except ImportError:
             log.error("[Report] reportlab not installed — PDF skipped")
@@ -649,7 +657,7 @@ class FinalReportGenerator:
              "5. In-vivo rat PK study (IV + oral groups).\n"
              "6. Brain/plasma ratio measurement (LC-MS/MS).\n"
              "7. Safety pharmacology (CARPA complement activation assay).\n"
-             f"8. Scale-up synthesis of lead formulation."),
+             "8. Scale-up synthesis of lead formulation."),
             ("Regulatory (>12 months)",
              "9. IND-enabling studies (GLP toxicology).\n"
              "10. CMC documentation for FDA IND submission.\n"

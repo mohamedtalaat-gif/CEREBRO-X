@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | cerebro_value_resolver — Universal Value Resolver Package
@@ -13,25 +12,24 @@ The package auto-loads all category modules at import-time so the @register
 decorators populate the dispatch table.
 ================================================================================
 """
-from ._core import resolve_value, list_categories, _resolved
-from ._core import _LIB_STATUS
+from ._core import _LIB_STATUS, _resolved, list_categories, resolve_value
 
 # Auto-import all category modules so @register decorators fire
 from .categories import (
-    type_detection,
-    drug_identifiers,
-    drug_descriptors,
-    drug_pka,
-    drug_admet,
-    drug_target_and_mfg,
-    pk_clinical,
     bbb_perm,
-    material_polymer,
+    drug_admet,
+    drug_descriptors,
+    drug_identifiers,
+    drug_pka,
+    drug_target_and_mfg,
     material_lipid,
+    material_polymer,
     material_surface,
-    physics_transport,
     physics_dlvo,
+    physics_transport,
+    pk_clinical,
     quantum_atomic,
+    type_detection,
 )
 
-__all__ = ["resolve_value", "list_categories", "_LIB_STATUS"]
+__all__ = ["_LIB_STATUS", "list_categories", "resolve_value"]

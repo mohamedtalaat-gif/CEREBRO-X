@@ -12,10 +12,21 @@ if str(_ROOT) not in sys.path:
 # and version, used in every report, banner, and log line.
 try:
     from _version import (  # noqa: F401
-        PROJECT_NAME, PROJECT_VERSION, PROJECT_TITLE, PROJECT_TAGLINE,
-        AUTHOR, AUTHOR_FULL, AUTHOR_EMAIL, CITATION, COPYRIGHT,
-        __title__, __version__, __author__, __email__,
-        banner, short_banner,
+        AUTHOR,
+        AUTHOR_EMAIL,
+        AUTHOR_FULL,
+        CITATION,
+        COPYRIGHT,
+        PROJECT_NAME,
+        PROJECT_TAGLINE,
+        PROJECT_TITLE,
+        PROJECT_VERSION,
+        __author__,
+        __email__,
+        __title__,
+        __version__,
+        banner,
+        short_banner,
     )
 except ImportError:
     # Fallback (defensive): if _version.py is unreachable, hard-code the

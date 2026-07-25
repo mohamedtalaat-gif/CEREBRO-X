@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/type_detection.py
@@ -29,9 +28,10 @@ DDS TYPES (carrier classes):
 ================================================================================
 """
 from __future__ import annotations
+
 import logging
-from typing import Optional, Dict, List
-from .._core import register, _resolved, _HAS_RDKIT
+
+from .._core import _HAS_RDKIT, _resolved, register
 
 log = logging.getLogger("CEREBRO-RESOLVER.type_detection")
 
@@ -45,7 +45,7 @@ def _is_valid_smiles(smiles: str) -> bool:
         return False
 
 
-def _smiles_mw(smiles: str) -> Optional[float]:
+def _smiles_mw(smiles: str) -> float | None:
     if not (_HAS_RDKIT and smiles): return None
     from rdkit import Chem
     from rdkit.Chem import Descriptors
@@ -126,8 +126,8 @@ def _normalize_drug_class(v: str) -> str:
 @register("drug_type")
 def resolve_drug_type(name: str = "", smiles: str = "", fasta: str = "",
                         sequence: str = "", molecule_class: str = "",
-                        researcher_override: Optional[str] = None) -> Dict:
-    db_misses: List[str] = []
+                        researcher_override: str | None = None) -> dict:
+    db_misses: list[str] = []
 
     if researcher_override:
         v = str(researcher_override).strip().lower()
@@ -315,11 +315,11 @@ def resolve_drug_type(name: str = "", smiles: str = "", fasta: str = "",
             source="cerebro_value_resolver:default_by_name",
             method=f"Name {name!r} unrecognized; default small_molecule",
             computational_method=(
-                f"Step 1: No SMILES/FASTA/sequence to validate. "
-                f"Step 2: No USAN suffix matched. "
-                f"Step 3: No FDA-class keyword matched. "
-                f"Step 4: Default to small_molecule per FDA approval frequency "
-                f"(~70% of NDAs are NCEs)."),
+                "Step 1: No SMILES/FASTA/sequence to validate. "
+                "Step 2: No USAN suffix matched. "
+                "Step 3: No FDA-class keyword matched. "
+                "Step 4: Default to small_molecule per FDA approval frequency "
+                "(~70% of NDAs are NCEs)."),
             reference="FDA CDER Novel Drug Approvals statistics",
             live_db_misses=db_misses,
             extra={"is_categorical": True,
@@ -416,8 +416,8 @@ DDS_KEYWORD_MAP = [
 @register("dds_type")
 def resolve_dds_type(carrier: str = "", carrier_type: str = "",
                        formulation_name: str = "",
-                       researcher_override: Optional[str] = None) -> Dict:
-    db_misses: List[str] = []
+                       researcher_override: str | None = None) -> dict:
+    db_misses: list[str] = []
 
     if researcher_override:
         v = str(researcher_override).strip().lower().replace(" ","_")

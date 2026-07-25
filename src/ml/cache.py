@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  CACHING LAYER
@@ -26,18 +25,17 @@ Thread-safe: all operations use threading.Lock or Redis atomic ops.
 ================================================================================
 """
 
-import os
-import sys
-import time
-import json
 import hashlib
+import json
 import logging
+import os
 import sqlite3
 import threading
-from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Optional, Any, Dict, Callable
+import time
+from collections.abc import Callable
 from functools import wraps
+from pathlib import Path
+from typing import Any
 
 log = logging.getLogger("CEREBRO-CACHE")
 
@@ -75,7 +73,7 @@ class LRUCache:
     """
 
     def __init__(self, max_size: int = 1000, default_ttl: int = 3600):
-        self._cache: Dict[str, Dict] = {}
+        self._cache: dict[str, dict] = {}
         self._access_order: list = []
         self._max_size = max_size
         self._default_ttl = default_ttl
@@ -83,7 +81,7 @@ class LRUCache:
         self._hits = 0
         self._misses = 0
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         with self._lock:
             entry = self._cache.get(key)
             if entry is None:
@@ -131,7 +129,7 @@ class LRUCache:
             self._misses = 0
 
     @property
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         total = self._hits + self._misses
         return {
             "size":      len(self._cache),
@@ -170,7 +168,7 @@ class RedisCache:
     def _key(self, key: str) -> str:
         return f"{self.PREFIX}{key}"
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         if not self._client:
             return None
         try:
@@ -240,7 +238,7 @@ class SQLiteCache:
         conn.commit()
         conn.close()
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         conn = sqlite3.connect(self.db_path)
         row = conn.execute(
             "SELECT value FROM cache WHERE key = ? AND expires_at > ?",
@@ -301,7 +299,7 @@ class CacheManager:
         self.l2 = RedisCache()
         self.l3 = SQLiteCache()
 
-    def get(self, key: str, category: str = "general") -> Optional[Any]:
+    def get(self, key: str, category: str = "general") -> Any | None:
         # L1
         val = self.l1.get(key)
         if val is not None:
@@ -344,7 +342,7 @@ class CacheManager:
         log.info(f"[CACHE] Flushed all tiers (category={category})")
 
     @property
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         return {
             "l1_memory": self.l1.stats,
             "l2_redis":  {"available": self.l2.available},

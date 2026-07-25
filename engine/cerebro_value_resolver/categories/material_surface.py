@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/material_surface.py
@@ -14,9 +13,10 @@ Categories:
 ================================================================================
 """
 from __future__ import annotations
+
 import logging
-from typing import Optional, Dict, List
-from .._core import register, _resolved
+
+from .._core import _resolved, register
 
 log = logging.getLogger("CEREBRO-RESOLVER.surface")
 
@@ -46,8 +46,8 @@ def _build_surface_resolver(category: str, prop_key: str, unit: str,
                               t7_default: float, reference: str):
     @register(category)
     def resolver(carrier: str = "",
-                  researcher_override: Optional[float] = None) -> Dict:
-        db_misses: List[str] = []
+                  researcher_override: float | None = None) -> dict:
+        db_misses: list[str] = []
         if researcher_override is not None:
             return _resolved(value=float(researcher_override), tier=0,
                               source="researcher_override",

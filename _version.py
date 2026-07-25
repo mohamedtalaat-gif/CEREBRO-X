@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 CEREBRO-X  —  Project Identity (Single Source of Truth)
 ========================================================
@@ -70,10 +69,21 @@ def footer_line() -> str:
 
 
 __all__ = [
-    "PROJECT_NAME", "PROJECT_VERSION", "PROJECT_TITLE_FULL",
-    "PROJECT_TITLE",                        # deprecated alias
+    "AUTHOR",
+    "AUTHOR_EMAIL",
+    "AUTHOR_FULL",
+    "CITATION",
+    "COPYRIGHT",
+    "PROJECT_NAME",
     "PROJECT_TAGLINE",
-    "AUTHOR", "AUTHOR_FULL", "AUTHOR_EMAIL", "CITATION", "COPYRIGHT",
-    "__title__", "__version__", "__author__", "__email__",
-    "banner", "short_banner", "footer_line",
+    "PROJECT_TITLE",                        # deprecated alias
+    "PROJECT_TITLE_FULL",
+    "PROJECT_VERSION",
+    "__author__",
+    "__email__",
+    "__title__",
+    "__version__",
+    "banner",
+    "footer_line",
+    "short_banner",
 ]

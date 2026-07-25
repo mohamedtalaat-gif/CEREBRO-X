@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/quantum_atomic.py
@@ -20,15 +19,15 @@ Tier cascade:
 ================================================================================
 """
 from __future__ import annotations
+
 import logging
-from typing import Optional, Dict, List
-from .._core import (register, _resolved, _HAS_RDKIT, _HAS_MENDELEEV,
-                     _HAS_PERIODICTABLE)
+
+from .._core import _HAS_MENDELEEV, _HAS_RDKIT, _resolved, register
 
 log = logging.getLogger("CEREBRO-RESOLVER.quantum")
 
 
-def _atomic_polarizability(symbol: str) -> Optional[float]:
+def _atomic_polarizability(symbol: str) -> float | None:
     """Atomic polarizability (Å³) via mendeleev or hardcoded short table."""
     if _HAS_MENDELEEV:
         try:
@@ -46,14 +45,14 @@ def _atomic_polarizability(symbol: str) -> Optional[float]:
 
 @register("quantum_polarizability")
 def resolve_quantum_polarizability(name: str = "", smiles: str = "",
-                                       researcher_override: Optional[float] = None) -> Dict:
+                                       researcher_override: float | None = None) -> dict:
     """Molecular polarizability α (Å³) via atomic additivity."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided α",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = ["PubChem (no α endpoint)"]
+    db_misses: list[str] = ["PubChem (no α endpoint)"]
 
     if not smiles:
         return _resolved(value=15.0, tier=7,
@@ -96,14 +95,14 @@ def resolve_quantum_polarizability(name: str = "", smiles: str = "",
 
 @register("quantum_dipole_moment")
 def resolve_quantum_dipole_moment(name: str = "", smiles: str = "",
-                                      researcher_override: Optional[float] = None) -> Dict:
+                                      researcher_override: float | None = None) -> dict:
     """Molecular dipole moment μ (Debye)."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided μ",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = ["NIST WebBook (sparse)",
+    db_misses: list[str] = ["NIST WebBook (sparse)",
                               "PubChem (no μ endpoint)"]
 
     # Tier 3: RDKit Gasteiger charges + geometry-based moment
@@ -148,15 +147,15 @@ def resolve_quantum_dipole_moment(name: str = "", smiles: str = "",
 
 @register("quantum_homo_lumo_gap")
 def resolve_quantum_homo_lumo_gap(name: str = "", smiles: str = "",
-                                      aromatic_rings: Optional[float] = None,
-                                      researcher_override: Optional[float] = None) -> Dict:
+                                      aromatic_rings: float | None = None,
+                                      researcher_override: float | None = None) -> dict:
     """HOMO-LUMO gap (eV) — empirical from aromatic ring count."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided HOMO-LUMO gap",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = ["PubChem (no DFT endpoint)",
+    db_misses: list[str] = ["PubChem (no DFT endpoint)",
                               "MaterialsProject (limited)"]
 
     # Tier 6: empirical gap shrinks with extended π-conjugation
@@ -179,7 +178,7 @@ def resolve_quantum_homo_lumo_gap(name: str = "", smiles: str = "",
 
 @register("quantum_atomic_charges_sum")
 def resolve_quantum_atomic_charges_sum(name: str = "", smiles: str = "",
-                                          researcher_override: Optional[float] = None) -> Dict:
+                                          researcher_override: float | None = None) -> dict:
     """Sum of |Gasteiger partial charges| — proxy for total ionic character."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
@@ -217,7 +216,7 @@ def resolve_quantum_atomic_charges_sum(name: str = "", smiles: str = "",
 
 @register("quantum_ionization_energy")
 def resolve_quantum_ionization_energy(symbol: str = "C",
-                                          researcher_override: Optional[float] = None) -> Dict:
+                                          researcher_override: float | None = None) -> dict:
     """First ionization energy of an element (eV)."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,

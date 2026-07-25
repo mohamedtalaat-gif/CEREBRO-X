@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  REAL AUTODOCK VINA DOCKING ENGINE
@@ -22,9 +21,11 @@ References:
 ================================================================================
 """
 from __future__ import annotations
-import io, math, logging, re, tempfile, os, json
+
+import logging
+import math
+import re
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 log = logging.getLogger("CEREBRO-DOCKING")
 
@@ -32,7 +33,7 @@ _PDB_ID_RE = re.compile(r"^[A-Za-z0-9]{4}$")
 
 # ─── Fallback LIE binding estimate (used when Vina unavailable) ─────────────
 def _lie_estimate(ligand_mw: float, logp: float, tpsa: float,
-                   hbd: int, hba: int, is_peptide: bool) -> Dict:
+                   hbd: int, hba: int, is_peptide: bool) -> dict:
     """LIE approximation — only used as fallback."""
     alpha = 0.181; beta = 0.137
     delta_G = -(alpha * logp + beta * (50 - tpsa/5) + 0.5 * (hbd + hba) * 0.3)
@@ -105,14 +106,14 @@ def _prepare_receptor_pdbqt(pdb_path: Path, pdbqt_path: Path) -> bool:
 
 
 def _prepare_ligand_pdbqt(smiles: str, pdbqt_path: Path,
-                             n_conf: int = 10) -> Tuple[bool, str]:
+                             n_conf: int = 10) -> tuple[bool, str]:
     """
     Convert SMILES to 3D PDBQT using RDKit + meeko.
     Returns (success, error_message).
     """
     try:
         from rdkit import Chem
-        from rdkit.Chem import AllChem, Descriptors
+        from rdkit.Chem import AllChem
         from rdkit.Chem.rdForceFieldHelpers import MMFFOptimizeMolecule
 
         mol = Chem.MolFromSmiles(smiles)
@@ -142,7 +143,6 @@ def _prepare_ligand_pdbqt(smiles: str, pdbqt_path: Path,
         except Exception as me:
             log.debug(f"[DOCK] Meeko failed ({me}), using basic PDBQT")
             # Write minimal PDBQT from atom coords
-            from rdkit.Chem import rdMolDescriptors
             pdbqt_lines = [f"REMARK CEREBRO-X ligand {smiles[:40]}"]
             conf = mol_h.GetConformer()
             for i, atom in enumerate(mol_h.GetAtoms()):
@@ -159,7 +159,7 @@ def _prepare_ligand_pdbqt(smiles: str, pdbqt_path: Path,
         return False, str(e)
 
 
-def _detect_binding_site(pdb_path: Path) -> Tuple[float, float, float, float]:
+def _detect_binding_site(pdb_path: Path) -> tuple[float, float, float, float]:
     """
     Auto-detect binding site center from PDB using geometric center of
     HETATM residues (ligand in crystal structure), or protein centroid fallback.
@@ -202,9 +202,9 @@ def _detect_binding_site(pdb_path: Path) -> Tuple[float, float, float, float]:
 
 def run_autodock_vina(smiles: str, pdb_id: str,
                         output_dir: Path,
-                        mol_profile: Dict,
+                        mol_profile: dict,
                         n_poses: int = 9,
-                        exhaustiveness: int = 8) -> Dict:
+                        exhaustiveness: int = 8) -> dict:
     """
     Run real AutoDock Vina docking.
 

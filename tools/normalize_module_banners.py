@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 normalize_module_banners.py
 ============================
@@ -18,6 +17,7 @@ touches strings like "CEREBRO-X v22.1 — Bundle Provenance Report" that
 already carry the project version.
 """
 from __future__ import annotations
+
 import re
 from pathlib import Path
 

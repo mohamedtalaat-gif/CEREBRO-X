@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | DDS METRICS EXTRACTOR
@@ -44,18 +43,20 @@ Usage
     norm    = normalize_row(dds_record)        # all 6 metrics, 0-1 scale
 """
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Sequence, Union
+
+from collections.abc import Sequence
+from typing import Any, Union
 
 # ── Type aliases ────────────────────────────────────────────────────────────
 Number   = Union[int, float]
-Record   = Dict[str, Any]
-DDSRows  = List[Record]
+Record   = dict[str, Any]
+DDSRows  = list[Record]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
-def _to_float(x: Any) -> Optional[float]:
+def _to_float(x: Any) -> float | None:
     """Best-effort coercion: returns None for unrecognised / empty / NaN."""
     if x is None:
         return None
@@ -74,7 +75,7 @@ def _to_float(x: Any) -> Optional[float]:
         return None
 
 
-def _first_non_null(rec: Record, aliases: Sequence[str]) -> Optional[float]:
+def _first_non_null(rec: Record, aliases: Sequence[str]) -> float | None:
     """Return the first numeric value found among aliases, else None."""
     for k in aliases:
         v = _to_float(rec.get(k))
@@ -99,7 +100,7 @@ def _first_non_null(rec: Record, aliases: Sequence[str]) -> Optional[float]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Derivation rules (used as last-resort) ──────────────────────────────────
-def _derive_cns_bioavail(rec: Record) -> Optional[float]:
+def _derive_cns_bioavail(rec: Record) -> float | None:
     """CNS bioavailability ≈ (BBB-crossing fraction) × (1 − off-target liver loss)."""
     bbb = _first_non_null(rec, ("BBB_Engineering_Score", "BBB_Enhanced_Pct",
                                 "BBB_Crossing_Pct"))
@@ -111,7 +112,7 @@ def _derive_cns_bioavail(rec: Record) -> Optional[float]:
     return max(0.0, min(100.0, 100.0 * bbb_frac * (1.0 - off_frac)))
 
 
-def _derive_stealth(rec: Record) -> Optional[float]:
+def _derive_stealth(rec: Record) -> float | None:
     """Stealth quality from PEGylation degree.
     Optimal PEG % is 2-7 (mol%); follows a triangular profile centred at 5%.
     Returns 0-100."""
@@ -128,7 +129,7 @@ def _derive_stealth(rec: Record) -> Optional[float]:
     return max(0.0, 100.0 - (peg - 5.0) * 11.4)                          # 100 → ~20
 
 
-def _derive_escape(rec: Record) -> Optional[float]:
+def _derive_escape(rec: Record) -> float | None:
     """Endosomal/P-gp escape efficiency. Already 0-1 in PgP_Escape_Coeff."""
     v = _first_non_null(rec, ("PgP_Escape_Coeff", "Endosomal_Escape_Eff",
                                 "Escape_Eff", "Endo_Escape"))
@@ -137,14 +138,14 @@ def _derive_escape(rec: Record) -> Optional[float]:
     return v * 100.0 if v <= 1.0 else min(100.0, v)
 
 
-def _derive_payload(rec: Record) -> Optional[float]:
+def _derive_payload(rec: Record) -> float | None:
     """Payload efficiency = encapsulation efficiency."""
     return _first_non_null(rec, ("encapsulation_efficiency_pct",
                                    "Encapsulation_Efficiency_pct",
                                    "Payload_Efficiency_Pct", "EE_pct", "EE%"))
 
 
-def _derive_score(rec: Record) -> Optional[float]:
+def _derive_score(rec: Record) -> float | None:
     """Composite ranking score. Try richer score first (62-principle),
     then BBB engineering score."""
     return _first_non_null(rec, (
@@ -155,7 +156,7 @@ def _derive_score(rec: Record) -> Optional[float]:
     ))
 
 
-def _derive_bbb(rec: Record) -> Optional[float]:
+def _derive_bbb(rec: Record) -> float | None:
     return _first_non_null(rec, (
         "BBB_Enhanced_Pct",
         "BBB_Engineering_Score",
@@ -164,7 +165,7 @@ def _derive_bbb(rec: Record) -> Optional[float]:
 
 
 # ── Master metric registry ──────────────────────────────────────────────────
-METRIC_DEFS: Dict[str, Dict[str, Any]] = {
+METRIC_DEFS: dict[str, dict[str, Any]] = {
     "BBB%": {
         "label": "BBB%",
         "long":  "BBB Engineering Score",
@@ -219,10 +220,10 @@ def extract_metric(rec: Record, key: str, default: float = 0.0) -> float:
     return float(v) if v is not None else float(default)
 
 
-def normalize_row(rec: Record, metrics: Optional[List[str]] = None) -> List[float]:
+def normalize_row(rec: Record, metrics: list[str] | None = None) -> list[float]:
     """Return all metrics as a 0-1 vector (for heatmaps / radar fills)."""
     keys = metrics or list(METRIC_DEFS.keys())
-    out: List[float] = []
+    out: list[float] = []
     for k in keys:
         v = extract_metric(rec, k)
         scale = METRIC_DEFS[k]["out_scale"] if k in METRIC_DEFS else 100.0
@@ -251,7 +252,7 @@ def coverage(rec: Record, threshold: float = 0.0) -> int:
                   if extract_metric(rec, k, -1.0) > threshold)
 
 
-def diagnose(records: DDSRows) -> Dict[str, Any]:
+def diagnose(records: DDSRows) -> dict[str, Any]:
     """Return a small diagnostic report — useful when a dashboard
     looks suspicious (e.g. all-zero heatmap)."""
     if not records:
@@ -274,7 +275,11 @@ def diagnose(records: DDSRows) -> Dict[str, Any]:
 
 __all__ = [
     "METRIC_DEFS",
-    "extract_metric", "normalize_row",
-    "get_pct", "get_score", "get_bbb",
-    "coverage", "diagnose",
+    "coverage",
+    "diagnose",
+    "extract_metric",
+    "get_bbb",
+    "get_pct",
+    "get_score",
+    "normalize_row",
 ]

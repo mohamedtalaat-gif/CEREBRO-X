@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | computations/pka_first_principles.py
@@ -23,8 +22,8 @@ Why "first-principles" rather than "purely ab initio":
 ================================================================================
 """
 from __future__ import annotations
+
 import math
-from typing import Dict, Optional, List
 
 PAULING_EN = {
     "H": 2.20, "C": 2.55, "N": 3.04, "O": 3.44, "F": 3.98,
@@ -62,7 +61,7 @@ HAMMETT_RHO = {
 }
 
 
-def _hammett_correction(rho: float, neighbour_atoms: List[str], atom: str) -> float:
+def _hammett_correction(rho: float, neighbour_atoms: list[str], atom: str) -> float:
     """ΔpKa = -ρ · Σ(σ_substituent), where σ ≈ 0.5·(EN_n - EN_atom)."""
     if not neighbour_atoms: return 0.0
     EN_atom = PAULING_EN.get(atom, 2.55)
@@ -86,11 +85,11 @@ def _born_correction(charge: float, ionic_radius_A: float,
 
 def compute_pka_from_first_principles(
         x_h_bond_type: str,
-        neighbour_atoms: Optional[List[str]] = None,
-        local_BDE_kcal: Optional[float] = None,
+        neighbour_atoms: list[str] | None = None,
+        local_BDE_kcal: float | None = None,
         ionic_radius_A: float = 1.5,
         eps_solvent: float = 78.5,
-    ) -> Dict:
+    ) -> dict:
     """Compute pKa for an X-H bond.
 
     Returns dict with `pKa`, `_computational_method`, all components.
@@ -141,7 +140,7 @@ def compute_pka_from_first_principles(
     }
 
 
-def find_x_h_bonds_in_smiles(smiles: str) -> Dict[str, Dict]:
+def find_x_h_bonds_in_smiles(smiles: str) -> dict[str, dict]:
     """Identify all ionizable X-H bonds via RDKit and compute pKa for each."""
     results = {}
     try:
@@ -218,8 +217,8 @@ def find_x_h_bonds_in_smiles(smiles: str) -> Dict[str, Dict]:
     return results
 
 
-def select_dominant_pka(bonds_dict: Dict[str, Dict],
-                         which: str = "acidic") -> Optional[Dict]:
+def select_dominant_pka(bonds_dict: dict[str, dict],
+                         which: str = "acidic") -> dict | None:
     if not bonds_dict: return None
     if which == "acidic":
         return min(bonds_dict.values(), key=lambda x: x["pKa"])
@@ -250,9 +249,9 @@ PKA_BH_PLUS_BASE = {
 
 def compute_pka_BH_plus_from_first_principles(
         site_type: str,
-        neighbour_atoms: Optional[List[str]] = None,
+        neighbour_atoms: list[str] | None = None,
         eps_solvent: float = 78.5,
-    ) -> Dict:
+    ) -> dict:
     """Compute pKa(BH+) for a basic site (lone-pair protonation).
 
     pKa(BH+) = base_pKa(site_class) + Hammett_inductive + Born_correction
@@ -314,7 +313,7 @@ def compute_pka_BH_plus_from_first_principles(
     }
 
 
-def find_basic_sites_in_smiles(smiles: str) -> Dict[str, Dict]:
+def find_basic_sites_in_smiles(smiles: str) -> dict[str, dict]:
     """Find lone-pair basic sites and compute pKa(BH+) for each."""
     results = {}
     try:
@@ -386,7 +385,7 @@ def find_basic_sites_in_smiles(smiles: str) -> Dict[str, Dict]:
     return results
 
 
-def select_dominant_pka_BH_plus(sites_dict: Dict[str, Dict]) -> Optional[Dict]:
+def select_dominant_pka_BH_plus(sites_dict: dict[str, dict]) -> dict | None:
     """Pick the most basic site (highest pKa(BH+))."""
     if not sites_dict: return None
     return max(sites_dict.values(), key=lambda x: x["pKa"])

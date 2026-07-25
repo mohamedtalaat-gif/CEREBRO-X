@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/material_polymer.py
@@ -22,10 +21,10 @@ Tier cascade:
 ================================================================================
 """
 from __future__ import annotations
+
 import logging
-from typing import Optional, Dict, List
-from .._core import (register, _resolved, cached_safe_get,
-                     _HAS_THERMO, _HAS_CHEMICALS)
+
+from .._core import _resolved, register
 
 log = logging.getLogger("CEREBRO-RESOLVER.polymer")
 
@@ -57,7 +56,7 @@ POLYMER_PROPERTIES = {
 }
 
 
-def _polymer_property_t1(carrier: str, prop: str) -> Optional[float]:
+def _polymer_property_t1(carrier: str, prop: str) -> float | None:
     """Tier-1: try NIST WebBook for the polymer (often only for monomers)."""
     # NIST WebBook doesn't have polymer-specific endpoints. Future expansion:
     # MaterialsProject, ECHA. For now we fall through.
@@ -68,8 +67,8 @@ def _build_polymer_resolver(category: str, prop_key: str, unit: str,
                               t7_default: float, reference: str):
     @register(category)
     def resolver(carrier: str = "", monomer_smiles: str = "",
-                  researcher_override: Optional[float] = None) -> Dict:
-        db_misses: List[str] = []
+                  researcher_override: float | None = None) -> dict:
+        db_misses: list[str] = []
         if researcher_override is not None:
             return _resolved(value=float(researcher_override), tier=0,
                               source="researcher_override",

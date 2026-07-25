@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/drug_target_and_mfg.py
@@ -15,15 +14,18 @@ Categories:
 ================================================================================
 """
 from __future__ import annotations
-import logging, math, urllib.parse, json
-from typing import Optional, Dict, List
-from .._core import (register, _resolved, cached_safe_get, _HAS_REQUESTS)
+
+import json
+import logging
+import urllib.parse
+
+from .._core import _HAS_REQUESTS, _resolved, cached_safe_get, register
 
 log = logging.getLogger("CEREBRO-RESOLVER.target_mfg")
 
 
-def _chembl_target_activity(name: str, target_uniprot: Optional[str],
-                                std_type: str = "IC50") -> Optional[float]:
+def _chembl_target_activity(name: str, target_uniprot: str | None,
+                                std_type: str = "IC50") -> float | None:
     """ChEMBL bioactivity query against a specific UniProt target."""
     if not (name and _HAS_REQUESTS): return None
     try:
@@ -69,14 +71,14 @@ def _chembl_target_activity(name: str, target_uniprot: Optional[str],
 def _build_target_resolver(category: str, std_type: str, default_nM: float):
     @register(category)
     def resolver(name: str = "", smiles: str = "",
-                  target_chembl: Optional[str] = None,
-                  researcher_override: Optional[float] = None) -> Dict:
+                  target_chembl: str | None = None,
+                  researcher_override: float | None = None) -> dict:
         if researcher_override is not None:
             return _resolved(value=float(researcher_override), tier=0,
                               source="researcher_override",
                               method=f"User-provided {std_type}",
                               reference="Researcher input", live_db_misses=[])
-        db_misses: List[str] = []
+        db_misses: list[str] = []
         try:
             v = _chembl_target_activity(name, target_chembl, std_type)
             if v is not None:
@@ -110,16 +112,16 @@ _build_target_resolver("drug_target_ki",   "Ki",     50.0)
 # ──────────────────────────────────────────────────────────────────────────
 @register("drug_loading_capacity_pct")
 def resolve_drug_loading_capacity_pct(carrier: str = "",
-                                          logp: Optional[float] = None,
-                                          mw_Da: Optional[float] = None,
-                                          researcher_override: Optional[float] = None) -> Dict:
+                                          logp: float | None = None,
+                                          mw_Da: float | None = None,
+                                          researcher_override: float | None = None) -> dict:
     """Theoretical max drug loading (% w/w) for a carrier-drug combination."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided drug loading",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = []
+    db_misses: list[str] = []
 
     carrier_low = (carrier or "").lower()
 
@@ -172,14 +174,14 @@ PDI_DEFAULTS = {
 
 @register("material_pdi")
 def resolve_material_pdi(carrier: str = "",
-                            researcher_override: Optional[float] = None) -> Dict:
+                            researcher_override: float | None = None) -> dict:
     """Default polydispersity index for a carrier class."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided PDI",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = ["No live DB for theoretical PDI"]
+    db_misses: list[str] = ["No live DB for theoretical PDI"]
     key = (carrier or "").lower()
     pdi = PDI_DEFAULTS.get(key, 0.20)
     return _resolved(value=pdi, tier=7,
@@ -209,14 +211,14 @@ POROSITY_DEFAULTS = {
 
 @register("material_porosity")
 def resolve_material_porosity(carrier: str = "",
-                                 researcher_override: Optional[float] = None) -> Dict:
+                                 researcher_override: float | None = None) -> dict:
     """Carrier porosity (volume fraction)."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
                           source="researcher_override",
                           method="User-provided porosity",
                           reference="Researcher input", live_db_misses=[])
-    db_misses: List[str] = []
+    db_misses: list[str] = []
     key = (carrier or "").lower()
     p = POROSITY_DEFAULTS.get(key, 0.10)
     return _resolved(value=p, tier=7,

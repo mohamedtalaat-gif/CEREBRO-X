@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_62_translational_engine.py (Phase 5)
@@ -10,16 +9,17 @@ Function signature contract (Phase 5):
 ================================================================================
 """
 from __future__ import annotations
-import logging
-from typing import Dict, Any, Optional
-from datetime import datetime, timezone
 
-from cerebro_resolved_bundles import b_value, b_tier
+import logging
+from datetime import datetime, timezone
+from typing import Any
+
+from cerebro_resolved_bundles import b_value
 
 log = logging.getLogger("CEREBRO-TRANSLATIONAL")
 
 
-def _drug_summary(drug_bundle: Dict) -> Dict[str, Any]:
+def _drug_summary(drug_bundle: dict) -> dict[str, Any]:
     return {
         "name":      drug_bundle.get("_meta",{}).get("name", "Drug"),
         "drug_type": drug_bundle.get("_meta",{}).get("drug_type", "small_molecule"),
@@ -31,7 +31,7 @@ def _drug_summary(drug_bundle: Dict) -> Dict[str, Any]:
     }
 
 
-def _dds_summary(dds_bundle: Dict, combo_bundle: Dict) -> Dict[str, Any]:
+def _dds_summary(dds_bundle: dict, combo_bundle: dict) -> dict[str, Any]:
     dds_row = combo_bundle.get("_meta", {}).get("dds_row", {}) or {}
     return {
         "Formulation_Name":  dds_row.get("Formulation_Name") or "?",
@@ -51,8 +51,8 @@ def _ts() -> str:
 
 
 # P21 — Pre-IND
-def trans_P21(drug_bundle: Dict, dds_bundle: Dict,
-                combo_bundle: Dict, deep_results: Dict) -> Dict:
+def trans_P21(drug_bundle: dict, dds_bundle: dict,
+                combo_bundle: dict, deep_results: dict) -> dict:
     d = _drug_summary(drug_bundle); s = _dds_summary(dds_bundle, combo_bundle)
     indication = "CNS condition"
     return {
@@ -92,8 +92,8 @@ def trans_P21(drug_bundle: Dict, dds_bundle: Dict,
 
 
 # P32 — FTO
-def trans_P32(drug_bundle: Dict, dds_bundle: Dict,
-                combo_bundle: Dict, deep_results: Dict) -> Dict:
+def trans_P32(drug_bundle: dict, dds_bundle: dict,
+                combo_bundle: dict, deep_results: dict) -> dict:
     d = _drug_summary(drug_bundle); s = _dds_summary(dds_bundle, combo_bundle)
     carrier = s["Carrier_Type"].lower(); ligand = s["Surface_Ligand"].lower()
     drug = d["name"]
@@ -124,8 +124,8 @@ def trans_P32(drug_bundle: Dict, dds_bundle: Dict,
 
 
 # P45 — Compliance audit
-def trans_P45(drug_bundle: Dict, dds_bundle: Dict,
-                combo_bundle: Dict, deep_results: Dict) -> Dict:
+def trans_P45(drug_bundle: dict, dds_bundle: dict,
+                combo_bundle: dict, deep_results: dict) -> dict:
     audit_features = {
         "user_authentication":     True,
         "tamper_proof_logging":    True,
@@ -151,8 +151,8 @@ def trans_P45(drug_bundle: Dict, dds_bundle: Dict,
 
 
 # P55 — Grant proposal
-def trans_P55(drug_bundle: Dict, dds_bundle: Dict,
-                combo_bundle: Dict, deep_results: Dict) -> Dict:
+def trans_P55(drug_bundle: dict, dds_bundle: dict,
+                combo_bundle: dict, deep_results: dict) -> dict:
     d = _drug_summary(drug_bundle); s = _dds_summary(dds_bundle, combo_bundle)
     indication = "CNS disorder"
     return {
@@ -180,8 +180,8 @@ def trans_P55(drug_bundle: Dict, dds_bundle: Dict,
 
 
 # P56 — Patentability
-def trans_P56(drug_bundle: Dict, dds_bundle: Dict,
-                combo_bundle: Dict, deep_results: Dict) -> Dict:
+def trans_P56(drug_bundle: dict, dds_bundle: dict,
+                combo_bundle: dict, deep_results: dict) -> dict:
     s = _dds_summary(dds_bundle, combo_bundle)
     carrier = s["Carrier_Type"].lower(); ligand = s["Surface_Ligand"].lower()
     rel_kin = s["Release_Kinetics"]
@@ -228,10 +228,10 @@ TRANSLATIONAL_FUNCTIONS = {
 }
 
 
-def evaluate_translational_for_top1(drug_bundle: Dict, dds_bundle: Dict,
-                                       combo_bundle: Dict,
-                                       deep_results: Dict[str, Dict],
-                                       only_if_deep_passed: bool = True) -> Dict[str, Dict]:
+def evaluate_translational_for_top1(drug_bundle: dict, dds_bundle: dict,
+                                       combo_bundle: dict,
+                                       deep_results: dict[str, dict],
+                                       only_if_deep_passed: bool = True) -> dict[str, dict]:
     """Run Class C translational principles on Top-1 — bundle-only."""
     n_passed = sum(1 for r in deep_results.values() if r.get("validated"))
     n_total = len(deep_results)
@@ -248,7 +248,7 @@ def evaluate_translational_for_top1(drug_bundle: Dict, dds_bundle: Dict,
                        "generated_at": _ts()}
                 for pid in TRANSLATIONAL_FUNCTIONS}
 
-    out: Dict[str, Dict] = {}
+    out: dict[str, dict] = {}
     for pid, fn in TRANSLATIONAL_FUNCTIONS.items():
         try:
             out[pid] = fn(drug_bundle, dds_bundle, combo_bundle, deep_results)

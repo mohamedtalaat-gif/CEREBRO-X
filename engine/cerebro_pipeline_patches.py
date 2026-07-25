@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_pipeline_patches.py  —  Module Shim
@@ -17,6 +16,5 @@ if _CORE not in sys.path:
     sys.path.insert(0, _CORE)
 
 from pipeline_patches import *
-from pipeline_patches import apply_patches
 
 sys.modules.setdefault("cerebro_pipeline_patches", sys.modules[__name__])

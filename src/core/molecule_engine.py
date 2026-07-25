@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  UNIVERSAL MOLECULE ENGINE
@@ -25,11 +24,16 @@ Zero manual entry required from the pipeline or researcher.
 ================================================================================
 """
 
-import os, sys, re, math, hashlib, json, logging, time
-import requests
-from pathlib import Path
+import logging
+import math
+import os
+import re
+import time
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Tuple
+from pathlib import Path
+from typing import Any
+
+import requests
 
 log = logging.getLogger("CEREBRO-MOL")
 
@@ -38,15 +42,15 @@ log = logging.getLogger("CEREBRO-MOL")
 # ─────────────────────────────────────────────────────────────────────────────
 try:
     from rdkit import Chem
-    from rdkit.Chem import Descriptors, AllChem, rdMolDescriptors
+    from rdkit.Chem import AllChem, Descriptors, rdMolDescriptors
     _HAS_RDKIT = True
 except ImportError:
     _HAS_RDKIT = False
 
 try:
     from Bio import SeqIO
-    from Bio.SeqUtils.ProtParam import ProteinAnalysis
     from Bio.SeqUtils import molecular_weight as bio_mw
+    from Bio.SeqUtils.ProtParam import ProteinAnalysis
     _HAS_BIOPYTHON = True
 except ImportError:
     _HAS_BIOPYTHON = False
@@ -61,7 +65,7 @@ except ImportError:
 # ─────────────────────────────────────────────────────────────────────────────
 # UNIFIED OUTPUT SCHEMA
 # ─────────────────────────────────────────────────────────────────────────────
-def _empty_profile(drug_name: str) -> Dict[str, Any]:
+def _empty_profile(drug_name: str) -> dict[str, Any]:
     """Canonical output structure — every field documented."""
     return {
         # Identity
@@ -160,7 +164,7 @@ class SmallMoleculeEngine:
     """Handles SMILES / InChIKey / CID inputs via RDKit + PubChem."""
 
     @staticmethod
-    def from_smiles(smiles: str, name: str = "unknown") -> Dict[str, Any]:
+    def from_smiles(smiles: str, name: str = "unknown") -> dict[str, Any]:
         """
         Compute full descriptor profile from SMILES string.
 
@@ -232,7 +236,7 @@ class SmallMoleculeEngine:
         return profile
 
     @staticmethod
-    def from_inchikey(inchikey: str, name: str = "unknown") -> Dict[str, Any]:
+    def from_inchikey(inchikey: str, name: str = "unknown") -> dict[str, Any]:
         """Look up compound by InChIKey via PubChem."""
         profile = _empty_profile(name)
         profile["input_type"]  = "inchikey"
@@ -284,7 +288,7 @@ class BiologicEngine:
 
     # ── FASTA ──────────────────────────────────────────────────────────────
     @staticmethod
-    def from_fasta(fasta_input: str, name: str = "unknown") -> Dict[str, Any]:
+    def from_fasta(fasta_input: str, name: str = "unknown") -> dict[str, Any]:
         """
         Compute protein descriptors from FASTA sequence.
 
@@ -363,7 +367,7 @@ class BiologicEngine:
 
     # ── PDB ID ─────────────────────────────────────────────────────────────
     @staticmethod
-    def from_pdb_id(pdb_id: str, name: str = "unknown") -> Dict[str, Any]:
+    def from_pdb_id(pdb_id: str, name: str = "unknown") -> dict[str, Any]:
         """
         Fetch structural data from RCSB PDB REST API.
 
@@ -416,7 +420,7 @@ class BiologicEngine:
 
     # ── PDB File ───────────────────────────────────────────────────────────
     @staticmethod
-    def from_pdb_file(file_path: str, name: str = "unknown") -> Dict[str, Any]:
+    def from_pdb_file(file_path: str, name: str = "unknown") -> dict[str, Any]:
         """
         Parse a local .pdb file to extract SEQRES records → FASTA → descriptors.
         Falls back to ATOM records if SEQRES absent.
@@ -469,7 +473,7 @@ class BiologicEngine:
 
     # ── HELM ───────────────────────────────────────────────────────────────
     @staticmethod
-    def from_helm(helm_string: str, name: str = "unknown") -> Dict[str, Any]:
+    def from_helm(helm_string: str, name: str = "unknown") -> dict[str, Any]:
         """
         Parse HELM notation.
 
@@ -539,7 +543,7 @@ class BiologicEngine:
 
     # ── UniProt enrichment ─────────────────────────────────────────────────
     @staticmethod
-    def _enrich_from_uniprot_by_name(profile: Dict, name: str):
+    def _enrich_from_uniprot_by_name(profile: dict, name: str):
         """
         Fetch UniProt entry by drug name to supplement missing fields.
         Adds: UniProt_ID, organism, half-life (if available in comments).
@@ -583,10 +587,10 @@ class CascadeNameEngine:
     # to provide Half_Life_Days, the field stays None and the resolver
     # cascade in cerebro_molecule_engine.resolve_missing_properties handles it
     # via OpenFDA / WHO EML / PharmGKB live endpoints.
-    _CLINICAL_HL: Dict[str, float] = {}
+    _CLINICAL_HL: dict[str, float] = {}
 
     @classmethod
-    def fetch(cls, name: str) -> Dict[str, Any]:
+    def fetch(cls, name: str) -> dict[str, Any]:
         """Try all API tiers in cascade order."""
         profile = _empty_profile(name)
         profile["input_type"] = "name"
@@ -641,7 +645,7 @@ class CascadeNameEngine:
         return profile
 
     @staticmethod
-    def _try_drugbank(name: str) -> Optional[Dict]:
+    def _try_drugbank(name: str) -> dict | None:
         key = os.environ.get("DRUGBANK_API_KEY","")
         if not key: return None
         try:
@@ -659,7 +663,7 @@ class CascadeNameEngine:
         return None
 
     @staticmethod
-    def _try_chembl(name: str) -> Optional[Dict]:
+    def _try_chembl(name: str) -> dict | None:
         try:
             from chembl_webresource_client.new_client import new_client as _nc
             res = _nc.molecule.filter(pref_name__iexact=name).only(
@@ -675,7 +679,7 @@ class CascadeNameEngine:
         return None
 
     @staticmethod
-    def _try_uniprot(name: str) -> Optional[Dict]:
+    def _try_uniprot(name: str) -> dict | None:
         try:
             r = requests.get(
                 f"https://rest.uniprot.org/uniprotkb/search"
@@ -692,7 +696,7 @@ class CascadeNameEngine:
         return None
 
     @staticmethod
-    def _try_pubchem(name: str) -> Optional[Dict]:
+    def _try_pubchem(name: str) -> dict | None:
         if not _HAS_PCP: return None
         try:
             comps = pcp.get_compounds(name,"name")
@@ -709,7 +713,7 @@ class CascadeNameEngine:
         return None
 
     @staticmethod
-    def _try_pubmed(name: str) -> Optional[Dict]:
+    def _try_pubmed(name: str) -> dict | None:
         """Regex scraper on PubMed abstract for MW and half-life."""
         import re
         try:
@@ -722,9 +726,9 @@ class CascadeNameEngine:
                 f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
                 f"?db=pubmed&id={ids[0]}&rettype=abstract&retmode=text",
                 timeout=8).text
-            mw_m = re.search(r"(\d[\d,]+)\s*(?:Da|kDa|dalton)", text, re.I)
+            mw_m = re.search(r"(\d[\d,]+)\s*(?:Da|kDa|dalton)", text, re.IGNORECASE)
             hl_m = re.search(r"half[- ]life[^\d]*(\d+\.?\d*)\s*(?:day|d\b)",
-                             text, re.I)
+                             text, re.IGNORECASE)
             if mw_m:
                 mw = float(mw_m.group(1).replace(",",""))
                 if "kDa" in text[mw_m.start():mw_m.end()+3]: mw *= 1000
@@ -741,7 +745,7 @@ class CascadeNameEngine:
 # ─────────────────────────────────────────────────────────────────────────────
 # MASTER DISPATCHER
 # ─────────────────────────────────────────────────────────────────────────────
-def analyze_molecule(raw_input: str, name: str = None) -> Dict[str, Any]:
+def analyze_molecule(raw_input: str, name: str = None) -> dict[str, Any]:
     """
     Master entry point. Auto-detects input format and routes accordingly.
 

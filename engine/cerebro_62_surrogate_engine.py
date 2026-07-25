@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_62_surrogate_engine.py (Phase 5 — bundle-only)
@@ -41,25 +40,27 @@ Deep Engine (cerebro_62_deep_engine.py) and are NOT in this file.
 ================================================================================
 """
 from __future__ import annotations
-import math, logging
-from typing import Dict, Any, List, Optional, Tuple
+
+import logging
+import math
 
 log = logging.getLogger("CEREBRO-SURROGATE")
 
 # Bundle helpers from cerebro_resolved_bundles (REQUIRED — no fallback)
-from cerebro_resolved_bundles import b_value, b_tier, b_method
+from cerebro_resolved_bundles import b_value
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────
-def _safe(d: Dict, key: str, default: float = 0.0) -> float:
+def _safe(d: dict, key: str, default: float = 0.0) -> float:
     v = d.get(key)
     if v is None: return float(default)
     try:    return float(v)
     except (ValueError, TypeError): return float(default)
 
 
-def _str(d: Dict, key: str, default: str = "") -> str:
+def _str(d: dict, key: str, default: str = "") -> str:
     v = d.get(key)
     return (str(v).lower().strip() if v is not None else default).lower()
 
@@ -74,9 +75,9 @@ def _triangular(value: float, low_opt: float, high_opt: float,
     return max(0, 100 - (value - high_opt) * decay_high)
 
 
-def _hb(score: float, ref: str, method: str, raw: Dict,
+def _hb(score: float, ref: str, method: str, raw: dict,
          conf: str = "MODERATE", value=None,
-         warnings: Optional[List[str]] = None) -> Dict:
+         warnings: list[str] | None = None) -> dict:
     """Helper to build a uniform return record."""
     return {
         "value":      value if value is not None else round(score, 2),
@@ -92,7 +93,7 @@ def _hb(score: float, ref: str, method: str, raw: Dict,
 # ──────────────────────────────────────────────────────────────────────────
 # Milestone 3 — Bundle-based extractors (provenance-preserving)
 # ──────────────────────────────────────────────────────────────────────────
-def _drug_specs_from_bundle(drug_bundle: Dict) -> Dict:
+def _drug_specs_from_bundle(drug_bundle: dict) -> dict:
     """Extract the standard drug spec dict shape from a resolver bundle.
 
     Every value comes from a ResolvedValue dict with full provenance
@@ -152,7 +153,7 @@ def _drug_specs_from_bundle(drug_bundle: Dict) -> Dict:
     }
 
 
-def _dds_specs_from_bundle(dds_bundle: Dict, dds_row: Optional[Dict] = None) -> Dict:
+def _dds_specs_from_bundle(dds_bundle: dict, dds_row: dict | None = None) -> dict:
     """Extract DDS specs from a bundle, optionally merging Excel-row data.
 
     The bundle holds RESOLVED material properties (Tg, Tm, hydrolysis Ea,
@@ -200,7 +201,7 @@ def _dds_specs_from_bundle(dds_bundle: Dict, dds_row: Optional[Dict] = None) -> 
     }
 
 
-def _collect_drug_provenance(drug_bundle: Dict) -> Dict[str, Dict]:
+def _collect_drug_provenance(drug_bundle: dict) -> dict[str, dict]:
     """Pull (tier, source, computational_method) for each resolved category.
     Used by surrogate functions to populate the `raw._provenance` field
     so reports can show 'this score used MW=379.5 (Tier 3, RDKit)'.
@@ -223,7 +224,7 @@ def _collect_drug_provenance(drug_bundle: Dict) -> Dict[str, Dict]:
     return prov
 
 
-def _collect_dds_provenance(dds_bundle: Dict) -> Dict[str, Dict]:
+def _collect_dds_provenance(dds_bundle: dict) -> dict[str, dict]:
     keys_of_interest = ["dds_type","material_polymer_tg","material_polymer_tm",
                           "material_polymer_hydrolysis_ea",
                           "material_lipid_tm","material_zeta_intrinsic",
@@ -242,9 +243,9 @@ def _collect_dds_provenance(dds_bundle: Dict) -> Dict[str, Dict]:
     return prov
 
 
-def _resolve_inputs(drug_bundle: Dict, dds_bundle: Dict,
-                       combo_bundle: Optional[Dict] = None
-                       ) -> Tuple[Dict, Dict, Optional[Dict]]:
+def _resolve_inputs(drug_bundle: dict, dds_bundle: dict,
+                       combo_bundle: dict | None = None
+                       ) -> tuple[dict, dict, dict | None]:
     """Bundle-only dispatcher (Phase 5, 2026-04-30).
 
     Surrogate function contract: every P-function receives
@@ -281,7 +282,7 @@ def _resolve_inputs(drug_bundle: Dict, dds_bundle: Dict,
             "cerebro_resolved_bundles.resolve_dds_bundle() to produce one.")
 
     d = _drug_specs_from_bundle(drug_bundle)
-    dds_row: Dict = {}
+    dds_row: dict = {}
     if isinstance(combo_bundle, dict):
         dds_row = combo_bundle.get("_meta", {}).get("dds_row", {}) or {}
     s = _dds_specs_from_bundle(dds_bundle, dds_row=dds_row)
@@ -291,7 +292,7 @@ def _resolve_inputs(drug_bundle: Dict, dds_bundle: Dict,
 # ──────────────────────────────────────────────────────────────────────────
 # Molecule-aware physics helpers (used across many surrogate functions)
 # ──────────────────────────────────────────────────────────────────────────
-def _bbb_propensity(d: Dict) -> float:
+def _bbb_propensity(d: dict) -> float:
     """Wager TT (2010) ACS Chem Neurosci 1:420 — CNS MPO surrogate.
 
     Returns 0..6 score; ≥4 is good CNS-permeability propensity.
@@ -317,7 +318,7 @@ def _bbb_propensity(d: Dict) -> float:
     return s
 
 
-def _membrane_partition_logK(d: Dict) -> float:
+def _membrane_partition_logK(d: dict) -> float:
     """Lipid-water partition coefficient at pH 7.4 (logK_mem).
 
     Avdeef A (2012) Absorption and Drug Development, 2nd ed:
@@ -1710,8 +1711,8 @@ assert len(SURROGATE_FUNCTIONS) == 57, \
     f"Expected 57 surrogate functions, got {len(SURROGATE_FUNCTIONS)}"
 
 
-def evaluate_all_principles_for_dds(drug_bundle: Dict, dds_bundle: Dict,
-                                       combo_bundle: Dict) -> Dict[str, Dict]:
+def evaluate_all_principles_for_dds(drug_bundle: dict, dds_bundle: dict,
+                                       combo_bundle: dict) -> dict[str, dict]:
     """Run ALL Class A surrogate functions for a single DDS.
 
     BUNDLE-ONLY signature (Phase 5, 2026-04-30): no mol_profile dict, no
@@ -1728,7 +1729,7 @@ def evaluate_all_principles_for_dds(drug_bundle: Dict, dds_bundle: Dict,
     Returns:
         dict mapping principle_id → {value, score, method, ref, conf, raw, warnings}
     """
-    out: Dict[str, Dict] = {}
+    out: dict[str, dict] = {}
     for pid, fn in SURROGATE_FUNCTIONS.items():
         try:
             # Surrogate functions accept (arg1, arg2, arg3) via _resolve_inputs

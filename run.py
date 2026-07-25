@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X — MASTER RUNNER
@@ -36,9 +35,16 @@ AUTO-START: Registers itself on first run. After that runs every hour headlessly
 # ─────────────────────────────────────────────────────────────────────────────
 # 0.  ANCHOR  (must be first — sets working directory before any imports)
 # ─────────────────────────────────────────────────────────────────────────────
-import os, sys, platform, time, logging, subprocess, hashlib, json, sqlite3
-from pathlib import Path
+import hashlib
+import logging
+import os
+import platform
+import sqlite3
+import subprocess
+import sys
+import time
 from datetime import datetime
+from pathlib import Path
 
 try:
     SCRIPT_DIR = Path(os.path.abspath(__file__)).parent
@@ -89,8 +95,8 @@ try:
     import matplotlib
     matplotlib.use("Agg")           # headless backend (works in Docker / Colab)
     import matplotlib.pyplot as _plt
-    from cerebro_brand import (matplotlib_style as _brand_style,
-                                  register_brand_fonts as _register_fonts)
+    from cerebro_brand import matplotlib_style as _brand_style
+    from cerebro_brand import register_brand_fonts as _register_fonts
     _font_status = _register_fonts(verbose=False)
     _plt.rcParams.update(_brand_style())
     log.info(f"[BRAND] matplotlib brand style applied  "
@@ -327,7 +333,10 @@ def excel_to_yaml(xlsx_path: "Path", output_yaml: "Path",
         "pipeline_config":  {...},
       }
     """
-    import openpyxl, yaml, re
+    import re
+
+    import openpyxl
+    import yaml
 
     log.info(f"[EXCEL→YAML] Reading: {xlsx_path.name}")
     wb = openpyxl.load_workbook(str(xlsx_path), data_only=True)
@@ -718,7 +727,6 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
       8. PDF report generation (in-memory → trial_dir)
       9. Register trial in index DB
     """
-    import yaml
 
     log.info("=" * 65)
     log.info(f"  TRIAL → {trial_dir.name}")
@@ -949,8 +957,8 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
     if df_dds is not None and not df_dds.empty:
         try:
             # Phase 5 (2026-04-30): build drug bundle ONCE, pass to orchestrator
-            from cerebro_resolved_bundles import resolve_drug_bundle, cache_stats
             from cerebro_62_orchestrator import evaluate_all_dds_62
+            from cerebro_resolved_bundles import cache_stats, resolve_drug_bundle
             _researcher_overrides = (mol_profile.get("_researcher_overrides", {})
                                        if isinstance(mol_profile, dict) else {})
             drug_bundle_top1 = resolve_drug_bundle(
@@ -1372,7 +1380,7 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
 
         log.info("=" * 65)
         log.info(f"  DRUG {_drug_idx}/{total_drugs}: {_extra_name}")
-        log.info(f"  Sequential — previous drug fully complete before this starts")
+        log.info("  Sequential — previous drug fully complete before this starts")
         log.info("=" * 65)
 
         # Trial dir: numbered sequentially so names never conflict on re-runs.
@@ -1515,8 +1523,8 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
         _extra_fallback_chain = []
         if _extra_df_dds is not None and not _extra_df_dds.empty:
             try:
-                from cerebro_resolved_bundles import resolve_drug_bundle
                 from cerebro_62_orchestrator import evaluate_all_dds_62
+                from cerebro_resolved_bundles import resolve_drug_bundle
                 _extra_overrides = (_extra_mol.get("_researcher_overrides", {})
                                       if isinstance(_extra_mol, dict) else {})
                 _extra_drug_bundle = resolve_drug_bundle(
@@ -1556,8 +1564,8 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
             for _sp in [str(Path(__file__).parent/"src"/"core"),
                          str(Path(__file__).parent/"src"/"viz")]:
                 if _sp not in _sys_sci.path: _sys_sci.path.insert(0, _sp)
-            from cerebro_science_modules import run_all_science_modules
             from cerebro_advanced_modules_2 import run_all_advanced_modules
+            from cerebro_science_modules import run_all_science_modules
             _extra_sci = run_all_science_modules(
                 _extra_mol, _extra_top, _extra_df_dds, _extra_trial_dir, "alzheimer_2", 75)
             _extra_adv = run_all_advanced_modules(
@@ -1730,7 +1738,7 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
                 log.info(f"[COMPARISON] 62-principle engine: "
                           f"{_comp_summary['metrics_ranked']} metrics ranked "
                           f"(+ {_comp_summary['metrics_unranked']} unranked)")
-                log.info(f"[COMPARISON] Overall ranking:")
+                log.info("[COMPARISON] Overall ranking:")
                 for entry in _comp_summary['overall_ranking']:
                     log.info(f"  #{entry['rank']}  {entry['drug']:20s}  "
                               f"score={entry['weighted_score']}/100  "
@@ -1763,7 +1771,8 @@ def _augment_single_drug(df, n: int = 8):
 
     Reference: Chawla NV et al (2002) JAIR 16:321 (SMOTE oversampling rationale)
     """
-    import pandas as pd, numpy as np
+    import numpy as np
+    import pandas as pd
     np.random.seed(42)   # reproducible synthetic data
     synth_rows = []
     row = df.iloc[0]
@@ -1803,7 +1812,8 @@ def _run_dds_from_yaml(yaml_path: Path, trial_dir: Path,
     Returns ranked DataFrame.
     """
     try:
-        import pandas as pd, numpy as np, yaml
+        import pandas as pd
+        import yaml
 
         with open(yaml_path, encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
@@ -2018,7 +2028,7 @@ def _run_dds_from_yaml(yaml_path: Path, trial_dir: Path,
         _write_dds_doc(dds_dir / "formulation_ranking.csv", drug_name, len(df))
 
         log.info(f"[DDS] Scored {len(df)} formulations for {drug_name}")
-        log.info(f"[DDS] Top 5:")
+        log.info("[DDS] Top 5:")
         for _, r in df.head(5).iterrows():
             log.info(f"  #{int(r['Rank'])}  {r['Formulation_ID']:12s}  "
                      f"BBB={r['BBB_Engineering_Score']:5.1f}  {r['Formulation_Name']}")
@@ -2149,7 +2159,7 @@ def _make_static_figures(df_ml, df_dds, df_pk, trial_dir: Path) -> None:
     """Generate all static PNG figures for the trial."""
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt, numpy as np
+    import matplotlib.pyplot as plt
 
     figs = trial_dir / "figures"
     figs.mkdir(parents=True, exist_ok=True)
@@ -2298,15 +2308,24 @@ def _generate_merged_pdf(df_ml, df_dds, df_pk, metrics: dict,
       - Strategic recommendation
     """
     try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import cm
+        import base64
+        import io
+
         from reportlab.lib import colors
-        from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                         Table, TableStyle, Image as RLImage,
-                                         PageBreak, HRFlowable)
         from reportlab.lib.enums import TA_CENTER, TA_LEFT
-        import io, base64
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.lib.units import cm
+        from reportlab.platypus import (
+            HRFlowable,
+            PageBreak,
+            Paragraph,
+            SimpleDocTemplate,
+            Spacer,
+            Table,
+            TableStyle,
+        )
+        from reportlab.platypus import Image as RLImage
     except ImportError:
         log.warning("[PDF] reportlab not installed — PDF skipped")
         return
@@ -2363,7 +2382,7 @@ def _generate_merged_pdf(df_ml, df_dds, df_pk, metrics: dict,
 
     # ── Cover ─────────────────────────────────────────────────────────────
     story.append(Paragraph("CEREBRO-X", title_s))
-    story.append(Paragraph(f"Brain Drug Delivery Analysis Report", h1_s))
+    story.append(Paragraph("Brain Drug Delivery Analysis Report", h1_s))
     story.append(HRFlowable(width="100%", thickness=2, color=C_TEAL))
     story.append(Spacer(1, 0.3*cm))
 
@@ -2415,7 +2434,6 @@ def _generate_merged_pdf(df_ml, df_dds, df_pk, metrics: dict,
     # ── Top-10 DDS Table ──────────────────────────────────────────────────
     story.append(Paragraph("Top 10 DDS Formulations", h1_s))
     if df_dds is not None and not df_dds.empty:
-        import math
         SHOW_COLS = ["Rank","Formulation_ID","Formulation_Name","Carrier_Type",
                      "BBB_Engineering_Score","ADMET_Overall_Flag",
                      "size_nm","zeta_potential_mv",
@@ -2603,9 +2621,7 @@ def _generate_merged_pdf(df_ml, df_dds, df_pk, metrics: dict,
                 continue
             if threshold is None:
                 n = (df_dds[col] == "OK").sum()
-            elif col in ["Off_Target_Liver_pct"]:
-                n = (df_dds[col] <= threshold).sum()
-            elif col in ["CARPA_Risk_Index"]:
+            elif col in ["Off_Target_Liver_pct"] or col in ["CARPA_Risk_Index"]:
                 n = (df_dds[col] <= threshold).sum()
             else:
                 n = (df_dds[col] >= threshold).sum()
@@ -2777,7 +2793,10 @@ def start_infra(headless: bool = False) -> None:
     log.info("[INFRA] Starting enterprise infrastructure …")
     try:
         from cerebro_enterprise_infra import (
-            app, start_scheduler, write_autostart, _HAS_FASTAPI
+            _HAS_FASTAPI,
+            app,
+            start_scheduler,
+            write_autostart,
         )
 
         # Patch scheduler to use our Excel-driven loop
@@ -2788,8 +2807,9 @@ def start_infra(headless: bool = False) -> None:
         write_autostart()
 
         try:
-            from apscheduler.schedulers.background import BackgroundScheduler
             from datetime import timedelta
+
+            from apscheduler.schedulers.background import BackgroundScheduler
             sched = BackgroundScheduler()
             sched.add_job(
                 _scheduled_run, "interval",
@@ -2911,7 +2931,7 @@ def write_autostart() -> None:
         sp = Path.home() / ".config/systemd/user/cerebro.service"
         sp.parent.mkdir(parents=True, exist_ok=True)
         sp.write_text(service, encoding="utf-8")
-        log.info(f"[AutoStart] Linux: systemctl --user enable cerebro.service")
+        log.info("[AutoStart] Linux: systemctl --user enable cerebro.service")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

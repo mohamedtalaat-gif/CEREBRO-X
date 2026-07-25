@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X | categories/bbb_perm.py
@@ -24,10 +23,12 @@ Tier cascade:
 ================================================================================
 """
 from __future__ import annotations
-import logging, urllib.parse, json, math
-from typing import Optional, Dict, List
-from .._core import (register, _resolved, cached_safe_get,
-                     _HAS_REQUESTS)
+
+import json
+import logging
+import urllib.parse
+
+from .._core import _HAS_REQUESTS, _resolved, cached_safe_get, register
 
 log = logging.getLogger("CEREBRO-RESOLVER.bbb")
 
@@ -39,7 +40,7 @@ except ImportError:
 
 
 def _cns_mpo_score(mw: float, logp: float, tpsa: float,
-                     hbd: float, pka_basic: Optional[float],
+                     hbd: float, pka_basic: float | None,
                      n_arom_rings: float) -> float:
     """Wager TT (2010) ACS Chem Neurosci 1:420 CNS Multi-Parameter Opt.
 
@@ -64,13 +65,13 @@ def _cns_mpo_score(mw: float, logp: float, tpsa: float,
 
 @register("bbb_cns_mpo")
 def resolve_bbb_cns_mpo(name: str = "", smiles: str = "",
-                          mw_Da: Optional[float] = None,
-                          logp: Optional[float] = None,
-                          tpsa: Optional[float] = None,
-                          hbd: Optional[float] = None,
-                          pka_basic: Optional[float] = None,
-                          aromatic_rings: Optional[float] = None,
-                          researcher_override: Optional[float] = None) -> Dict:
+                          mw_Da: float | None = None,
+                          logp: float | None = None,
+                          tpsa: float | None = None,
+                          hbd: float | None = None,
+                          pka_basic: float | None = None,
+                          aromatic_rings: float | None = None,
+                          researcher_override: float | None = None) -> dict:
     """Wager CNS-MPO score 0..6 — purely computed from descriptors."""
     if researcher_override is not None:
         return _resolved(value=float(researcher_override), tier=0,
@@ -95,10 +96,10 @@ def resolve_bbb_cns_mpo(name: str = "", smiles: str = "",
 
 @register("bbb_logBB")
 def resolve_bbb_logBB(name: str = "", smiles: str = "",
-                        mw_Da: Optional[float] = None,
-                        logp: Optional[float] = None,
-                        tpsa: Optional[float] = None,
-                        researcher_override: Optional[float] = None) -> Dict:
+                        mw_Da: float | None = None,
+                        logp: float | None = None,
+                        tpsa: float | None = None,
+                        researcher_override: float | None = None) -> dict:
     """log(Brain/Blood partition).
 
     Empirical regression (Clark 1999):
@@ -163,14 +164,14 @@ def resolve_bbb_logBB(name: str = "", smiles: str = "",
 
 @register("bbb_permeability")
 def resolve_bbb_permeability(name: str = "", smiles: str = "",
-                               mw_Da: Optional[float] = None,
-                               logp: Optional[float] = None,
-                               tpsa: Optional[float] = None,
-                               hbd: Optional[float] = None,
-                               pka_basic: Optional[float] = None,
-                               aromatic_rings: Optional[float] = None,
+                               mw_Da: float | None = None,
+                               logp: float | None = None,
+                               tpsa: float | None = None,
+                               hbd: float | None = None,
+                               pka_basic: float | None = None,
+                               aromatic_rings: float | None = None,
                                molecule_class: str = "small_molecule",
-                               researcher_override: Optional[float] = None) -> Dict:
+                               researcher_override: float | None = None) -> dict:
     """% of plasma concentration crossing BBB at steady state.
 
     Cascade:

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 normalize_brand_colors.py
 ==========================
@@ -27,6 +26,7 @@ where reasonable.
 The pass is idempotent and re-runnable.
 """
 from __future__ import annotations
+
 import re
 from pathlib import Path
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 CEREBRO-X |  cerebro_62_principles_catalog.py
@@ -50,12 +49,11 @@ Weight policy (CNS-focused per project mandate):
 ================================================================================
 """
 from __future__ import annotations
-from typing import Dict, List
 
 # ──────────────────────────────────────────────────────────────────────────
 # Master 62-principle registry
 # ──────────────────────────────────────────────────────────────────────────
-PRINCIPLES_62: Dict[str, Dict] = {
+PRINCIPLES_62: dict[str, dict] = {
 
     # ════════════════════════════════════════════════════════════════════
     # PRINCIPLES 1-12 — Block 1 (Adversarial, PK Scaling, Patient Strat,
@@ -1018,26 +1016,26 @@ assert 0.99 < _weight_total < 1.01, \
     f"Weight sum after normalization {_weight_total} not ≈ 1.0"
 
 
-def get_class_a_principles() -> List[str]:
+def get_class_a_principles() -> list[str]:
     """Principles run on every DDS (the surrogate fast-screen)."""
     return CLASS_A_SURROGATE
 
 
-def get_class_b_principles() -> List[str]:
+def get_class_b_principles() -> list[str]:
     """Principles run on Top-1 only (deep physics validation)."""
     return CLASS_B_DEEP
 
 
-def get_class_c_principles() -> List[str]:
+def get_class_c_principles() -> list[str]:
     """Principles run on Top-1 AFTER deep validation (translational)."""
     return CLASS_C_TRANSLATIONAL
 
 
-def get_principle(pid: str) -> Dict:
+def get_principle(pid: str) -> dict:
     return PRINCIPLES_62[pid]
 
 
-def summarize() -> Dict:
+def summarize() -> dict:
     """Quick summary used by tests and the rationale sheet."""
     return {
         "total":             len(PRINCIPLES_62),

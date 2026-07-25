@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 Phase 5 Smoke Test — run inside Docker after `docker compose up --build`
@@ -18,8 +17,9 @@ If this script passes, you can safely run the full pipeline:
   docker exec -it cerebro-core python run.py --pipeline-only --force
 ================================================================================
 """
-import sys, time, traceback
-from pathlib import Path
+import sys
+import time
+import traceback
 
 GREEN = "\033[92m"; RED = "\033[91m"; YELLOW = "\033[93m"; RESET = "\033[0m"
 
@@ -40,7 +40,7 @@ errors = 0
 step("1. Module imports")
 # ════════════════════════════════════════════════════════════════════════
 try:
-    from cerebro_value_resolver import resolve_value, list_categories, _LIB_STATUS
+    from cerebro_value_resolver import _LIB_STATUS, list_categories
     n = len(list_categories())
     ok(f"cerebro_value_resolver: {n} categories registered")
     ok(f"  Library status: {_LIB_STATUS}")
@@ -48,22 +48,32 @@ except Exception as e:
     fail("cerebro_value_resolver import", e); errors += 1
 
 try:
-    from cerebro_resolved_bundles import (resolve_drug_bundle, resolve_dds_bundle,
-                                             resolve_combo_bundle, b_value, b_tier,
-                                             cache_stats, clear_all_caches)
+    from cerebro_resolved_bundles import (
+        b_tier,
+        b_value,
+        cache_stats,
+        clear_all_caches,
+        resolve_combo_bundle,
+        resolve_dds_bundle,
+        resolve_drug_bundle,
+    )
     ok("cerebro_resolved_bundles imported")
 except Exception as e:
     fail("cerebro_resolved_bundles import", e); errors += 1
 
 try:
+    from cerebro_62_deep_engine import (
+        DEEP_FUNCTIONS,
+        HPC_ONLY_PRINCIPLES,
+    )
     from cerebro_62_orchestrator import evaluate_all_dds_62
-    from cerebro_62_surrogate_engine import (evaluate_all_principles_for_dds,
-                                                SURROGATE_FUNCTIONS)
-    from cerebro_62_deep_engine import (evaluate_deep_for_top1, DEEP_FUNCTIONS,
-                                           HPC_ONLY_PRINCIPLES)
-    from cerebro_62_translational_engine import (evaluate_translational_for_top1,
-                                                    TRANSLATIONAL_FUNCTIONS)
-    ok(f"Orchestrator + engines imported")
+    from cerebro_62_surrogate_engine import (
+        SURROGATE_FUNCTIONS,
+    )
+    from cerebro_62_translational_engine import (
+        TRANSLATIONAL_FUNCTIONS,
+    )
+    ok("Orchestrator + engines imported")
     ok(f"  Surrogate: {len(SURROGATE_FUNCTIONS)} functions")
     ok(f"  Deep:      {len(DEEP_FUNCTIONS)} real + {len(HPC_ONLY_PRINCIPLES)} HPC-stand-ins")
     ok(f"  Translational: {len(TRANSLATIONAL_FUNCTIONS)} functions")
@@ -174,7 +184,7 @@ except Exception as e:
 print(f"\n{'═'*70}")
 if errors == 0:
     print(f"{GREEN}✅ ALL SMOKE TESTS PASSED — Phase 5 pipeline ready{RESET}")
-    print(f"   Run full pipeline: python run.py --pipeline-only --force")
+    print("   Run full pipeline: python run.py --pipeline-only --force")
     sys.exit(0)
 else:
     print(f"{RED}❌ {errors} test(s) failed{RESET}")

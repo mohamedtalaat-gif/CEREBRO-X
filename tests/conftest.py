@@ -1,14 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 Shared test fixtures for CEREBRO-X test suite.
 """
 import os
 import sys
-import pytest
-import tempfile
-import sqlite3
 from pathlib import Path
-from unittest.mock import MagicMock
+
+import pytest
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Path setup — ensure src/ is importable
@@ -69,6 +66,7 @@ def test_client():
     """FastAPI TestClient for integration tests."""
     try:
         from fastapi.testclient import TestClient
+
         from src.api.app import app
         with TestClient(app) as client:
             yield client
@@ -80,7 +78,7 @@ def test_client():
 def auth_headers(db_session):
     """JWT auth headers for authenticated API calls."""
     try:
-        from src.api.auth import AuthService, UserCreate, TokenEngine
+        from src.api.auth import AuthService, UserCreate
         svc = AuthService(db_session)
         svc.create_user(UserCreate(
             email="test@cerebro.local",

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 normalize_project_version.py
 =============================
@@ -22,7 +21,8 @@ It does NOT touch:
   • git / venv / cache directories
 """
 from __future__ import annotations
-import re, shutil
+
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent  # tools/ -> project root
