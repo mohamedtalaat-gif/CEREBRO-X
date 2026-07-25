@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CEREBRO-X LinkedIn Carousel</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',sans-serif; }
+  body { background:#111; }
+  .slide {
+    width:1080px; height:1080px; background:#060610; color:#E0E0E0;
+    position:relative; overflow:hidden; margin-bottom:40px;
+    display:flex; flex-direction:column;
+  }
+  .slide::before {
+    content:''; position:absolute; inset:0;
+    background: radial-gradient(circle at 85% 8%, rgba(201,168,76,0.10), transparent 45%);
+    pointer-events:none;
+  }
+  .pad { padding:64px; position:relative; z-index:1; display:flex; flex-direction:column; height:100%; }
+  .kicker { color:#C9A84C; font-weight:700; font-size:22px; letter-spacing:2px; text-transform:uppercase; }
+  .hairline { height:1px; background:#1F2937; margin:28px 0; }
+  h1 { font-size:54px; font-weight:800; color:#F5F0E4; line-height:1.1; margin-top:16px; }
+  h1 .gold { color:#C9A84C; }
+  .sub { font-size:24px; color:#9CA3AF; margin-top:24px; line-height:1.5; font-weight:500; }
+  .badge {
+    display:inline-block; margin-top:28px; padding:12px 22px; border-radius:8px;
+    background:#0f2040; border:1px solid #1F2937; color:#9CA3AF; font-size:18px; font-weight:600;
+  }
+  .badge b { color:#F57C00; }
+  .content { flex:1; display:flex; flex-direction:column; justify-content:center; }
+  .footer { display:flex; justify-content:space-between; align-items:center; }
+  .footer .brand { font-size:24px; font-weight:800; color:#C9A84C; letter-spacing:1px; }
+  .footer .page { color:#6B7280; font-size:20px; font-weight:600; }
+
+  .step { display:flex; gap:24px; align-items:flex-start; margin-top:28px; }
+  .step-num {
+    width:56px; height:56px; min-width:56px; border-radius:12px; background:#0f2040;
+    border:1px solid #C9A84C; color:#C9A84C; font-size:26px; font-weight:800;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .step-body h3 { font-size:27px; color:#F5F0E4; font-weight:700; margin-bottom:6px; }
+  .step-body p { font-size:19px; color:#9CA3AF; line-height:1.45; font-weight:500; }
+  .step-body code {
+    background:#0a0a1a; color:#D4B563; padding:2px 9px; border-radius:6px; font-size:16px;
+    font-family:'SF Mono',monospace; border:1px solid #1F2937;
+  }
+
+  .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:36px; }
+  .stat-card {
+    background:#0f2040; border:1px solid #1F2937; border-radius:16px; padding:30px 26px;
+  }
+  .stat-num { font-size:52px; font-weight:800; color:#C9A84C; line-height:1; }
+  .stat-label { font-size:19px; color:#9CA3AF; margin-top:10px; font-weight:600; line-height:1.4; }
+  .drug-row {
+    display:flex; justify-content:space-between; align-items:center;
+    background:#0a0a1a; border:1px solid #1F2937; border-radius:10px;
+    padding:16px 22px; margin-top:14px;
+  }
+  .drug-name { font-size:22px; font-weight:700; color:#E0E0E0; }
+  .drug-r2 { font-size:22px; font-weight:800; color:#0D6E6E; }
+  .drug-class { font-size:16px; color:#6B7280; font-weight:600; }
+
+  .cta-box {
+    background:#0f2040; border:1px solid #C9A84C; border-radius:18px; padding:38px;
+    margin-top:36px;
+  }
+  .cta-box .url { font-size:28px; color:#C9A84C; font-weight:700; margin-top:14px; }
+  .honesty { font-size:19px; color:#9CA3AF; line-height:1.6; margin-top:22px; font-weight:500; }
+  .honesty b { color:#F57C00; }
+</style>
+</head>
+<body>
+
+<!-- SLIDE 1 — HOOK -->
+<div class="slide" id="slide1">
+  <div class="pad">
+    <div class="content">
+    <div class="kicker">Open-Source · CNS Drug Delivery</div>
+    <h1>Screen a drug-delivery<br>formulation <span class="gold">before</span><br>you synthesize it.</h1>
+    <div class="sub">CEREBRO-X runs real physics — PBPK, DLVO colloidal stability, docking, QSAR — against real ChEMBL/PubChem/UniProt data. No fixtures, no hardcoded demo numbers.</div>
+    <div class="badge">Status: <b>research prototype</b> — not clinically validated. Full audit trail included.</div>
+    </div>
+    <div class="footer">
+      <div class="brand">CEREBRO-X</div>
+      <div class="page">1 / 4</div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 2 — HOW IT WORKS -->
+<div class="slide" id="slide2">
+  <div class="pad">
+    <div class="content">
+    <div class="kicker">How It Actually Runs</div>
+    <h1 style="font-size:52px;">Input → real<br>computation → <span class="gold">real output.</span></h1>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Fill in one Excel row</h3>
+        <p>Drug name, and either a <code>SMILES</code> (small molecule) or a <code>FASTA</code> sequence (mAb, oligonucleotide, peptide) — the engine branches correctly on molecule class, not a one-size-fits-all path.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>The engine actually computes</h3>
+        <p>Real 50-receptor off-target QSAR panels trained live on ChEMBL bioactivity data, real PBPK ODE simulation, real DLVO colloidal-stability physics, real AutoDock Vina docking — minutes of genuine work, not a lookup table.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Get a full report</h3>
+        <p>Interactive HTML dashboard, PDF report, completed Excel — every number traceable to the run that produced it.</p>
+      </div>
+    </div>
+    </div>
+
+    <div class="footer">
+      <div class="brand">CEREBRO-X</div>
+      <div class="page">2 / 4</div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 3 — REAL NUMBERS -->
+<div class="slide" id="slide3">
+  <div class="pad">
+    <div class="content">
+    <div class="kicker">From an Actual Run — Today</div>
+    <h1 style="font-size:52px;">Every number below<br>is <span class="gold">live output,</span><br>not a fixture.</h1>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-num">38</div>
+        <div class="stat-label">real receptor-binding QSAR models trained per drug, on real ChEMBL data</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">6</div>
+        <div class="stat-label">molecule classes handled natively: small molecules, mAbs, oligonucleotides, and more</div>
+      </div>
+    </div>
+
+    <div style="margin-top:30px;">
+      <div class="drug-row">
+        <div><span class="drug-name">Donepezil</span> <span class="drug-class">small molecule</span></div>
+        <div class="drug-r2">R² 0.971</div>
+      </div>
+      <div class="drug-row">
+        <div><span class="drug-name">Galantamine</span> <span class="drug-class">small molecule</span></div>
+        <div class="drug-r2">R² 0.970</div>
+      </div>
+      <div class="drug-row">
+        <div><span class="drug-name">Lecanemab</span> <span class="drug-class">monoclonal antibody</span></div>
+        <div class="drug-r2">R² 0.973</div>
+      </div>
+      <div class="drug-row">
+        <div><span class="drug-name">Rivastigmine</span> <span class="drug-class">small molecule</span></div>
+        <div class="drug-r2">R² 0.969</div>
+      </div>
+    </div>
+    <div class="honesty">R² values shown are the pipeline's own single-drug-trial regularization metric (documented as such in every report) — not an external validation benchmark. See the point below.</div>
+    </div>
+
+    <div class="footer">
+      <div class="brand">CEREBRO-X</div>
+      <div class="page">3 / 4</div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 4 — HONEST CTA -->
+<div class="slide" id="slide4">
+  <div class="pad">
+    <div class="content">
+    <div class="kicker">Why We're Building This Openly</div>
+    <h1 style="font-size:56px;">Audit it.<br>Break it.<br><span class="gold">Tell us what's wrong.</span></h1>
+
+    <div class="honesty" style="font-size:24px; margin-top:32px;">
+      This is a <b>research prototype</b>, not a clinical tool. Of the drugs run through the pipeline's own internal scoring so far, most score MARGINAL — no drug has produced a clean PASS yet. A full engineering &amp; scientific-integrity audit ships in the repo, updated every time an issue is found and fixed — including two data-integrity bugs found and fixed this week by actually running the pipeline and chasing anomalies instead of trusting a green build.
+    </div>
+
+    <div class="cta-box">
+      <div style="font-size:22px; color:#9CA3AF; font-weight:600;">Star it, run it, or file an issue:</div>
+      <div class="url">github.com/mohamedtalaat-gif/CEREBRO-X</div>
+    </div>
+    </div>
+
+    <div class="footer">
+      <div class="brand">CEREBRO-X</div>
+      <div class="page">4 / 4</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
