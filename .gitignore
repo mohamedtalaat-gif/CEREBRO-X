@@ -50,3 +50,7 @@ docker-compose
 
 # Office temp
 ~$*.xlsx
+
+# Local-only working materials for social posts (LinkedIn carousel, HN/Reddit
+# drafts) — kept on disk for reuse, not published in the public repo.
+docs/demo_assets/

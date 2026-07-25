@@ -55,7 +55,7 @@ Everything below is real: a real Excel filled in the way a researcher would fill
 
 **3. Get the real output** — an interactive HTML dashboard, PDF report, and completed Excel land in `outputs/<DrugName>/`. Screenshot of the actual dashboard section this exact run produced:
 
-![CEREBRO-X real dashboard output — Donepezil run](docs/demo_assets/01_dashboard_top.png)
+![CEREBRO-X real dashboard output — Donepezil run](assets/demo/dashboard_donepezil.png)
 
 *(BBB crossing 30.0% vs. native 3.0%, 10× enhancement, 50% endosomal escape — every number on this screen is a live computation from this run's own DLVO/transcytosis model, not a fixture.)*
 
