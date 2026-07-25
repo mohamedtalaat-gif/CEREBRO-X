@@ -31,12 +31,20 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 import urllib.parse
 import urllib.request
 from functools import lru_cache
 
 log = logging.getLogger("CEREBRO-PDBRESOLVER")
+
+# Strict 4-character alphanumeric PDB ID check — audit finding (§6 Medium):
+# a length-only check (`len(pdb_id) == 4`) lets a value like "../x" through,
+# which is a real path-traversal risk once a resolved pdb_id reaches
+# src/core/real_docking_engine.py (which builds both a download URL and a
+# local filesystem path from it). Same pattern already used there.
+_PDB_ID_RE = re.compile(r"^[A-Za-z0-9]{4}$")
 
 # ── PDB_REF DELETED v22.1 ─────────────────────────────────────────────────
 # Per project mandate (no hardcoded drug data), the embedded PDB reference
@@ -91,7 +99,7 @@ def _fetch_pdb_cascade(drug_name_lower: str) -> list[str]:
     if data and data.get("result_set"):
         for entry in data["result_set"][:5]:
             pid = entry.get("identifier","")
-            if pid and len(pid) == 4:
+            if pid and _PDB_ID_RE.match(pid):
                 results.append(pid)
         if results:
             log.info(f"[PDBRESOLVER] Tier-2 (RCSB): {drug_name_lower} → {results[0]}")
@@ -108,7 +116,7 @@ def _fetch_pdb_cascade(drug_name_lower: str) -> list[str]:
                           .get("Information",[{}])[0]
                           .get("PDBbind",[]))
         for pid in pdb_list[:3]:
-            if len(pid) == 4:
+            if _PDB_ID_RE.match(pid):
                 results.append(pid)
         if results:
             log.info(f"[PDBRESOLVER] Tier-3 (PubChem→PDBbind): {drug_name_lower} → {results[0]}")
@@ -129,7 +137,7 @@ def _fetch_pdb_cascade(drug_name_lower: str) -> list[str]:
             if data_act and data_act.get("activities"):
                 for act in data_act["activities"]:
                     pdb_id = act.get("pdb_code") or act.get("document_pdb_code")
-                    if pdb_id and len(pdb_id) == 4:
+                    if pdb_id and _PDB_ID_RE.match(pdb_id):
                         results.append(pdb_id)
         if results:
             log.info(f"[PDBRESOLVER] Tier-4 (ChEMBL): {drug_name_lower} → {results[0]}")
@@ -143,7 +151,7 @@ def _fetch_pdb_cascade(drug_name_lower: str) -> list[str]:
     if data_lig:
         for entry in (data_lig if isinstance(data_lig, list) else [])[:3]:
             pid = entry.get("rcsb_id","") or entry.get("entry_id","")
-            if pid and len(pid) == 4:
+            if pid and _PDB_ID_RE.match(pid):
                 results.append(pid)
 
     log.warning(
@@ -169,7 +177,7 @@ def resolve_pdb_for_drug(drug_name: str,
     NEVER returns another drug's PDB — drug_name is the isolation key.
     """
     # Priority 1: User provided → trust it
-    if user_pdb_id and len(user_pdb_id.strip()) == 4:
+    if user_pdb_id and _PDB_ID_RE.match(user_pdb_id.strip()):
         pid = user_pdb_id.strip().upper()
         log.info(f"[PDBRESOLVER] User-provided PDB ID: {pid} for {drug_name}")
         return {

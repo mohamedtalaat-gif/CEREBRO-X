@@ -821,3 +821,29 @@ class TestPipelineIntegration:
         # Real scores vary across formulations — a hardcoded/fabricated
         # pipeline would produce identical or suspiciously uniform values.
         assert df["BBB_Engineering_Score"].nunique() > 1
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 12. PDB ID RESOLVER (src/core/pdb_resolver.py)
+# ═════════════════════════════════════════════════════════════════════════════
+
+class TestPDBResolver:
+    """Regression test for the audit's §6 Medium finding: pdb_id was
+    validated by length only (`len(pdb_id) == 4`), which a value like
+    '../x' (also 4 characters) would pass — a real path-traversal risk
+    once the value reaches real_docking_engine.py's filesystem/URL
+    construction. Fixed in this session's Task 6 to use the same strict
+    alphanumeric regex already proven in real_docking_engine.py."""
+
+    def test_user_provided_path_traversal_pdb_id_is_rejected(self):
+        from src.core.pdb_resolver import resolve_pdb_for_drug
+        result = resolve_pdb_for_drug("TestDrug", user_pdb_id="../x")
+        assert result["pdb_id"] is None
+        assert result["source"] != "User-provided (Excel input)"
+
+    def test_user_provided_valid_pdb_id_is_accepted(self):
+        from src.core.pdb_resolver import resolve_pdb_for_drug
+        result = resolve_pdb_for_drug("TestDrug", user_pdb_id="2NAO")
+        assert result["pdb_id"] == "2NAO"
+        assert result["source"] == "User-provided (Excel input)"
+        assert result["confidence"] == "HIGH"
