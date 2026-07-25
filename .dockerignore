@@ -45,8 +45,10 @@ Dockerfile.bak
 .transcripts/
 *.rar
 
-# Pipeline outputs (mounted at runtime via docker-compose volume)
-CEREBRO_RESULTS/
+# Pipeline outputs (mounted at runtime via docker-compose volume).
+# Renamed from CEREBRO_RESULTS/ to outputs/ during the Task 9 restructure —
+# keep this in sync with next_trial_dir()'s RESULTS_ROOT.
+outputs/
 
 # Environment secrets (loaded via docker-compose env_file)
 .env
@@ -56,8 +58,13 @@ CEREBRO_RESULTS/
 # Generated configs (regenerated per run)
 config/dds_config.yaml
 
-# Temporary trial directories
-trial_*/
+# NOTE: a former "trial_*/" pattern here was removed — Docker's .dockerignore
+# matcher does NOT restrict trailing-slash patterns to directories only (unlike
+# .gitignore), so it was also silently swallowing the real source file
+# trial_manager.py, breaking the built image at runtime with
+# "ModuleNotFoundError: No module named 'trial_manager'". Trial output
+# directories now live under outputs/ (excluded above), so no repo-root
+# trial-dir exclusion is needed.
 /tmp/
 
 # Documentation source files (not needed at runtime)
