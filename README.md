@@ -1,6 +1,10 @@
 # CEREBRO-X
 ## Computational Pharmaceutical Research Pipeline for CNS Drug Delivery System Exploration
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI/CD](https://github.com/mohamedtalaat-gif/CEREBRO-X/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/mohamedtalaat-gif/CEREBRO-X/actions/workflows/ci-cd.yml)
+[![Version](https://img.shields.io/badge/version-22.1-blue.svg)](_version.py)
+
 **Created by:** Muhammad Talaat (BPharm, R&D Computational Lead)
 **License:** [MIT](LICENSE)
 **Architecture:** Bundle-only · Phase 5 (2026-04-30)
@@ -16,6 +20,45 @@ stage: most of its 62 scoring criteria are fast heuristics, not experimentally
 validated predictors (see [The 62-criterion C+ Flow architecture](#the-62-criterion-c-flow-architecture)).
 Treat all outputs as hypothesis-generating, not as validated predictions.
 **Contact:** mohamed.talaat@pharma.asu.edu.eg
+
+---
+
+<!--
+  Visual hook: a short screen-recording of a real dashboard run belongs
+  here (5-10s GIF/MP4, e.g. `docs/demo.gif`) before anyone reads a line of
+  code. Not inserted yet — no fabricated/placeholder media in this repo.
+  To generate one: run the pipeline on a real input, screen-record the
+  resulting CEREBRO_X_Interactive_<drug>.html dashboard being scrolled/
+  interacted with, trim to ~8s, save as docs/demo.gif, and link it here:
+  ![CEREBRO-X demo](docs/demo.gif)
+-->
+
+## ✨ Key Features
+
+- 🎯 **62-criterion scoring rubric** spanning BBB physics, PK/PD, colloidal stability, safety, and manufacturability — one composite score, full per-criterion breakdown
+- 🔬 **Two-tier self-checking validation** — every Top-1 candidate gets a fast surrogate score (Class A), then an independent re-check with real physics: PBPK ODE simulation, DLVO colloidal stability, AutoDock Vina docking (Class B). Disagreements are reported, not hidden
+- 🧬 **Generative formulation search** — a genetic-algorithm optimizer proposes new candidate DDS formulations for a target drug, not just ranks a fixed list
+- 🧠 **Real BBB-permeability DNN**, trained on the public BBBP dataset (RDKit fingerprints)
+- 📋 **Full provenance on every number** — a 7-tier property resolver (public databases → cheminformatics → physics fallback) tags every computed value with its tier, confidence, and citation
+- 🧪 **One architecture, three drug modalities** — small molecules, monoclonal antibodies, and antisense oligonucleotides scored by the same pipeline
+
+## 🤔 Why CEREBRO-X?
+
+~98% of small-molecule CNS drug candidates never reach the brain in
+therapeutic concentrations (Pardridge WM, *NeuroRx* 2005), and choosing a
+delivery system to fix that is still mostly trial-and-error in most academic
+and early-stage settings.
+
+Commercial platforms (Schrödinger, Simulation Plus, and similar) exist and
+are validated for parts of this space — but they're closed-source, licensed,
+and out of reach for most academic labs and early-stage groups. CEREBRO-X
+isn't a replacement for those, and this repo's own [audit](docs/AUDIT_REPORT.md)
+documents exactly where its scoring is fast-heuristic rather than
+independently validated. What it offers instead: a **free, open-source,
+fully transparent** starting point for early-stage DDS exploration — every
+score traceable to its method, every disagreement between the fast and slow
+computation reported instead of smoothed over, and the whole pipeline
+inspectable and modifiable by anyone who needs it.
 
 ---
 
