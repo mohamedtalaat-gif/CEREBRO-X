@@ -548,6 +548,62 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
     except Exception as _pbbme:
         log.warning(f"[PIPELINE] PBBM skipped: {_pbbme}")
 
+    # ── Step 11b: Science Engines + 3D Visualisation suite ─────────────────
+    # Restored 2026-07-25: this pipeline's ScienceOrchestrator (quantum
+    # chemistry, Mordred descriptors, thermodynamics, 7-cmt PBPK,
+    # biophysics) and VisualisationOrchestrator (7 figures, 2 schematics,
+    # 2 videos) were real, working code with zero live caller anywhere in
+    # the codebase — run.py's _run_science_and_viz wrapper was itself
+    # unreachable dead code (see Task 4/8 of this session's remediation).
+    # Wired in directly here instead of restoring that wrapper, so trial_dir
+    # is the real per-drug output folder rather than a separate location.
+    # PBPK output here (science_results/) is a supplementary cross-check
+    # using a different method (Poulin-Theil) than pbbm_engine's primary
+    # ADMET/report PBPK (Rodgers-Rowland) — kept distinct rather than
+    # silently merged, each labeled with its own method and citation.
+    try:
+        from cerebro_science_engines import ScienceOrchestrator
+        results_sci = ScienceOrchestrator.run_full(
+            drug_name    = drug_name,
+            smiles       = cfg.get("drug", {}).get("smiles")
+                            or cfg.get("drug", {}).get("molecule_input"),
+            mol_profile  = mol_profile,
+            df_dds       = df_dds,
+            trial_dir    = trial_dir,
+            run_quantum  = True,
+            run_mordred  = True,
+            run_thermo   = True,
+            run_pkpd     = True,
+            run_pbpk     = True,
+            run_biophysics = True,
+        )
+        df_bio_sci  = results_sci.get("biophysics")
+        df_pbpk_sci = results_sci.get("pbpk")
+        log.info(f"[SCI] Engines complete: {list(results_sci.keys())}")
+
+        try:
+            from cerebro_visualization_3d import VisualisationOrchestrator
+            _viz_produced = VisualisationOrchestrator.run_all(
+                drug_name   = drug_name,
+                mol_profile = mol_profile,
+                df_ml       = df_ml,
+                df_dds      = df_dds,
+                df_pk       = df_pk,
+                df_pbpk     = df_pbpk_sci,
+                df_bio      = df_bio_sci,
+                trial_dir   = trial_dir,
+                make_videos = True,
+            )
+            log.info(f"[VIZ] Complete: {len(_viz_produced)} files")
+        except ImportError:
+            log.warning("[VIZ] cerebro_visualization_3d.py not found")
+        except Exception as _viz_e:
+            log.warning(f"[VIZ] Skipped: {_viz_e}")
+    except ImportError:
+        log.warning("[SCI] cerebro_science_engines.py not found")
+    except Exception as _sci_e:
+        log.warning(f"[SCI] Engines skipped: {_sci_e}")
+
     # ── Step 12: Data Engineering (7 pillars) ─────────────────────────────
     de_results = None
     try:
