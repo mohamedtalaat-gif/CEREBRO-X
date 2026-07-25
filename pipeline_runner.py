@@ -338,7 +338,7 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
     admet_profile = None
     try:
         from cerebro_advanced_viz import AdvancedVizOrchestrator
-        smiles_val = cfg.get("drug",{}).get("smiles") or cfg.get("drug",{}).get("molecule_input","")
+        smiles_val = cfg.get("drug",{}).get("smiles")  # Never pass FASTA/PDB as smiles
         # Identify top ligand for videos
         ligand = "RVG29"
         if df_dds is not None and "Surface_Ligand" in df_dds.columns and "BBB_Engineering_Score" in df_dds.columns:
@@ -565,8 +565,7 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
         from cerebro_science_engines import ScienceOrchestrator
         results_sci = ScienceOrchestrator.run_full(
             drug_name    = drug_name,
-            smiles       = cfg.get("drug", {}).get("smiles")
-                            or cfg.get("drug", {}).get("molecule_input"),
+            smiles       = cfg.get("drug", {}).get("smiles"),  # Never pass FASTA/PDB as smiles
             mol_profile  = mol_profile,
             df_dds       = df_dds,
             trial_dir    = trial_dir,
