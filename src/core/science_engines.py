@@ -44,20 +44,20 @@ Architecture:
     3. Documents every calculated field with scientific references
     4. Writes a companion _DOCUMENTATION.txt for every output file
 
-CONNECTION HISTORY (2026-07-25, docs/AUDIT_REPORT.md remediation):
-  ScienceOrchestrator (below) was found completely disconnected — its
-  only caller (run.py's _run_science_and_viz) itself had zero callers,
+NOTE ON CONNECTION STATUS:
+  ScienceOrchestrator (below) was completely disconnected for a while —
+  its only caller (run.py's _run_science_and_viz) itself had zero callers,
   so nothing in this file ever ran in a real trial despite being real,
-  cited, working code. Re-wired directly into pipeline_runner.py's
+  cited, working code. I rewired it directly into pipeline_runner.py's
   run_pipeline_from_excel (Step 11b) instead of restoring the orphaned
   wrapper, writing to trial_dir/science_results/ and feeding
   VisualisationOrchestrator (src/viz/visualization_3d.py) for
-  trial_dir/figures|schematics|videos. Verified via a real pipeline run:
+  trial_dir/figures|schematics|videos. Checked with a real pipeline run:
   quantum/mordred/thermodynamics/pkpd_2cmt/pbpk/biophysics CSVs and 9
-  figure/schematic files were produced with real, non-hardcoded,
-  honestly-labeled values (e.g. quantum descriptors explicitly say
-  "Electronegativity heuristic" when pyscf/xtb aren't installed, rather
-  than presenting a heuristic as ab initio).
+  figure/schematic files came out with real, non-hardcoded, honestly-
+  labeled values (e.g. quantum descriptors explicitly say "Electronegativity
+  heuristic" when pyscf/xtb aren't installed, rather than presenting a
+  heuristic as ab initio).
 ================================================================================
 """
 
@@ -1040,9 +1040,9 @@ class PBPKEngine:
     PBBMOrchestrator) rather than being a silent duplicate of the same
     model — flagged here explicitly so a reader doesn't mistake the
     difference for citation drift. Unifying them into a single PBPK
-    computation feeding both consumers is tracked as follow-up work, not
-    done in this pass since it touches report/visualisation schemas on
-    both sides.
+    computation feeding both consumers is still open follow-up work — I
+    haven't tackled it yet since it touches report/visualisation schemas
+    on both sides.
     """
 
     # Human physiological parameters (70 kg)

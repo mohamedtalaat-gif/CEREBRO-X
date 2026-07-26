@@ -654,8 +654,8 @@ class TestDDSInverseDesign:
 
 class TestRealDockingEngine:
     """AutoDock Vina integration with a graceful LIE-approximation fallback.
-    See engine/cerebro_62_deep_engine.py's deep_P47 for where this is wired
-    into the live pipeline (Task 1 of this session's remediation pass)."""
+    See engine/cerebro_62_deep_engine.py's deep_P47 for where I wired this
+    into the live pipeline."""
 
     def test_pdb_id_regex_rejects_path_traversal(self):
         """Regression test for the audit's §6 Medium finding: pdb_id was
@@ -697,8 +697,8 @@ class TestRealDockingEngine:
     def test_run_autodock_vina_falls_back_safely_without_pdb_id(self):
         """With no valid PDB ID, this must take the deterministic LIE path
         without ever attempting a network fetch or `import vina` — verified
-        by checking the returned method label, matching the manual
-        verification done when this was wired into deep_P47 (Task 1)."""
+        by checking the returned method label, matching the manual check I
+        did when this was first wired into deep_P47."""
         from src.core.real_docking_engine import run_autodock_vina
         import tempfile
         with tempfile.TemporaryDirectory() as td:
@@ -832,8 +832,8 @@ class TestPDBResolver:
     validated by length only (`len(pdb_id) == 4`), which a value like
     '../x' (also 4 characters) would pass — a real path-traversal risk
     once the value reaches real_docking_engine.py's filesystem/URL
-    construction. Fixed in this session's Task 6 to use the same strict
-    alphanumeric regex already proven in real_docking_engine.py."""
+    construction. Fixed to use the same strict alphanumeric regex already
+    proven in real_docking_engine.py."""
 
     def test_user_provided_path_traversal_pdb_id_is_rejected(self):
         from src.core.pdb_resolver import resolve_pdb_for_drug
@@ -857,10 +857,10 @@ class TestRateLimiting:
     """Audit finding (§6 Medium): rate limiting only existed in nginx.conf,
     which docker-compose.yml (the simpler config, most likely run first)
     never fronts the API with — /auth/login and /auth/register were fully
-    unthrottled at the application layer in that config. Fixed via slowapi
-    in Task 6; this hits the real endpoint repeatedly through a real
-    TestClient and checks a 429 actually appears, not just that a decorator
-    is present in the source."""
+    unthrottled at the application layer in that config. Fixed via slowapi;
+    this hits the real endpoint repeatedly through a real TestClient and
+    checks a 429 actually appears, not just that a decorator is present in
+    the source."""
 
     def test_login_endpoint_rate_limited_after_repeated_attempts(self, test_client):
         from src.api.app import _HAS_RATE_LIMIT
@@ -885,9 +885,9 @@ class TestRateLimiting:
 # ═════════════════════════════════════════════════════════════════════════════
 
 class TestDrugSmilesResolver:
-    """Found during the Task 13 no-hardcode audit: a real Lecanemab (mAb)
-    pipeline run logged 30 RDKit 'SMILES Parse Error' failures for the
-    literal string 'Lecanemab'. Root cause: resolve_drug_smiles's Tier 7
+    """Found this running a real Lecanemab (mAb) pipeline: it logged 30
+    RDKit 'SMILES Parse Error' failures for the literal string 'Lecanemab'.
+    Root cause: resolve_drug_smiles's Tier 7
     last-resort sanitizer did `raw = smiles or name`, so any drug with no
     real SMILES (i.e. every biologic — mAbs, oligonucleotides, peptides)
     fell back to passing its own NAME into RDKit as if it were a chemical

@@ -46,8 +46,8 @@ Dockerfile.bak
 *.rar
 
 # Pipeline outputs (mounted at runtime via docker-compose volume).
-# Renamed from CEREBRO_RESULTS/ to outputs/ during the Task 9 restructure —
-# keep this in sync with next_trial_dir()'s RESULTS_ROOT.
+# Renamed from CEREBRO_RESULTS/ to outputs/ — keep this in sync with
+# next_trial_dir()'s RESULTS_ROOT.
 outputs/
 
 # Environment secrets (loaded via docker-compose env_file)

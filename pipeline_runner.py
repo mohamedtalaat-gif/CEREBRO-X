@@ -549,13 +549,12 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
         log.warning(f"[PIPELINE] PBBM skipped: {_pbbme}")
 
     # ── Step 11b: Science Engines + 3D Visualisation suite ─────────────────
-    # Restored 2026-07-25: this pipeline's ScienceOrchestrator (quantum
-    # chemistry, Mordred descriptors, thermodynamics, 7-cmt PBPK,
-    # biophysics) and VisualisationOrchestrator (7 figures, 2 schematics,
-    # 2 videos) were real, working code with zero live caller anywhere in
-    # the codebase — run.py's _run_science_and_viz wrapper was itself
-    # unreachable dead code (see Task 4/8 of this session's remediation).
-    # Wired in directly here instead of restoring that wrapper, so trial_dir
+    # ScienceOrchestrator (quantum chemistry, Mordred descriptors,
+    # thermodynamics, 7-cmt PBPK, biophysics) and VisualisationOrchestrator
+    # (7 figures, 2 schematics, 2 videos) are real, working code, but I found
+    # they had zero live caller anywhere in the codebase — run.py's
+    # _run_science_and_viz wrapper was itself unreachable dead code. Wiring
+    # them in directly here instead of restoring that wrapper, so trial_dir
     # is the real per-drug output folder rather than a separate location.
     # PBPK output here (science_results/) is a supplementary cross-check
     # using a different method (Poulin-Theil) than pbbm_engine's primary

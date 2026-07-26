@@ -368,8 +368,8 @@ def write_run_doc() -> None:
 # inside run_pipeline_from_excel (pipeline_runner.py). This also means
 # science_engines.ScienceOrchestrator/PBPKEngine/MultiCompartmentPKEngine
 # (which _run_science_and_viz was their only caller) need re-checking —
-# tracked for the Task 7 re-audit rather than fixed here, since it changes
-# an earlier finding about them being "live."
+# leaving that for the next audit pass rather than fixing it here, since
+# it changes an earlier finding of mine about them being "live."
 
 if __name__ == "__main__":
     args = sys.argv[1:]
