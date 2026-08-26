@@ -2738,3 +2738,144 @@ class TestPkClinicalEmpiricalFallbacks:
                    resolve_pk_oral_bioavailability):
             r = fn(name="", researcher_override=3.5)
             assert r["value"] == 3.5 and r["tier"] == 0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 27. PHYSICOCHEMICAL DESCRIPTOR RESOLVER (categories/drug_descriptors.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestDrugDescriptorBuildingBlocks:
+    """These resolvers hit PubChem even with name='' (the SMILES→InChIKey
+    branch in _pubchem_property fires regardless of name), so full-resolver
+    tests would be network-dependent and non-deterministic. Testing the
+    pure functions underneath instead — RDKit computation and the tier-7
+    pure-math fallbacks — keeps this offline and exact."""
+
+    def test_rdkit_descriptor_matches_known_ethanol_properties(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_descriptors import (
+            _rdkit_descriptor,
+        )
+
+        d = _rdkit_descriptor("CCO", "ethanol")
+        assert d["MW_Da"] == pytest.approx(46.07, abs=0.01)
+        assert d["HBD"] == 1  # the hydroxyl H
+        assert d["HBA"] == 1  # the oxygen
+        assert d["AromaticRings"] == 0
+
+    def test_rdkit_descriptor_returns_none_for_invalid_smiles(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_descriptors import (
+            _rdkit_descriptor,
+        )
+
+        assert _rdkit_descriptor("not a real smiles!!!", "") is None
+
+    def test_tier7_mw_sums_atomic_weights_plus_implicit_hydrogens(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_descriptors import _t7_mw
+
+        # C,C,O heavy atoms (2×12.011 + 15.999) plus 3 implicit H (3×1.008)
+        expected = (2 * 12.011 + 15.999) + 3 * 1.008
+        assert _t7_mw("CCO") == pytest.approx(round(expected, 2), abs=1e-2)
+
+    def test_tier7_tpsa_counts_polar_atoms(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_descriptors import _t7_tpsa
+
+        assert _t7_tpsa("CCO") == 9.0     # one O
+        assert _t7_tpsa("CCN") == 12.0    # one N
+
+    def test_tier7_hba_counts_n_and_o_atoms(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_descriptors import _t7_hba
+
+        assert _t7_hba("CCO") == 1.0
+        assert _t7_hba("NCCO") == 2.0
+
+    def test_tier7_helpers_return_none_for_empty_smiles(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_descriptors import (
+            _t7_formal_charge,
+            _t7_hba,
+            _t7_hbd,
+            _t7_mw,
+            _t7_rotbonds,
+            _t7_stereo,
+            _t7_tpsa,
+        )
+
+        for fn in (_t7_mw, _t7_tpsa, _t7_hbd, _t7_hba, _t7_rotbonds,
+                   _t7_formal_charge, _t7_stereo):
+            assert fn("") is None
+
+
+class TestBiologicAndOligoMwComputation:
+    def test_peptide_mw_matches_hand_computed_residue_sum(self):
+        """10 alanine residues: Σ(89.09) − 9×H₂O — verified independently."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_descriptors import (
+            _biologic_mw_from_fasta,
+        )
+
+        seq = "A" * 10
+        expected = 10 * 89.09 - 9 * 18.015
+        assert _biologic_mw_from_fasta(seq) == pytest.approx(expected, abs=1e-6)
+
+    def test_short_fasta_below_minimum_length_returns_none(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_descriptors import (
+            _biologic_mw_from_fasta,
+        )
+
+        assert _biologic_mw_from_fasta("AC") is None
+        assert _biologic_mw_from_fasta("") is None
+
+    def test_dna_oligo_mw_matches_hand_computed_sum(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_descriptors import (
+            _oligonucleotide_mw_from_sequence,
+        )
+
+        seq = "ACGT"
+        expected = (313.21 + 289.18 + 329.21 + 304.20) - 3 * 18.015 + 79.98
+        assert _oligonucleotide_mw_from_sequence(seq) == pytest.approx(expected, abs=1e-6)
+
+    def test_rna_detected_when_u_present_without_t(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_descriptors import (
+            _oligonucleotide_mw_from_sequence,
+        )
+
+        seq = "ACGU"
+        expected = (329.21 + 305.18 + 345.21 + 306.17) - 3 * 18.015 + 79.98
+        assert _oligonucleotide_mw_from_sequence(seq) == pytest.approx(expected, abs=1e-6)
+
+    def test_moe_ps_modification_adds_per_nucleotide_mass(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_descriptors import (
+            _oligonucleotide_mw_from_sequence,
+        )
+
+        seq = "ACGT"
+        plain = _oligonucleotide_mw_from_sequence(seq, modification="DNA")
+        modified = _oligonucleotide_mw_from_sequence(seq, modification="MOE_PS")
+        assert modified - plain == pytest.approx(len(seq) * 88.0, abs=1e-6)
+
+
+class TestDescriptorResolverResearcherOverride:
+    """The one part of the full resolver testable without touching the
+    network — researcher_override returns before any Tier-1 code runs."""
+
+    def test_researcher_override_short_circuits_every_descriptor(self):
+        # Built by _build_descriptor_resolver, which registers each one into
+        # the shared _REGISTRY but never binds it to a module-level name
+        # (same pattern as the material-table resolvers covered earlier).
+        import src.path_resolver  # noqa: F401
+        import cerebro_value_resolver.categories.drug_descriptors  # noqa: F401
+        from cerebro_value_resolver._core import resolve_value
+
+        for cat in ("drug_logp", "drug_mw", "drug_tpsa", "drug_hbd", "drug_hba",
+                    "drug_rotbonds", "drug_aromatic_rings", "drug_formal_charge",
+                    "drug_stereocenters"):
+            r = resolve_value(cat, researcher_override=9.5)
+            assert r["value"] == 9.5 and r["tier"] == 0
