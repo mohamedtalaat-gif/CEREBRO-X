@@ -2147,3 +2147,153 @@ class TestQuantumAtomicResolver:
                    resolve_quantum_ionization_energy):
             r = fn(researcher_override=7.0)
             assert r["value"] == 7.0 and r["tier"] == 0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 23. DRUG/DDS TYPE CLASSIFIER (categories/type_detection.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestDrugTypeClassifier:
+    def test_researcher_override_normalizes_and_wins(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_drug_type
+
+        r = resolve_drug_type(name="ignored", researcher_override="mAb")
+        assert r["value"] == "monoclonal_antibody"
+        assert r["tier"] == 0
+
+    def test_smiles_classifies_by_molecular_weight(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_drug_type
+
+        r = resolve_drug_type(smiles="CCO")  # ethanol, MW ~46
+        assert r["value"] == "small_molecule"
+        assert r["tier"] == 3
+        assert r["computed_MW_Da"] == pytest.approx(46.07, abs=0.1)
+
+    def test_fasta_length_drives_peptide_vs_protein_vs_mab(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_drug_type
+
+        short_peptide = "ACDEFGHIKLMNPQRSTVWY"  # 20 aa
+        r1 = resolve_drug_type(fasta=short_peptide)
+        assert r1["value"] == "peptide"
+
+        mid_protein = "A" * 100
+        r2 = resolve_drug_type(fasta=mid_protein)
+        assert r2["value"] == "protein"
+
+        full_igg = "A" * 1320
+        r3 = resolve_drug_type(fasta=full_igg, name="somemab")
+        assert r3["value"] == "monoclonal_antibody"
+
+    def test_nucleic_acid_length_drives_oligo_vs_gene_therapy(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_drug_type
+
+        sirna = "ACGUACGUACGUACGUACGU"  # 20 nt
+        r1 = resolve_drug_type(sequence=sirna)
+        assert r1["value"] == "oligonucleotide"
+
+        mrna = "ACGU" * 20  # 80 nt
+        r2 = resolve_drug_type(sequence=mrna)
+        assert r2["value"] == "gene_therapy"
+
+    def test_usan_suffix_specificity_ordering(self):
+        """The suffix table must check the most specific USAN ending first
+        (-ximab/-zumab/-umab/-omab) before the generic '-mab' catch-all —
+        otherwise every chimeric/humanized/human mAb would still classify
+        correctly as monoclonal_antibody, but the more specific matched-
+        suffix provenance would be lost to the generic one."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_drug_type
+
+        cases = {
+            "rituximab": "ximab",     # chimeric
+            "trastuzumab": "zumab",   # humanized
+            "adalimumab": "umab",     # human
+        }
+        for name, expected_suffix in cases.items():
+            r = resolve_drug_type(name=name)
+            assert r["value"] == "monoclonal_antibody"
+            assert r["matched_suffix"] == expected_suffix
+
+    def test_other_usan_suffixes_map_to_their_own_class(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_drug_type
+
+        assert resolve_drug_type(name="etanercept")["value"] == "fusion_protein"
+        assert resolve_drug_type(name="imiglucerase")["value"] == "enzyme_replacement"
+        assert resolve_drug_type(name="octreotide")["value"] == "peptide"
+        assert resolve_drug_type(name="somevax")["value"] == "vaccine"
+
+    def test_keyword_match_for_non_suffix_names(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_drug_type
+
+        r = resolve_drug_type(name="a CRISPR-based gene editing construct")
+        assert r["value"] == "gene_therapy"
+
+    def test_unrecognized_name_defaults_honestly_with_a_warning(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_drug_type
+
+        r = resolve_drug_type(name="completely-unrecognizable-xyz-123")
+        assert r["value"] == "small_molecule"
+        assert r["tier"] == 7
+        assert "warning" in r
+
+    def test_no_input_at_all_defaults_honestly(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_drug_type
+
+        r = resolve_drug_type()
+        assert r["value"] == "small_molecule"
+        assert r["tier"] == 7
+        assert r["source"] == "cerebro_value_resolver:default_no_input"
+
+
+class TestDdsTypeClassifier:
+    def test_researcher_override_wins(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_dds_type
+
+        r = resolve_dds_type(carrier="ignored", researcher_override="Liposomal")
+        assert r["value"] == "liposomal"
+        assert r["tier"] == 0
+
+    def test_lnp_keyword_takes_priority_over_generic_material_keyword(self):
+        """DDS_KEYWORD_MAP is ordered most-specific-first — a carrier
+        string mentioning both 'PLGA' (material) and 'LNP' (gene_dds)
+        should classify as the more specific gene_dds, not fall through
+        to the generic polymer/material bucket."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_dds_type
+
+        r = resolve_dds_type(carrier="PLGA-LNP hybrid formulation")
+        assert r["value"] == "gene_dds"
+        assert r["matched_keyword"] == "lnp"
+
+    def test_plga_alone_classifies_as_material(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_dds_type
+
+        r = resolve_dds_type(carrier="PLGA nanoparticle")
+        assert r["value"] == "material"
+
+    def test_no_carrier_info_defaults_honestly(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_dds_type
+
+        r = resolve_dds_type()
+        assert r["value"] == "material"
+        assert r["tier"] == 7
+        assert r["source"] == "cerebro_value_resolver:default_no_input"
+
+    def test_unmatched_carrier_text_defaults_to_material_by_exclusion(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.type_detection import resolve_dds_type
+
+        r = resolve_dds_type(carrier="a completely novel unclassified carrier xyz")
+        assert r["value"] == "material"
+        assert r["tier"] == 7
+        assert r["source"] == "cerebro_value_resolver:material_class_inferred"
