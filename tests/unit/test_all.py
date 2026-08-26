@@ -957,3 +957,123 @@ class TestDrugSmilesResolver:
         result = resolve_drug_smiles(
             name="Aspirin", smiles="CC(=O)Oc1ccccc1C(=O)O")
         assert result["value"] == "CC(=O)Oc1ccccc1C(=O)O"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 15. THE 62-PRINCIPLE SCORING SYSTEM — GROUP ROLLUPS AND DEEP-VALIDATION SPLIT
+# ═════════════════════════════════════════════════════════════════════════════
+
+class TestPrincipleGroupConsistency:
+    """PRINCIPLE_GROUPS in cerebro_62_orchestrator.py maps group names to
+    lists of principle IDs, and _group_score() silently skips any ID not
+    present in a given DDS's per-principle results. A typo'd or renamed
+    principle ID in that mapping would fail silently — the group's score
+    would just be computed from fewer principles than intended, with no
+    error anywhere. Every ID it references should actually exist in the
+    catalog it's supposed to be grouping."""
+
+    def test_every_grouped_principle_id_exists_in_the_catalog(self):
+        from cerebro_62_orchestrator import PRINCIPLE_GROUPS
+        from cerebro_62_principles_catalog import PRINCIPLES_62
+
+        all_grouped = {pid for pids in PRINCIPLE_GROUPS.values() for pid in pids}
+        missing = sorted(all_grouped - set(PRINCIPLES_62.keys()))
+        assert not missing, (
+            f"PRINCIPLE_GROUPS references principle IDs not in "
+            f"PRINCIPLES_62: {missing} — these silently drop out of their "
+            f"group's average instead of erroring"
+        )
+
+    def test_group_score_averages_correctly_and_skips_missing(self):
+        from cerebro_62_orchestrator import _group_score
+        per_principle = {
+            "P01": {"score": 80.0},
+            "P02": {"score": 40.0},
+            # P03 deliberately absent — must be skipped, not treated as 0
+        }
+        assert _group_score(per_principle, ["P01", "P02"]) == 60.0
+        assert _group_score(per_principle, ["P01", "P02", "P03"]) == 60.0
+        assert _group_score(per_principle, ["P99"]) == 0.0  # none present
+
+
+class TestDeepValidationIndependence:
+    """overall_deep_validation()'s own docstring makes a specific integrity
+    claim: independent_pct isolates only the 7 genuine-physics principles
+    from the 21 surrogate-pass-through ones, and callers should cite that
+    number, not the mixed pct, as evidence of physics-based validation.
+    Nothing checked that the isolation logic actually does this correctly —
+    a bug here would silently undermine the exact honesty distinction this
+    project's audit is built around."""
+
+    def test_pass_through_results_are_excluded_from_independent_pct(self):
+        from cerebro_62_deep_engine import (
+            _PASS_THROUGH_MARKER,
+            overall_deep_validation,
+        )
+        deep_results = {
+            "P02": {"validated": True,  "improvement_over_surrogate": "real physics, +12%"},
+            "P13": {"validated": False, "improvement_over_surrogate": "real physics, -3%"},
+            "P21": {"validated": True,  "improvement_over_surrogate": _PASS_THROUGH_MARKER},
+            "P32": {"validated": True,  "improvement_over_surrogate": _PASS_THROUGH_MARKER},
+        }
+        result = overall_deep_validation(deep_results)
+        assert result["total"] == 4
+        assert result["passed_count"] == 3
+        assert result["pct"] == 75.0
+        # Only P02/P13 are independent — 1 of 2 passed, not 3 of 4.
+        assert result["independent_computation_count"] == 2
+        assert result["independent_pct"] == 50.0
+
+    def test_all_pass_through_gives_no_independent_pct_rather_than_fabricating_one(self):
+        from cerebro_62_deep_engine import (
+            _PASS_THROUGH_MARKER,
+            overall_deep_validation,
+        )
+        deep_results = {
+            "P21": {"validated": True, "improvement_over_surrogate": _PASS_THROUGH_MARKER},
+            "P32": {"validated": True, "improvement_over_surrogate": _PASS_THROUGH_MARKER},
+        }
+        result = overall_deep_validation(deep_results)
+        assert result["independent_computation_count"] == 0
+        assert result["independent_pct"] is None  # not 0.0, not 100.0 — genuinely unknown
+
+
+class TestFirstPrinciplesPKa:
+    """compute_pka_from_first_principles combines a real cited base value
+    (Reich pKa tables) with a Hammett electronegativity correction and a
+    Born solvation correction — real, correctly-cited physical chemistry,
+    completely untested until now. Pinned against a value computed
+    independently from the same published formulas, not just re-running
+    the function and checking it doesn't crash."""
+
+    def test_carboxylic_acid_pka_matches_independently_computed_value(self):
+        from cerebro_value_resolver.computations.pka_first_principles import (
+            compute_pka_from_first_principles,
+        )
+        result = compute_pka_from_first_principles(
+            x_h_bond_type="H_O_carboxyl", neighbour_atoms=["C"])
+        # base_pKa=4.5 (Reich table) + BDE_shift=0 (no local BDE override,
+        # so it equals the reference) + Hammett (-1.0 * 0.5*(EN_C-EN_O))
+        # + Born solvation (charge=1, r=1.5 A, eps=78.5) — computed
+        # independently from the same published formulas, not copied from
+        # the implementation.
+        assert result["pKa"] == pytest.approx(4.86, abs=0.01)
+        assert result["base_pKa"] == 4.5
+        assert result["atom"] == "O"
+        assert "Reich" in result["_computational_method"]
+        assert "Bordwell 1988" in result["_computational_method"]
+
+    def test_stronger_acid_class_gives_lower_pka_than_weaker_acid_class(self):
+        """Physical sanity check: a phenol O-H (weaker acid, higher pKa)
+        must score higher than a carboxylic acid O-H (stronger acid, lower
+        pKa) under otherwise identical conditions — if this doesn't hold,
+        the base table or shift terms have a real chemistry bug regardless
+        of what any single pinned number says."""
+        from cerebro_value_resolver.computations.pka_first_principles import (
+            compute_pka_from_first_principles,
+        )
+        carboxyl = compute_pka_from_first_principles(
+            x_h_bond_type="H_O_carboxyl", neighbour_atoms=["C"])
+        phenol = compute_pka_from_first_principles(
+            x_h_bond_type="H_O_phenol", neighbour_atoms=["C"])
+        assert carboxyl["pKa"] < phenol["pKa"]
