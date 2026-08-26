@@ -1605,3 +1605,138 @@ class TestDrugPkaResolver:
         assert total == pytest.approx(1.0, abs=1e-3)
         # Acetic acid (pKa ~4.86) is mostly deprotonated at physiological pH 7.4.
         assert fr["f_anionic"] > 0.9
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 19. DLVO COLLOIDAL-STABILITY RESOLVER (categories/physics_dlvo.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestPhysicsDLVOResolver:
+    """Pure closed-form electrostatics/vdW physics — no bundles, no network,
+    so every test hand-derives the expected number from the same cited
+    equation and compares, independent of the implementation."""
+
+    def test_hamaker_combining_rule_matches_israelachvili_formula(self):
+        import math
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_dlvo import (
+            resolve_physics_hamaker_combined,
+        )
+
+        r = resolve_physics_hamaker_combined(carrier_Hamaker_J=5e-20, medium_Hamaker_J=3.7e-20)
+        expected = (math.sqrt(5e-20) - math.sqrt(3.7e-20)) ** 2
+        assert r["value"] == pytest.approx(expected, rel=1e-9)
+        assert r["tier"] == 6
+
+    def test_hamaker_defaults_to_generic_organic_when_not_provided(self):
+        import math
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_dlvo import (
+            resolve_physics_hamaker_combined,
+        )
+
+        r = resolve_physics_hamaker_combined(carrier_Hamaker_J=None)
+        expected = (math.sqrt(6e-21) - math.sqrt(3.7e-20)) ** 2  # generic 6e-21 fallback
+        assert r["value"] == pytest.approx(expected, rel=1e-9)
+        assert "not provided" in r["live_db_misses"][0]
+
+    def test_debye_length_at_physiological_ionic_strength_is_realistic(self):
+        """κ⁻¹ ≈ 0.7-1.0 nm at I=0.15M is the textbook physiological Debye
+        length — a real, independently-known sanity bound, not a number
+        pulled from the implementation."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_dlvo import (
+            resolve_physics_debye_length,
+        )
+
+        r = resolve_physics_debye_length(ionic_strength_M=0.15)
+        kappa_inv_nm = r["value"] * 1e9
+        assert 0.6 < kappa_inv_nm < 1.1
+
+    def test_debye_length_shrinks_as_ionic_strength_rises(self):
+        """Higher ionic strength screens electrostatics more effectively —
+        κ⁻¹ ∝ I^-0.5, a direct physical consequence, not tunable."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_dlvo import (
+            resolve_physics_debye_length,
+        )
+
+        low_I = resolve_physics_debye_length(ionic_strength_M=0.01)
+        high_I = resolve_physics_debye_length(ionic_strength_M=1.0)
+        assert low_I["value"] > high_I["value"]
+
+    def test_dlvo_potential_van_der_waals_term_is_attractive(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_dlvo import (
+            resolve_physics_dlvo_potential,
+        )
+
+        r = resolve_physics_dlvo_potential()
+        assert r["V_vdW_kT"] < 0  # vdW is always attractive between like particles
+
+    def test_dlvo_potential_component_sum_matches_reported_total(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_dlvo import (
+            resolve_physics_dlvo_potential,
+        )
+
+        r = resolve_physics_dlvo_potential(zeta_mV=-40, separation_nm=3)
+        assert r["value"] == pytest.approx(
+            r["V_vdW_kT"] + r["V_el_kT"], rel=1e-9)
+
+    def test_dlvo_higher_zeta_magnitude_increases_electrostatic_repulsion(self):
+        """A more strongly (de)stabilized surface should raise the
+        electrostatic repulsion term — this is what makes a formulation
+        colloidally stable in the first place."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_dlvo import (
+            resolve_physics_dlvo_potential,
+        )
+
+        weak = resolve_physics_dlvo_potential(zeta_mV=-10)
+        strong = resolve_physics_dlvo_potential(zeta_mV=-40)
+        assert strong["V_el_kT"] > weak["V_el_kT"]
+
+    def test_grahame_equation_surface_charge_matches_hand_computation(self):
+        import math
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_dlvo import (
+            resolve_physics_zeta_to_surface_charge,
+        )
+
+        eps_0, k_B, N_A, e = 8.854e-12, 1.380649e-23, 6.022e23, 1.602e-19
+        T_K, epsilon_r, I, zeta_mV = 310.15, 78.5, 0.15, -25
+        psi = zeta_mV * 1e-3
+        expected = (math.sqrt(8 * eps_0 * epsilon_r * k_B * T_K * I * 1000 * N_A)
+                    * math.sinh(e * psi / (2 * k_B * T_K)))
+
+        r = resolve_physics_zeta_to_surface_charge(zeta_mV=zeta_mV)
+        assert r["value"] == pytest.approx(expected, rel=1e-9)
+        assert r["value"] < 0  # negative zeta -> negative surface charge
+
+    def test_grahame_equation_zero_zeta_gives_zero_charge(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_dlvo import (
+            resolve_physics_zeta_to_surface_charge,
+        )
+
+        r = resolve_physics_zeta_to_surface_charge(zeta_mV=0)
+        assert r["value"] == pytest.approx(0.0, abs=1e-12)
+
+    def test_researcher_overrides_short_circuit_all_four_resolvers(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_dlvo import (
+            resolve_physics_dlvo_potential,
+            resolve_physics_debye_length,
+            resolve_physics_hamaker_combined,
+            resolve_physics_zeta_to_surface_charge,
+        )
+
+        for fn in (resolve_physics_hamaker_combined, resolve_physics_debye_length,
+                   resolve_physics_dlvo_potential, resolve_physics_zeta_to_surface_charge):
+            r = fn(researcher_override=1.23)
+            assert r["value"] == 1.23
+            assert r["tier"] == 0
+            assert r["source"] == "researcher_override"
