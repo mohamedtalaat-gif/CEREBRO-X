@@ -2879,3 +2879,156 @@ class TestDescriptorResolverResearcherOverride:
                     "drug_stereocenters"):
             r = resolve_value(cat, researcher_override=9.5)
             assert r["value"] == 9.5 and r["tier"] == 0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 28. CLASS-C TRANSLATIONAL ENGINE (cerebro_62_translational_engine.py)
+# ═════════════════════════════════════════════════════════════════════════════
+def _trans_bundles(carrier="liposome", ligand="", size_nm=100.0, zeta_mV=-10.0,
+                     rel_kin="sustained", scale_up="lab"):
+    drug_bundle = {
+        "drug_mw": {"value": 350.0}, "drug_logp": {"value": 2.5},
+        "drug_tpsa": {"value": 60.0}, "pk_halflife": {"value": 0.5},
+        "_meta": {"name": "TestDrug", "drug_type": "small_molecule",
+                  "identifiers": {"smiles": "CCO"}},
+    }
+    dds_bundle = {"_meta": {"carrier_type": carrier, "dds_type": "material"}}
+    combo_bundle = {"_meta": {"dds_row": {
+        "Formulation_Name": "F001", "Formulation_ID": "F001",
+        "Surface_Ligand": ligand, "Size_nm": size_nm,
+        "Zeta_Potential_mV": zeta_mV, "Release_Kinetics": rel_kin,
+        "Scale_Up_Readiness": scale_up}}}
+    return drug_bundle, dds_bundle, combo_bundle
+
+
+def _deep_results(n_validated, n_total):
+    return {f"P{i}": {"validated": i < n_validated} for i in range(n_total)}
+
+
+class TestTranslationalP56Patentability:
+    def test_known_crowded_pair_lowers_novelty(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_translational_engine import trans_P56
+
+        drug, dds, combo = _trans_bundles(carrier="liposome", ligand="transferrin")
+        r = trans_P56(drug, dds, combo, _deep_results(0, 5))
+        assert r["components"]["novelty_§102"] == 50
+        assert r["patentability_score"] == pytest.approx(66.7, abs=0.05)
+        assert r["recommendation"] == "REVIEW CLAIMS BEFORE FILING"
+
+    def test_known_novel_pair_raises_novelty(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_translational_engine import trans_P56
+
+        drug, dds, combo = _trans_bundles(carrier="solid_lipid", ligand="lactoferrin")
+        r = trans_P56(drug, dds, combo, _deep_results(0, 5))
+        assert r["components"]["novelty_§102"] == 95
+        assert r["patentability_score"] == pytest.approx(81.7, abs=0.05)
+        assert r["recommendation"] == "FILE PROVISIONAL"
+
+    def test_deep_validation_success_raises_utility_component(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_translational_engine import trans_P56
+
+        drug, dds, combo = _trans_bundles(carrier="polymer", ligand="",
+                                            rel_kin="thermo", size_nm=50.0, zeta_mV=-30.0)
+        r = trans_P56(drug, dds, combo, _deep_results(3, 5))
+        assert r["components"]["utility_§101"] == 90
+        assert r["patentability_score"] == pytest.approx(86.7, abs=0.05)
+
+    def test_non_obviousness_penalizes_extreme_size_and_zeta(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_translational_engine import trans_P56
+
+        typical = trans_P56(*_trans_bundles(size_nm=100.0, zeta_mV=-10.0),
+                              _deep_results(0, 5))
+        extreme = trans_P56(*_trans_bundles(size_nm=300.0, zeta_mV=-40.0),
+                              _deep_results(0, 5))
+        assert extreme["components"]["non_obviousness_§103"] > typical["components"]["non_obviousness_§103"]
+
+
+class TestTranslationalP32FreedomToOperate:
+    def test_known_crowded_combination_scores_lower_fto(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_translational_engine import trans_P32
+
+        drug, dds, combo = _trans_bundles(carrier="liposome", ligand="transferrin")
+        r = trans_P32(drug, dds, combo, {})
+        assert r["encumbrance_level"] == "VERY_HIGH"
+        assert r["fto_score"] == 30
+
+    def test_unrecognized_combination_defaults_to_low_encumbrance(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_translational_engine import trans_P32
+
+        drug, dds, combo = _trans_bundles(carrier="exosome", ligand="novel_peptide_xyz")
+        r = trans_P32(drug, dds, combo, {})
+        assert r["encumbrance_level"] == "LOW"
+        assert r["fto_score"] == 85
+
+
+class TestTranslationalP21PreIND:
+    def test_deep_validation_passed_flag_uses_a_five_principle_threshold(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_translational_engine import trans_P21
+
+        drug, dds, combo = _trans_bundles()
+        passed = trans_P21(drug, dds, combo, _deep_results(5, 7))
+        failed = trans_P21(drug, dds, combo, _deep_results(4, 7))
+        assert passed["deep_validation_passed"] is True
+        assert failed["deep_validation_passed"] is False
+
+    def test_report_sections_include_the_resolved_formulation_name(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_translational_engine import trans_P21
+
+        drug, dds, combo = _trans_bundles()
+        r = trans_P21(drug, dds, combo, {})
+        assert "F001" in r["narrative"]
+        assert len(r["sections"]) == 8
+
+
+class TestTranslationalDispatcher:
+    def test_withholds_all_deliverables_when_deep_validation_is_insufficient(self):
+        """Per its own stated gating logic: translational (Class C)
+        deliverables shouldn't be generated for a DDS that hasn't cleared
+        deep (Class B) validation — otherwise a regulatory/patent/grant
+        outline could get built around a candidate that physics already
+        rejected."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_translational_engine import (
+            TRANSLATIONAL_FUNCTIONS,
+            evaluate_translational_for_top1,
+        )
+
+        drug, dds, combo = _trans_bundles()
+        out = evaluate_translational_for_top1(
+            drug, dds, combo, _deep_results(2, 10))  # 20% pass rate < 70%
+        assert set(out) == set(TRANSLATIONAL_FUNCTIONS)
+        for r in out.values():
+            assert r["status"] == "skipped_deep_validation_insufficient"
+
+    def test_generates_all_deliverables_when_deep_validation_passes(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_translational_engine import (
+            TRANSLATIONAL_FUNCTIONS,
+            evaluate_translational_for_top1,
+        )
+
+        drug, dds, combo = _trans_bundles()
+        out = evaluate_translational_for_top1(
+            drug, dds, combo, _deep_results(8, 10))  # 80% pass rate >= 70%
+        assert set(out) == set(TRANSLATIONAL_FUNCTIONS)
+        for pid, r in out.items():
+            assert r["status"] != "skipped_deep_validation_insufficient"
+            assert "principle" in r
+
+    def test_can_be_forced_to_run_regardless_of_deep_validation(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_translational_engine import evaluate_translational_for_top1
+
+        drug, dds, combo = _trans_bundles()
+        out = evaluate_translational_for_top1(
+            drug, dds, combo, _deep_results(0, 10), only_if_deep_passed=False)
+        for r in out.values():
+            assert r["status"] != "skipped_deep_validation_insufficient"
