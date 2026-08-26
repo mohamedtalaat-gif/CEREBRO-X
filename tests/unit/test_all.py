@@ -2552,3 +2552,189 @@ class TestDrugAdmetResolver:
 
         r = resolve_drug_clearance_route(name="", researcher_override="biliary")
         assert r["value"] == "biliary" and r["tier"] == 0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 26. CLINICAL PK RESOLVER (categories/pk_clinical.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestPkClinicalRegexExtractors:
+    """These regexes are the tier-1 mechanism for pulling real numbers out
+    of fetched OpenFDA label text — a silent parsing failure here means
+    the resolver falls through to a worse tier without any signal."""
+
+    def test_halflife_extractor_handles_a_single_value_not_just_a_range(self):
+        """Regression test for a real bug: the half-life patterns required
+        a range separator (to/-/–) between the number and the unit, so a
+        single reported value like 'Half-life is 8 hours.' — extremely
+        common in real FDA labels — matched nothing and silently fell
+        through to a worse tier. The clearance/Vd extractors already had
+        this separator marked optional; half-life's copy of the pattern
+        was missing the same `?`."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import (
+            _extract_halflife_hours,
+        )
+
+        assert _extract_halflife_hours("Half-life is 8 hours.") == 8.0
+        assert _extract_halflife_hours("The elimination half-life is 1 hour.") == 1.0
+
+    def test_halflife_extractor_handles_plural_hours_and_days(self):
+        """Regression test for a real bug: the unit alternation only had
+        the singular 'hour'/'day' forms, so '\\b' failed right after
+        matching the 'hour' prefix of 'hours' (not a word boundary before
+        the trailing 's') — real labels almost always use the plural."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import (
+            _extract_halflife_hours,
+        )
+
+        assert _extract_halflife_hours(
+            "The elimination half-life is approximately 12 to 16 hours "
+            "in healthy subjects.") == 14.0
+        assert _extract_halflife_hours(
+            "The terminal half-life is 3-5 days following oral administration."
+        ) == 96.0  # midpoint 4 days -> hours
+
+    def test_halflife_extractor_handles_t1_2_notation(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import (
+            _extract_halflife_hours,
+        )
+
+        assert _extract_halflife_hours("T1/2 of approximately 24 hours was observed.") == 24.0
+
+    def test_clearance_extractor_parses_a_single_value(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import (
+            _extract_clearance_lph,
+        )
+
+        assert _extract_clearance_lph(
+            "Total clearance (CL) is 5.2 L/h following IV administration.") == 5.2
+
+    def test_vd_extractor_parses_a_single_value(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import _extract_vd_L
+
+        assert _extract_vd_L("The apparent volume of distribution is 45 L.") == 45.0
+
+    def test_protein_binding_and_bioavailability_extractors(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import (
+            _extract_bioavailability,
+            _extract_protein_binding,
+        )
+
+        assert _extract_protein_binding("Plasma protein binding is approximately 98%.") == 0.98
+        assert _extract_bioavailability("Absolute bioavailability is 65%.") == 0.65
+
+    def test_extractors_return_none_on_text_without_the_expected_value(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import (
+            _extract_halflife_hours,
+        )
+
+        assert _extract_halflife_hours("This drug has no reported pharmacokinetic data.") is None
+
+
+class TestPkClinicalEmpiricalFallbacks:
+    """name='' keeps OpenFDA/ChEMBL/PubMed from firing (each checks a
+    truthy name before touching the network) so these exercise the
+    empirical/class-typical tiers deterministically and offline."""
+
+    def test_halflife_empirical_regression_matches_published_formula(self):
+        import math
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import resolve_pk_halflife
+
+        r = resolve_pk_halflife(name="", mw_Da=300.0, logp=2.0,
+                                  molecule_class="small_molecule")
+        a, b, c = -0.2, 0.18, 0.45
+        expected_h = 10 ** (a + b * 2.0 + c * math.log10(300.0))
+        assert r["value"] == pytest.approx(round(expected_h / 24, 4), abs=1e-4)
+        assert r["tier"] == 6
+
+    def test_halflife_class_typical_means_for_biologics(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import resolve_pk_halflife
+
+        mab = resolve_pk_halflife(name="", molecule_class="monoclonal_antibody")
+        peptide = resolve_pk_halflife(name="", molecule_class="peptide")
+        assert mab["value"] == 14.0 and mab["tier"] == 7
+        assert peptide["value"] == 0.02 and peptide["tier"] == 7
+
+    def test_clearance_allometric_regression_matches_published_formula(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import resolve_pk_clearance
+
+        r = resolve_pk_clearance(name="", mw_Da=300.0, molecule_class="small_molecule")
+        assert r["value"] == pytest.approx(60 * 300.0 ** -0.25, abs=1e-3)
+        assert r["tier"] == 6
+
+    def test_clearance_class_typical_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import resolve_pk_clearance
+
+        r = resolve_pk_clearance(name="", molecule_class="monoclonal_antibody")
+        assert r["value"] == 0.3 and r["tier"] == 7
+
+    def test_volume_distribution_logp_regression_matches_published_formula(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import (
+            resolve_pk_volume_distribution,
+        )
+
+        r = resolve_pk_volume_distribution(name="", logp=2.0)
+        vd_per_kg = max(0.2, 0.2 + 0.6 * 2.0 + 0.05 * 2.0 ** 2)
+        assert r["value"] == pytest.approx(round(vd_per_kg * 70, 1), abs=1e-6)
+        assert r["tier"] == 6
+
+    def test_volume_distribution_class_typical_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import (
+            resolve_pk_volume_distribution,
+        )
+
+        r = resolve_pk_volume_distribution(name="", molecule_class="peptide")
+        assert r["value"] == 7.0 and r["tier"] == 7
+
+    def test_protein_binding_logit_regression_matches_published_formula(self):
+        import math
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import (
+            resolve_pk_protein_binding,
+        )
+
+        r = resolve_pk_protein_binding(name="", logp=2.0)
+        x = -2 + 0.5 * 2.0
+        expected = 1 / (1 + math.exp(-x))
+        assert r["value"] == pytest.approx(round(expected, 4), abs=1e-6)
+        assert r["tier"] == 6
+
+    def test_protein_binding_and_bioavailability_generic_defaults(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import (
+            resolve_pk_oral_bioavailability,
+            resolve_pk_protein_binding,
+        )
+
+        assert resolve_pk_protein_binding(name="")["value"] == 0.5
+        assert resolve_pk_oral_bioavailability(name="")["value"] == 0.4
+
+    def test_researcher_overrides_short_circuit_every_resolver(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.pk_clinical import (
+            resolve_pk_clearance,
+            resolve_pk_halflife,
+            resolve_pk_oral_bioavailability,
+            resolve_pk_protein_binding,
+            resolve_pk_volume_distribution,
+        )
+
+        for fn in (resolve_pk_halflife, resolve_pk_clearance,
+                   resolve_pk_volume_distribution, resolve_pk_protein_binding,
+                   resolve_pk_oral_bioavailability):
+            r = fn(name="", researcher_override=3.5)
+            assert r["value"] == 3.5 and r["tier"] == 0

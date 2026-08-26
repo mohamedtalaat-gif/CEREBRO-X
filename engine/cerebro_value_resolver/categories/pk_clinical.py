@@ -84,10 +84,10 @@ def _extract_halflife_hours(text: str) -> float | None:
     if not text: return None
     # Common patterns
     patterns = [
-        r"(?:elimination\s+)?half[- ]life[^\d]*([\d\.]+)\s*(?:to|–|−|-)\s*([\d\.]+)?\s*(hour|hr|h)\b",
-        r"t1/2[^\d]*([\d\.]+)\s*(?:to|–|−|-)?\s*([\d\.]+)?\s*(hour|hr|h)\b",
-        r"(?:elimination\s+)?half[- ]life[^\d]*([\d\.]+)\s*(?:to|–|−|-)\s*([\d\.]+)?\s*(day|d)\b",
-        r"t1/2[^\d]*([\d\.]+)\s*(?:to|–|−|-)?\s*([\d\.]+)?\s*(day|d)\b",
+        r"(?:elimination\s+)?half[- ]life[^\d]*([\d\.]+)\s*(?:(?:to|–|−|-)\s*([\d\.]+))?\s*(hours|hour|hrs|hr|h)\b",
+        r"t1/2[^\d]*([\d\.]+)\s*(?:(?:to|–|−|-)\s*([\d\.]+))?\s*(hours|hour|hrs|hr|h)\b",
+        r"(?:elimination\s+)?half[- ]life[^\d]*([\d\.]+)\s*(?:(?:to|–|−|-)\s*([\d\.]+))?\s*(days|day|d)\b",
+        r"t1/2[^\d]*([\d\.]+)\s*(?:(?:to|–|−|-)\s*([\d\.]+))?\s*(days|day|d)\b",
     ]
     for p in patterns:
         m = re.search(p, text, re.IGNORECASE)
@@ -242,11 +242,8 @@ def _empirical_halflife(mw_Da: float, logp: float, mclass: str) -> float:
     if mclass == "peptide":
         return 0.5    # 30 min median for peptides
     # Small molecules: regression
-    a, b, c = -0.2, 0.18, 0.45    # crude fit
-    log_t = a + b * logp + c * (1 if mw_Da == 0 else 0) + c * (
-        0 if mw_Da == 0 else (mw_Da > 0 and 1) * (
-            __import__("math").log10(max(mw_Da, 50))))
     import math
+    a, b, c = -0.2, 0.18, 0.45    # crude fit
     log_t = a + b * logp + c * math.log10(max(mw_Da, 50))
     return 10 ** log_t
 
