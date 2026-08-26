@@ -2401,3 +2401,154 @@ class TestMaterialPdiAndPorosityResolvers:
 
         assert resolve_material_pdi(researcher_override=0.42)["value"] == 0.42
         assert resolve_material_porosity(researcher_override=0.77)["value"] == 0.77
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 25. ADMET RESOLVER (categories/drug_admet.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestDrugAdmetResolver:
+    """name='' short-circuits every ChEMBL lookup here (each helper checks
+    `if not name` first), keeping these offline and deterministic."""
+
+    def test_logS_yalkowsky_gse_matches_published_formula(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_solubility_logS,
+        )
+
+        r = resolve_drug_solubility_logS(name="", logp=2.0, Tm_C=125.0)
+        assert r["value"] == pytest.approx(0.5 - 0.01 * (125.0 - 25) - 2.0, rel=1e-9)
+        assert r["tier"] == 6
+
+    def test_logS_falls_back_to_delaney_esol_without_melting_point(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_solubility_logS,
+        )
+
+        r = resolve_drug_solubility_logS(name="", logp=2.0, mw_Da=300.0,
+                                           rotbonds=4, aromatic_rings=2)
+        assert r["value"] == pytest.approx(-2.844, abs=1e-3)
+        assert r["tier"] == 7
+
+    def test_logS_with_no_logp_at_all_falls_to_generic_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_solubility_logS,
+        )
+
+        r = resolve_drug_solubility_logS(name="")
+        assert r["value"] == -3.0
+        assert r["tier"] == 7
+
+    def test_caco2_papp_hou_regression_matches_published_formula(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_caco2_papp,
+        )
+
+        r = resolve_drug_caco2_papp(name="", logp=2.0, tpsa=60.0, hbd=1.0)
+        assert r["value"] == pytest.approx(6.501, abs=1e-3)
+        assert r["tier"] == 6
+
+    def test_caco2_papp_without_inputs_falls_to_generic_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_caco2_papp,
+        )
+
+        r = resolve_drug_caco2_papp(name="")
+        assert r["value"] == 10.0
+        assert r["tier"] == 7
+
+    def test_pgp_efflux_hochman_rule_matches_published_formula(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_pgp_efflux_ratio,
+        )
+
+        r = resolve_drug_pgp_efflux_ratio(name="", mw_Da=450.0, hba=5.0, logp=3.0)
+        assert r["value"] == pytest.approx(3.16, abs=1e-2)
+        assert r["tier"] == 6
+
+    def test_pgp_efflux_without_inputs_falls_to_generic_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_pgp_efflux_ratio,
+        )
+
+        r = resolve_drug_pgp_efflux_ratio(name="")
+        assert r["value"] == 1.5
+        assert r["tier"] == 7
+
+    def test_cyp3a4_inhibition_defaults_to_non_inhibitor_threshold(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_cyp3a4_inhibition,
+        )
+
+        r = resolve_drug_cyp3a4_inhibition(name="")
+        assert r["value"] == 50.0
+        assert r["tier"] == 7
+
+    def test_herg_aronov_rule_matches_published_formula(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_herg_ic50,
+        )
+
+        r = resolve_drug_herg_ic50(name="", logp=3.0)
+        assert r["value"] == pytest.approx(39.81, abs=1e-2)
+        assert r["tier"] == 6
+
+    def test_herg_without_logp_falls_to_generic_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_herg_ic50,
+        )
+
+        r = resolve_drug_herg_ic50(name="")
+        assert r["value"] == 10.0
+        assert r["tier"] == 7
+
+    def test_clearance_route_heuristic_covers_hepatic_renal_and_mixed(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_clearance_route,
+        )
+
+        hepatic = resolve_drug_clearance_route(name="", mw_Da=400.0, logp=2.0)
+        renal = resolve_drug_clearance_route(name="", mw_Da=200.0, logp=0.5)
+        mixed = resolve_drug_clearance_route(name="", mw_Da=300.0, logp=1.2)
+        assert (hepatic["value"], renal["value"], mixed["value"]) == ("hepatic", "renal", "mixed")
+        assert hepatic["tier"] == 6
+
+    def test_clearance_route_without_inputs_defaults_to_hepatic(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_clearance_route,
+        )
+
+        r = resolve_drug_clearance_route(name="")
+        assert r["value"] == "hepatic"
+        assert r["tier"] == 7
+
+    def test_researcher_overrides_short_circuit_every_resolver(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_admet import (
+            resolve_drug_caco2_papp,
+            resolve_drug_clearance_route,
+            resolve_drug_cyp3a4_inhibition,
+            resolve_drug_herg_ic50,
+            resolve_drug_pgp_efflux_ratio,
+            resolve_drug_solubility_logS,
+        )
+
+        for fn in (resolve_drug_solubility_logS, resolve_drug_caco2_papp,
+                   resolve_drug_pgp_efflux_ratio, resolve_drug_cyp3a4_inhibition,
+                   resolve_drug_herg_ic50):
+            r = fn(name="", researcher_override=1.234)
+            assert r["value"] == 1.234 and r["tier"] == 0
+
+        r = resolve_drug_clearance_route(name="", researcher_override="biliary")
+        assert r["value"] == "biliary" and r["tier"] == 0
