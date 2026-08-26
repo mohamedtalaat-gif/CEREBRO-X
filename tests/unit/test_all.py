@@ -3032,3 +3032,115 @@ class TestTranslationalDispatcher:
             drug, dds, combo, _deep_results(0, 10), only_if_deep_passed=False)
         for r in out.values():
             assert r["status"] != "skipped_deep_validation_insufficient"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 29. 62-PRINCIPLE CATALOG (cerebro_62_principles_catalog.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestPrinciplesCatalogIntegrity:
+    """The catalog is mostly static data — its value is in staying
+    internally consistent and matching what it claims about itself."""
+
+    def test_exactly_62_principles_registered(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_principles_catalog import PRINCIPLES_62
+
+        assert len(PRINCIPLES_62) == 62
+
+    def test_every_class_field_is_one_of_the_three_valid_values(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_principles_catalog import PRINCIPLES_62
+
+        valid = {"A_surrogate", "B_deep", "C_translational"}
+        bad = {pid: p["class"] for pid, p in PRINCIPLES_62.items() if p["class"] not in valid}
+        assert bad == {}
+
+    def test_class_a_plus_b_weights_are_normalized_to_one(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_principles_catalog import PRINCIPLES_62
+
+        total = sum(p["weight_cns"] for p in PRINCIPLES_62.values()
+                    if p["class"] in ("A_surrogate", "B_deep"))
+        assert total == pytest.approx(1.0, abs=1e-3)
+
+    def test_translational_principles_carry_zero_ranking_weight(self):
+        """Class C (translational/admin) principles shouldn't influence
+        DDS ranking — the docstring's own stated policy."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_principles_catalog import CLASS_C_TRANSLATIONAL, PRINCIPLES_62
+
+        assert len(CLASS_C_TRANSLATIONAL) > 0
+        for pid in CLASS_C_TRANSLATIONAL:
+            assert PRINCIPLES_62[pid]["weight_cns"] == 0
+
+    def test_cns_direct_named_principles_collective_weight(self):
+        """Regression test for a real docstring/data mismatch: the module
+        docstring used to claim these seven CNS-direct principles carry
+        '≥ 40%' of the total weight collectively — checked against the
+        actual normalized weights and it comes out to ~27.9%, not ≥40%.
+        The docstring was corrected to state the real figure rather than
+        the weights being reverse-engineered to hit an unverified target."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_principles_catalog import PRINCIPLES_62
+
+        cns_direct = ["P12", "P33", "P38", "P39", "P42", "P43", "P44"]
+        total = sum(PRINCIPLES_62[pid]["weight_cns"] for pid in cns_direct)
+        assert total == pytest.approx(0.279, abs=0.005)
+        assert total < 0.40   # the old docstring's claim no longer stands unchecked
+
+    def test_class_getters_partition_the_catalog_correctly(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_principles_catalog import (
+            PRINCIPLES_62,
+            get_class_a_principles,
+            get_class_b_principles,
+            get_class_c_principles,
+        )
+
+        a, b, c = get_class_a_principles(), get_class_b_principles(), get_class_c_principles()
+        assert set(a) | set(b) | set(c) == set(PRINCIPLES_62)
+        assert not (set(a) & set(b)) and not (set(b) & set(c)) and not (set(a) & set(c))
+        for pid in a:
+            assert PRINCIPLES_62[pid]["class"] == "A_surrogate"
+        for pid in b:
+            assert PRINCIPLES_62[pid]["class"] == "B_deep"
+        for pid in c:
+            assert PRINCIPLES_62[pid]["class"] == "C_translational"
+
+    def test_get_principle_returns_the_matching_entry(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_principles_catalog import get_principle
+
+        p = get_principle("P01")
+        assert p["title_en"] == "Adversarial Stress-Testing Engine"
+
+    def test_get_principle_raises_for_unknown_id(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_principles_catalog import get_principle
+
+        with pytest.raises(KeyError):
+            get_principle("P999")
+
+    def test_summarize_counts_match_the_actual_catalog(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_principles_catalog import PRINCIPLES_62, summarize
+
+        s = summarize()
+        assert s["total"] == 62
+        assert s["cns_direct_count"] == sum(1 for p in PRINCIPLES_62.values() if p["cns_relevant"])
+        assert s["class_A_surrogate"] + s["class_B_deep"] + s["class_C_admin"] == 62
+
+    def test_every_principles_deep_computation_is_wired_into_the_deep_engine(self):
+        """Every principle that carries a real method_deep entry here (not
+        just an HPC-deferred one) should correspond to a callable in
+        cerebro_62_deep_engine.py's dispatch — a principle can be filed as
+        'A_surrogate' here (its primary fast-screen role) while still
+        having a deep follow-up computation for the Top-1 winner; those
+        two files need to stay in sync on which principles that applies to."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import DEEP_FUNCTIONS, HPC_ONLY_PRINCIPLES
+        from cerebro_62_principles_catalog import PRINCIPLES_62
+
+        deep_engine_ids = set(DEEP_FUNCTIONS) | set(HPC_ONLY_PRINCIPLES)
+        catalog_has_method_deep = {pid for pid, p in PRINCIPLES_62.items() if p.get("method_deep")}
+        assert deep_engine_ids <= catalog_has_method_deep

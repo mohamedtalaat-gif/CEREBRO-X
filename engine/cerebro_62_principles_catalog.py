@@ -42,9 +42,14 @@ Each entry carries:
   • weight_cns        (0..1, CNS-focused weight in composite scoring)
 
 Weight policy (CNS-focused per project mandate):
-  - Class A weights sum to 1.000
-  - CNS-direct principles carry the highest weights (P12, P33, P38, P39,
-    P42, P43, P44 — collectively ≥ 40%)
+  - Class A + B weights sum to 1.000 (auto-normalized below; verified by
+    the assertion at import time)
+  - CNS-direct principles rank among the highest individually-weighted
+    entries (P12, P33, P38, P39, P42, P43, P44 are all in the top third
+    by weight_cns), but collectively they total ~27.9% of the pool, not
+    the ≥40% this section used to claim — corrected here after the
+    number was checked against the actual normalized weights, which
+    didn't match the older prose.
   - Translational principles (Class C) carry weight 0 in DDS ranking
 ================================================================================
 """
