@@ -236,16 +236,21 @@ def resolve_drug_pka_acidic(name: str = "", smiles: str = "",
         log.debug(f"[T7 first-principles] {e}")
     db_misses.append("first_principles_bordwell")
 
-    # ABSOLUTE last resort: compute generic sp3 C-H pKa
-    generic = compute_pka_from_first_principles("H_C_sp3", neighbour_atoms=["C","C"])
+    # No SMILES (or the SMILES failed to parse) — there is no molecular
+    # structure to compute a pKa from. Assuming a generic sp3 C-H bond here
+    # would invent a bond that was never observed; report honestly instead
+    # so callers (resolve_drug_pka_dominant, hh_microspeciation) can use
+    # their already-built "no ionizable group" handling rather than being
+    # fed a fabricated-looking number like 49.9.
     return _resolved(
-        value=generic["pKa"], tier=7,
-        source="cerebro_value_resolver:bordwell_generic_CH",
-        method="Computed generic sp3 C-H pKa (Bordwell-Hammett-Born)",
-        reference="Reich HJ (2020) Bordwell pKa Tables",
+        value=None, tier=7,
+        source="cerebro_value_resolver:no_structure_available",
+        method="No usable SMILES — cannot compute a first-principles pKa "
+                "without molecular structure",
+        reference="—",
         live_db_misses=db_misses,
-        extra={"_computational_method": generic["_computational_method"],
-                "warning": "No SMILES — used generic sp3 C-H baseline"})
+        extra={"confidence": "HIGH",
+                "note": "No SMILES provided (or it failed to parse) — pKa not computable"})
 
 
 @register("drug_pka_basic")
@@ -299,17 +304,17 @@ def resolve_drug_pka_basic(name: str = "", smiles: str = "",
         log.debug(f"[T7 first-principles] {e}")
     db_misses.append("first_principles_bordwell")
 
-    generic = compute_pka_from_first_principles("H_C_sp3", neighbour_atoms=["C","C"])
+    # No SMILES available — same reasoning as resolve_drug_pka_acidic's
+    # matching branch: report honestly rather than inventing a proxy value.
     return _resolved(
-        value=generic["pKa"] - 14.0, tier=7,
-        source="cerebro_value_resolver:bordwell_generic_basic",
-        method="Computed pKa(BH+) ≈ pKa(generic CH) - 14 as last-resort proxy",
-        reference="Reich HJ (2020) Bordwell pKa Tables",
+        value=None, tier=7,
+        source="cerebro_value_resolver:no_structure_available",
+        method="No usable SMILES — cannot compute a first-principles pKa(BH+) "
+                "without molecular structure",
+        reference="—",
         live_db_misses=db_misses,
-        extra={"_computational_method":
-                f"Used pKa(HA) - 14 = {generic['pKa']} - 14 = {generic['pKa']-14:.2f} "
-                f"as proxy for basic site when no SMILES provided",
-                "warning": "No SMILES — used generic baseline"})
+        extra={"confidence": "HIGH",
+                "note": "No SMILES provided (or it failed to parse) — pKa(BH+) not computable"})
 
 
 @register("drug_pka_dominant")

@@ -1508,3 +1508,100 @@ class TestDeepValidationDispatch:
         assert out["P31"]["confidence"] == "FAILED"
         # Other principles in the same batch must still compute normally.
         assert out["P38"]["confidence"] != "FAILED"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 18. pKa RESOLVER (cerebro_value_resolver/categories/drug_pka.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestDrugPkaResolver:
+    """name='' on every call keeps these fully offline: _pka_chembl short-
+    circuits on a falsy name before touching the network, so Tier 7
+    first-principles is exercised deterministically."""
+
+    def test_researcher_override_short_circuits_to_tier_zero(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_pka import resolve_drug_pka_acidic
+
+        r = resolve_drug_pka_acidic(name="", smiles="CC(=O)O", researcher_override=3.1)
+        assert r["value"] == 3.1
+        assert r["tier"] == 0
+        assert r["source"] == "researcher_override"
+
+    def test_carboxylic_acid_acidic_pka_in_physically_plausible_range(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_pka import resolve_drug_pka_acidic
+
+        r = resolve_drug_pka_acidic(name="", smiles="CC(=O)O")  # acetic acid
+        assert r["tier"] == 7
+        assert "Bordwell-Hammett-Born" in r["method"]
+        assert 2.0 < r["value"] < 6.0  # real carboxylic acids: pKa ~2-5
+
+    def test_primary_amine_basic_pka_in_physically_plausible_range(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_pka import resolve_drug_pka_basic
+
+        r = resolve_drug_pka_basic(name="", smiles="CCN")  # ethylamine
+        assert r["tier"] == 7
+        assert 8.0 < r["value"] < 12.0  # real aliphatic amines: pKa(BH+) ~9.5-11
+
+    def test_dominant_pka_picks_whichever_real_result_is_closer_to_7_4(self):
+        """Cross-checks the dominant-selection logic against the real
+        acidic/basic resolvers it wraps, rather than against a value
+        copied out of the implementation."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_pka import (
+            resolve_drug_pka_acidic,
+            resolve_drug_pka_basic,
+            resolve_drug_pka_dominant,
+        )
+
+        smiles = "NCC(=O)O"  # glycine — both an amine and a carboxylic acid
+        acid = resolve_drug_pka_acidic(name="", smiles=smiles)
+        base = resolve_drug_pka_basic(name="", smiles=smiles)
+        dom = resolve_drug_pka_dominant(name="", smiles=smiles)
+
+        expected_kind = "acidic" if abs(acid["value"] - 7.4) <= abs(base["value"] - 7.4) else "basic"
+        expected_value = acid["value"] if expected_kind == "acidic" else base["value"]
+        assert dom["kind"] == expected_kind
+        assert dom["value"] == expected_value
+
+    def test_missing_smiles_reports_honest_null_not_a_fabricated_number(self):
+        """Regression test for a real bug: resolve_drug_pka_acidic/basic
+        used to fall back to a hardcoded generic sp3 C-H guess (~50) or a
+        '-14 proxy' (~-10 to -14) whenever no SMILES was available, which
+        made resolve_drug_pka_dominant's honest 'not ionizable' branch and
+        hh_microspeciation's 'no ionizable groups' branch permanently
+        unreachable — the system always reported *some* plausible-looking
+        pKa number even with zero structural evidence to support it."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_pka import (
+            resolve_drug_pka_acidic,
+            resolve_drug_pka_basic,
+            resolve_drug_pka_dominant,
+            resolve_drug_microspecies,
+        )
+
+        acid = resolve_drug_pka_acidic(name="", smiles="")
+        base = resolve_drug_pka_basic(name="", smiles="")
+        assert acid["value"] is None
+        assert base["value"] is None
+
+        dom = resolve_drug_pka_dominant(name="", smiles="")
+        assert dom["value"] is None
+        assert dom["note"] == "Drug is not ionizable at any pH"
+        assert dom["confidence"] == "HIGH"
+
+        micro = resolve_drug_microspecies(name="", smiles="")
+        assert micro["value"]["method"] == "no ionizable groups (assumed neutral)"
+        assert micro["value"]["f_neutral"] == 1.0
+
+    def test_microspecies_fractions_sum_to_one_for_a_real_acid(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_pka import resolve_drug_microspecies
+
+        r = resolve_drug_microspecies(name="", smiles="CC(=O)O")
+        fr = r["value"]
+        total = fr["f_cationic"] + fr["f_anionic"] + fr["f_zwitterion"] + fr["f_neutral"]
+        assert total == pytest.approx(1.0, abs=1e-3)
+        # Acetic acid (pKa ~4.86) is mostly deprotonated at physiological pH 7.4.
+        assert fr["f_anionic"] > 0.9
