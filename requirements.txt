@@ -126,4 +126,4 @@ requests>=2.31,<3.0
 # on Python 3.13, DeepChem 2.5.0 (the newest version with 3.13 wheels as of
 # this writing) has a real KerasModel/TensorFlow incompatibility
 # (AttributeError in _create_inputs), so this project uses tf.keras directly.
-# tensorflow>=2.15,<3.0
+tensorflow>=2.15,<3.0

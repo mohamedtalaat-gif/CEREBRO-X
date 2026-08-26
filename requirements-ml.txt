@@ -14,11 +14,15 @@
 
 -r requirements.txt
 
-# ── Graph Neural Networks (optional — install if GPU available) ──────────────
-# torch>=2.2.0
-# torch-geometric>=2.5.0
-# torch-scatter>=2.1.0
-# torch-sparse>=0.6.0
+# ── Graph Neural Networks (engine/cerebro_molecular_gnn.py) ──────────────────
+# Real RDKit atom/bond graphs + a 3-layer GCN implemented directly in plain
+# PyTorch over dense per-molecule adjacency matrices — deliberately no
+# torch-geometric/torch-scatter/torch-sparse. Those add native compiled
+# extensions that need OS/CUDA-version-matched wheels and are genuinely
+# fragile to install portably; a dense implementation is both correct and
+# fast for drug-sized molecules (tens of atoms), so plain CPU torch is
+# enough here.
+torch>=2.2.0
 
 # ── Additional Chemistry (optional) ─────────────────────────────────────────
 # deepchem>=2.7.0

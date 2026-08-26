@@ -16,7 +16,11 @@ Tier cascade:
        (Martins et al. 2012, ~2039 compounds; small molecules only —
        see engine/cerebro_bbb_dnn.py for the full method, real held-out
        test metrics, and known limitations, e.g. it cannot capture active
-       efflux transport such as P-gp)
+       efflux transport such as P-gp). When cerebro_molecular_gnn is also
+       available, its real molecular-graph GNN prediction (trained on the
+       identical split) is attached as a cross-check in `extra` — a
+       genuine second, independently-built opinion, not merged into the
+       resolved value or allowed to override it.
     5. thermo (n/a for BBB)
     6. Empirical: Wager CNS-MPO + Veber regression
     7. Pure-math: Lipinski-anchored estimate
@@ -37,6 +41,12 @@ try:
     _HAS_BBB_DNN = _bbb_dnn._HAS_BBB_DNN
 except ImportError:
     _HAS_BBB_DNN = False
+
+try:
+    import cerebro_molecular_gnn as _bbb_gnn
+    _HAS_BBB_GNN = _bbb_gnn._HAS_MOL_GNN
+except ImportError:
+    _HAS_BBB_GNN = False
 
 
 def _cns_mpo_score(mw: float, logp: float, tpsa: float,
@@ -238,6 +248,35 @@ def resolve_bbb_permeability(name: str = "", smiles: str = "",
             if pred.get("available"):
                 proba = pred["probability_permeable"]
                 bbb_pct = round(0.5 + proba * 59.5, 2)
+
+                # Real molecular-graph GNN, trained on the identical BBBP
+                # split — a genuine independent cross-check, not silently
+                # merged into one number or allowed to override the DNN's
+                # resolved value. Kept distinct on purpose: this resolver
+                # already has one precedent for two real, differently-
+                # built models on the same question staying separately
+                # labeled rather than reconciled into a single answer
+                # (see pbbm_engine.py's docstring on the two PBPK
+                # implementations for the same reasoning).
+                gnn_extra = {}
+                if _HAS_BBB_GNN:
+                    try:
+                        gnn_pred = _bbb_gnn.predict_bbb_class_gnn(smiles)
+                        if gnn_pred.get("available"):
+                            gnn_extra = {
+                                "gnn_predicted_class": gnn_pred["predicted_class"],
+                                "gnn_probability_permeable":
+                                    gnn_pred["probability_permeable"],
+                                "gnn_agrees_with_dnn":
+                                    gnn_pred["predicted_class"] == pred["predicted_class"],
+                                "gnn_model_test_accuracy":
+                                    gnn_pred.get("model_test_accuracy"),
+                                "gnn_model_test_roc_auc":
+                                    gnn_pred.get("model_test_roc_auc"),
+                            }
+                    except Exception as e:
+                        log.debug(f"[BBB-GNN] cross-check prediction failed: {e}")
+
                 return _resolved(
                     value=bbb_pct, tier=3,
                     source="cerebro_bbb_dnn",
@@ -258,7 +297,8 @@ def resolve_bbb_permeability(name: str = "", smiles: str = "",
                            "known_limitation": "Fingerprint-based passive-"
                                "permeability model — does not capture active "
                                "efflux transport (e.g. P-gp substrates may be "
-                               "over-predicted as permeable)."})
+                               "over-predicted as permeable).",
+                           **gnn_extra})
         except Exception as e:
             log.debug(f"[BBB-DNN] prediction failed, falling back: {e}")
     db_misses.append("cerebro_bbb_dnn")

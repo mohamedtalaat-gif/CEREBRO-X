@@ -1077,3 +1077,146 @@ class TestFirstPrinciplesPKa:
         phenol = compute_pka_from_first_principles(
             x_h_bond_type="H_O_phenol", neighbour_atoms=["C"])
         assert carboxyl["pKa"] < phenol["pKa"]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 16. REAL MOLECULAR-GRAPH GNN — REPLACES THE DELETED FAKE PSEUDO-GRAPH
+# ═════════════════════════════════════════════════════════════════════════════
+
+class TestMolecularGraphConstruction:
+    """The whole point of rebuilding this component was that the old one
+    faked its graph structure — identical node features tiled across a
+    fully-connected placeholder topology. These tests exist specifically
+    to catch a regression back to that failure mode, not just to check
+    the code runs."""
+
+    def test_different_atoms_get_different_features_not_tiled(self):
+        from cerebro_molecular_gnn import smiles_to_graph
+        node_feats, adjacency = smiles_to_graph("CCO")  # ethanol: C-C-O
+        assert node_feats.shape[0] == 3  # 3 real heavy atoms, not N=f(MW)
+        # The old bug tiled one identical vector across every node — here
+        # the terminal carbon and the oxygen must have genuinely different
+        # feature vectors (different element one-hot alone guarantees this).
+        assert not (node_feats[0] == node_feats[2]).all()
+
+    def test_adjacency_reflects_real_bonds_not_a_complete_graph(self):
+        from cerebro_molecular_gnn import smiles_to_graph
+        _, adjacency = smiles_to_graph("CCO")  # C0-C1, C1-O2 — a chain, not a triangle
+        assert adjacency[0, 1] == 1.0 and adjacency[1, 0] == 1.0
+        assert adjacency[1, 2] == 1.0 and adjacency[2, 1] == 1.0
+        # A real chain has no C0-O2 bond — a fully-connected fake graph would.
+        assert adjacency[0, 2] == 0.0 and adjacency[2, 0] == 0.0
+
+    def test_invalid_smiles_returns_none_not_a_fabricated_graph(self):
+        from cerebro_molecular_gnn import smiles_to_graph
+        assert smiles_to_graph("not_a_real_smiles!!!") is None
+
+    def test_larger_molecule_gets_more_nodes_than_smaller_one(self):
+        """Node count must come from real atom count, not the old bug's
+        N = f(molecular weight) formula applied to a pseudo-graph."""
+        from cerebro_molecular_gnn import smiles_to_graph
+        small, _ = smiles_to_graph("CCO")  # ethanol, 3 heavy atoms
+        large, _ = smiles_to_graph(
+            "COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2")  # donepezil, 28
+        assert large.shape[0] > small.shape[0]
+        assert large.shape[0] == 28
+        assert small.shape[0] == 3
+
+
+class TestAdjacencyNormalization:
+    """Kipf & Welling's D^-1/2(A+I)D^-1/2 renormalization, pinned against
+    a value computed independently in this test (plain numpy on a
+    hand-worked 3-node chain), not copied from the implementation."""
+
+    def test_normalization_matches_independently_computed_value(self):
+        import numpy as np
+
+        from cerebro_molecular_gnn import _normalize_adjacency
+        # 3-node chain: 0-1-2 (same shape as ethanol's C-C-O)
+        adj = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]], dtype=np.float32)
+
+        # Independent computation, not calling the function under test:
+        a_hat = adj + np.eye(3, dtype=np.float32)
+        deg = a_hat.sum(axis=1)  # [2, 3, 2]
+        d_inv_sqrt = np.diag(1.0 / np.sqrt(deg))
+        expected = d_inv_sqrt @ a_hat @ d_inv_sqrt
+
+        result = _normalize_adjacency(adj)
+        np.testing.assert_allclose(result, expected, atol=1e-6)
+
+    def test_isolated_atom_does_not_produce_uninitialized_values(self):
+        """Regression test for a real bug caught while building this:
+        np.power(deg, -0.5, where=deg>0) leaves garbage in positions where
+        deg==0 unless the output buffer is pre-zeroed. An isolated atom
+        (degree 0, plus its own self-loop = degree 1 after A+I) is a real,
+        if rare, case this must handle cleanly."""
+        import numpy as np
+
+        from cerebro_molecular_gnn import _normalize_adjacency
+        adj = np.zeros((2, 2), dtype=np.float32)  # two atoms, no bond between them
+        result = _normalize_adjacency(adj)
+        assert np.isfinite(result).all()
+
+
+class TestMolecularGCNForwardPass:
+    """The model itself — real batched forward pass, not just that it can
+    be instantiated."""
+
+    def test_padding_does_not_affect_pooled_output(self):
+        """A molecule's prediction must be identical whether it's run
+        alone or padded alongside a larger molecule in the same batch —
+        if the mask leaked into the mean pool, it wouldn't be."""
+        import torch
+
+        from cerebro_molecular_gnn import MolecularGCN, _pad_batch, smiles_to_graph
+        torch.manual_seed(0)
+        model = MolecularGCN()
+        model.eval()
+
+        small = smiles_to_graph("CCO")
+        large = smiles_to_graph("COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2")
+
+        with torch.no_grad():
+            x, a, m = _pad_batch([small])
+            solo_pred = model(x, a, m)[0].item()
+
+            x2, a2, m2 = _pad_batch([small, large])
+            batched_pred = model(x2, a2, m2)[0].item()
+
+        assert abs(solo_pred - batched_pred) < 1e-5
+
+    def test_output_is_a_valid_probability(self):
+        import torch
+
+        from cerebro_molecular_gnn import MolecularGCN, _pad_batch, smiles_to_graph
+        model = MolecularGCN()
+        model.eval()
+        g = smiles_to_graph("CCO")
+        with torch.no_grad():
+            x, a, m = _pad_batch([g])
+            out = model(x, a, m)
+        assert 0.0 <= out[0].item() <= 1.0
+
+    @pytest.mark.slow
+    def test_bbb_resolver_attaches_real_gnn_cross_check_alongside_dnn(self):
+        """The live integration point: engine/cerebro_value_resolver/
+        categories/bbb_perm.py's Tier 3 already resolves via the DNN —
+        confirms the GNN cross-check actually shows up in real resolver
+        output, agreeing on a real, well-known BBB-penetrant drug, rather
+        than the two models being silently merged into one number."""
+        from cerebro_bbb_dnn import _HAS_BBB_DNN
+        from cerebro_molecular_gnn import _HAS_MOL_GNN
+        if not (_HAS_BBB_DNN and _HAS_MOL_GNN):
+            pytest.skip("tensorflow and/or torch not installed")
+        from cerebro_value_resolver.categories.bbb_perm import resolve_bbb_permeability
+
+        # Donepezil: a real, well-known CNS drug that crosses the BBB.
+        result = resolve_bbb_permeability(
+            name="Donepezil",
+            smiles="COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2")
+        assert result["source"] == "cerebro_bbb_dnn"
+        assert "gnn_predicted_class" in result
+        assert "gnn_probability_permeable" in result
+        assert result["gnn_predicted_class"] == "permeable"
+        assert result["dnn_predicted_class"] == "permeable"
+        assert result["gnn_agrees_with_dnn"] is True
