@@ -45,24 +45,13 @@ def resolve_physics_diff_coeff_water(name: str = "", smiles: str = "",
     db_misses: list[str] = []
     db_misses.extend(["NIST WebBook (rate-limited)", "PubChem (rare)"])
 
-    # Tier 5: chemicals library
-    if _HAS_CHEMICALS and mw_Da:
-        try:
-            from chemicals import Wilke_Chang
-            # Wilke-Chang requires MW solvent, viscosity, molar volume
-            # Approximate Vm via MW/density (1.0 g/cm³)
-            Vm = mw_Da / 1.0   # cm³/mol approximation
-            D_cm2_s = Wilke_Chang(T=T_K, MWs=18.015, MWl=mw_Da,
-                                    Vml=Vm, mul=6.91e-4, phi=2.6)
-            return _resolved(value=D_cm2_s * 1e-4, tier=5,
-                              source="chemicals.Wilke_Chang",
-                              method="Wilke-Chang correlation via chemicals lib",
-                              reference="Wilke CR & Chang P (1955) AIChE J 1:264",
-                              live_db_misses=db_misses,
-                              extra={"unit": "m²/s"})
-        except Exception as e:
-            log.debug(f"[chemicals.Wilke_Chang] {e}")
-    db_misses.append("chemicals.Wilke_Chang")
+    # Tier 5: the `chemicals` library used to expose a Wilke_Chang liquid-
+    # diffusivity correlation; it isn't in the currently pinned version
+    # (chemicals 1.5.2 — verified: no Wilke_Chang, no diffusivity module at
+    # all). Rather than attempt an import that's guaranteed to fail and
+    # silently fall through every single call, skip straight to the
+    # pure-math implementation of the same equation below.
+    db_misses.append("chemicals.Wilke_Chang (not available in this chemicals version)")
 
     # Tier 6: Wilke-Chang in pure-math
     if mw_Da:
@@ -141,21 +130,21 @@ def resolve_physics_lj_epsilon(name: str = "", smiles: str = "",
                           reference="Researcher input", live_db_misses=[])
     db_misses: list[str] = ["NIST WebBook (sparse for organics)"]
 
-    # Tier 5: chemicals lib
-    if _HAS_CHEMICALS:
-        try:
-            # Stiel-Thodos: ε/k ≈ 0.77·Tc
-            # We'll use Tb if Tc unavailable: Tc ≈ 1.5·Tb
-            if Tb_K:
-                Tc = 1.5 * Tb_K
-                eps_k = 0.77 * Tc
-                return _resolved(value=eps_k, tier=5,
-                                  source="cerebro_value_resolver:stiel_thodos",
-                                  method="ε/k_B = 0.77·Tc (Stiel-Thodos correlation)",
-                                  reference="Stiel LI & Thodos G (1962) AIChE J 8:229",
-                                  live_db_misses=db_misses,
-                                  extra={"unit": "K"})
-        except Exception: pass
+    # Stiel-Thodos: ε/k ≈ 0.77·Tc; Tc ≈ 1.5·Tb when Tb is what's available.
+    # This is inline pure-math (no chemicals-library call involved despite
+    # the historical tier-5 label this used to carry), so it belongs at
+    # tier 7 alongside the file's other first-principles computations —
+    # and shouldn't be gated behind _HAS_CHEMICALS, which has nothing to
+    # do with whether this specific formula can run.
+    if Tb_K:
+        Tc = 1.5 * Tb_K
+        eps_k = 0.77 * Tc
+        return _resolved(value=eps_k, tier=7,
+                          source="cerebro_value_resolver:stiel_thodos",
+                          method="ε/k_B = 0.77·Tc (Stiel-Thodos correlation)",
+                          reference="Stiel LI & Thodos G (1962) AIChE J 8:229",
+                          live_db_misses=db_misses,
+                          extra={"unit": "K"})
     # Tier 6: empirical from MW
     if mw_Da:
         eps_k = 0.5 * mw_Da

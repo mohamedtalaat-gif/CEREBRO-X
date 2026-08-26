@@ -1825,3 +1825,194 @@ class TestMaterialPolymerResolver:
     def test_researcher_override_short_circuits(self):
         r = _resolve("material_polymer_mw", carrier="plga", researcher_override=45000.0)
         assert r["value"] == 45000.0 and r["tier"] == 0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 21. TRANSPORT-COEFFICIENT RESOLVER (categories/physics_transport.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestPhysicsTransportComputations:
+    """The underlying pure-math correlations, hand-verified against their
+    published formulas independent of the resolver wrapper."""
+
+    def test_stokes_einstein_diff_matches_published_formula(self):
+        import math
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.computations import stokes_einstein_diff
+
+        mw, T_K, visc = 350.0, 310.15, 6.91e-4
+        k_B = 1.380649e-23
+        r_m = 6.6e-12 * (mw ** (1 / 3))
+        expected = (k_B * T_K) / (6 * math.pi * visc * r_m)
+        assert stokes_einstein_diff(mw, T_K=T_K, visc_Pa_s=visc) == pytest.approx(expected, rel=1e-9)
+
+    def test_stokes_einstein_diff_zero_or_negative_mw_returns_zero(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.computations import stokes_einstein_diff
+
+        assert stokes_einstein_diff(0.0) == 0.0
+        assert stokes_einstein_diff(-10.0) == 0.0
+
+    def test_larger_molecules_diffuse_more_slowly(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.computations import stokes_einstein_diff
+
+        assert stokes_einstein_diff(100.0) > stokes_einstein_diff(10000.0)
+
+
+class TestPhysicsDiffCoeffWaterResolver:
+    def test_missing_wilke_chang_in_chemicals_lib_falls_through_to_pure_math(self):
+        """Regression test: the installed chemicals==1.5.2 no longer
+        exposes Wilke_Chang (or any liquid-diffusivity correlation) under
+        any name — confirmed directly against the installed package. The
+        resolver used to try importing it on every single call anyway, an
+        import that's guaranteed to fail, silently caught, and always
+        fell through to tier 6. Fixed by not attempting the dead import;
+        this pins that tier 6 (the resolver's own pure-math Wilke-Chang)
+        is what actually answers when mw_Da is given."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_diff_coeff_water,
+        )
+
+        r = resolve_physics_diff_coeff_water(mw_Da=350.0)
+        assert r["tier"] == 6
+        assert r["source"] == "cerebro_value_resolver:wilke_chang"
+        assert 1e-11 < r["value"] < 1e-8  # physically sane aqueous D for a small molecule
+
+    def test_missing_mw_falls_back_to_typical_small_molecule_constant(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_diff_coeff_water,
+        )
+
+        r = resolve_physics_diff_coeff_water()
+        assert r["value"] == 5e-10
+        assert r["tier"] == 7
+
+    def test_researcher_override_short_circuits(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_diff_coeff_water,
+        )
+
+        r = resolve_physics_diff_coeff_water(researcher_override=1e-9)
+        assert r["value"] == 1e-9 and r["tier"] == 0
+
+
+class TestPhysicsDiffCoeffMembraneResolver:
+    def test_higher_logp_increases_membrane_retention_and_slows_diffusion(self):
+        """The model's own stated assumption: more lipophilic drugs are
+        retained more strongly in the bilayer, slowing lateral diffusion."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_diff_coeff_membrane,
+        )
+
+        low_logp = resolve_physics_diff_coeff_membrane(mw_Da=350.0, logp=1.0)
+        high_logp = resolve_physics_diff_coeff_membrane(mw_Da=350.0, logp=5.0)
+        assert high_logp["value"] < low_logp["value"]
+
+    def test_membrane_diffusion_is_slower_than_aqueous_diffusion(self):
+        """Membrane viscosity is modeled as ~100x water — lateral diffusion
+        in the bilayer should always be far slower than in bulk water for
+        the same molecule."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_diff_coeff_membrane,
+            resolve_physics_diff_coeff_water,
+        )
+
+        water = resolve_physics_diff_coeff_water(mw_Da=350.0)
+        membrane = resolve_physics_diff_coeff_membrane(mw_Da=350.0, logp=2.5)
+        assert membrane["value"] < water["value"]
+
+
+class TestPhysicsLJParameterResolvers:
+    def test_stiel_thodos_epsilon_no_longer_gated_behind_chemicals_lib(self):
+        """Regression test: this branch computes ε/k_B = 0.77·Tc inline —
+        it never actually calls the `chemicals` package — but used to be
+        wrapped in `if _HAS_CHEMICALS:` anyway, so a real Tb_K-based
+        estimate would be silently skipped (falling to a generic 300K
+        constant) whenever the unrelated `chemicals` package happened to
+        be missing. Also pins the tier to 7 (pure first-principles math,
+        no library involved) rather than the old mislabeled tier 5."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_lj_epsilon,
+        )
+
+        Tb_K = 350.0
+        r = resolve_physics_lj_epsilon(Tb_K=Tb_K)
+        assert r["value"] == pytest.approx(0.77 * 1.5 * Tb_K, rel=1e-9)
+        assert r["tier"] == 7
+
+    def test_lj_epsilon_falls_back_to_mw_then_generic_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_lj_epsilon,
+        )
+
+        by_mw = resolve_physics_lj_epsilon(mw_Da=200.0)
+        assert by_mw["value"] == pytest.approx(0.5 * 200.0)
+        assert by_mw["tier"] == 6
+
+        generic = resolve_physics_lj_epsilon()
+        assert generic["value"] == 300.0
+        assert generic["tier"] == 7
+
+    def test_lj_sigma_bsl_correlation_matches_published_formula(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_lj_sigma,
+        )
+
+        Vc = 250.0
+        r = resolve_physics_lj_sigma(Vc_cm3_mol=Vc)
+        assert r["value"] == pytest.approx(0.841 * Vc ** (1 / 3), rel=1e-9)
+        assert r["tier"] == 6
+
+    def test_lj_sigma_falls_back_to_mw_then_generic_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_lj_sigma,
+        )
+
+        by_mw = resolve_physics_lj_sigma(mw_Da=200.0)
+        assert by_mw["value"] == pytest.approx(0.5 * 200.0 ** (1 / 3), rel=1e-9)
+        assert by_mw["tier"] == 7
+
+        generic = resolve_physics_lj_sigma()
+        assert generic["value"] == 5.0
+
+
+class TestPhysicsViscositySolventResolver:
+    def test_water_viscosity_at_body_temperature_is_physically_realistic(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_viscosity_solvent,
+        )
+
+        r = resolve_physics_viscosity_solvent(solvent="water")
+        # Real water viscosity at 37°C is ~0.69 mPa·s regardless of whether
+        # thermo's lookup or the Andrade fallback answers.
+        assert 5e-4 < r["value"] < 9e-4
+
+    def test_unknown_solvent_defaults_to_water_viscosity(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_viscosity_solvent,
+        )
+
+        r = resolve_physics_viscosity_solvent(solvent="totally_made_up_solvent_xyz")
+        assert r["value"] == 1e-3
+        assert r["confidence"] == "LOW"
+
+    def test_researcher_override_short_circuits(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.physics_transport import (
+            resolve_physics_viscosity_solvent,
+        )
+
+        r = resolve_physics_viscosity_solvent(researcher_override=2e-3)
+        assert r["value"] == 2e-3 and r["tier"] == 0
