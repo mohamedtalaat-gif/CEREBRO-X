@@ -391,8 +391,14 @@ def deep_P38(drug_bundle: dict, dds_bundle: dict,
     r   = size_nm * 1e-9 / 2
     D   = k_B * T / (6 * math.pi * eta * r)
     D_um2_s = D * 1e12
-    D_50nm = k_B * T / (6 * math.pi * eta * 25e-9)
-    t_clear_h = 6.0 * D_50nm / D
+    # D ∝ 1/r, so D_50nm/D reduces analytically to r/r_50nm — computed
+    # directly from the radius ratio rather than as two independently
+    # rounded Stokes-Einstein evaluations divided against each other,
+    # which left a 1-ULP shortfall exactly at the 50nm reference point
+    # (5.999999999999999 instead of 6.0) and spuriously failed the
+    # inclusive 6h boundary check below.
+    r_50nm = 25e-9
+    t_clear_h = 6.0 * (r / r_50nm)
 
     score = max(0.0, min(100.0, 100 - abs(math.log10(t_clear_h / 12))*40))
     validated = 6 <= t_clear_h <= 48

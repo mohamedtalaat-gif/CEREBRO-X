@@ -1220,3 +1220,291 @@ class TestMolecularGCNForwardPass:
         assert result["gnn_predicted_class"] == "permeable"
         assert result["dnn_predicted_class"] == "permeable"
         assert result["gnn_agrees_with_dnn"] is True
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 17. CLASS-B DEEP PHYSICS ENGINE (cerebro_62_deep_engine.py)
+# ═════════════════════════════════════════════════════════════════════════════
+def _drug_bundle(**overrides):
+    b = {
+        "drug_mw":  {"value": 350.0},
+        "drug_logp": {"value": 2.5},
+        "drug_tpsa": {"value": 60.0},
+        "drug_hbd": {"value": 2},
+        "drug_hba": {"value": 5},
+        "pk_halflife": {"value": 0.5},
+        "bbb_permeability": {"value": 5.0},
+        "_meta": {"drug_type": "small_molecule", "name": "test_drug",
+                  "identifiers": {"smiles": "CCO"}},
+    }
+    b.update(overrides)
+    return b
+
+
+def _dds_bundle(**meta_overrides):
+    meta = {"carrier_type": "liposome", "dds_type": "material"}
+    meta.update(meta_overrides)
+    return {"_meta": meta}
+
+
+def _combo_bundle(dds_row=None):
+    return {"_meta": {"dds_row": dds_row or {}}}
+
+
+class TestDeepP02AllometricScaling:
+    """Cross-species PK scaling — Mahmood 2007 parameter-specific exponents."""
+
+    def test_half_life_scaling_matches_published_formula(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P02
+
+        drug = _drug_bundle(drug_mw={"value": 350.0}, pk_halflife={"value": 0.5})
+        r = deep_P02(drug, _dds_bundle(), _combo_bundle(), {"score": 50})
+
+        ratio = 70_000 / 25
+        expected_thalf_h = (0.5 * 24) * (ratio ** 0.25)
+        assert r["value"] == round(expected_thalf_h, 2)
+        assert r["validated"] is True
+
+    def test_confidence_depends_on_drug_type(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P02
+
+        small_mol = deep_P02(_drug_bundle(), _dds_bundle(), _combo_bundle(), {})
+        assert (small_mol["score"], small_mol["confidence"]) == (90, "HIGH")
+
+        mab = deep_P02(
+            _drug_bundle(_meta={"drug_type": "monoclonal_antibody", "name": "x",
+                                  "identifiers": {"smiles": ""}}),
+            _dds_bundle(), _combo_bundle(), {})
+        assert (mab["score"], mab["confidence"]) == (65, "LOW")
+
+        other = deep_P02(
+            _drug_bundle(_meta={"drug_type": "nanoparticle_conjugate", "name": "x",
+                                  "identifiers": {"smiles": ""}}),
+            _dds_bundle(), _combo_bundle(), {})
+        assert (other["score"], other["confidence"]) == (75, "MODERATE")
+
+
+class TestDeepP38StokesEinstein:
+    """Glymphatic clearance — physical Stokes-Einstein diffusion, no fitted knobs."""
+
+    def test_reference_size_returns_exactly_six_hours(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P38
+
+        r = deep_P38(_drug_bundle(), _dds_bundle(),
+                      _combo_bundle({"Size_nm": 50.0}), {})
+        assert r["value"] == 6.0
+        assert r["validated"] is True
+        assert r["confidence"] == "HIGH"
+
+    def test_clearance_time_scales_linearly_with_particle_size(self):
+        """D ∝ 1/r, and t_clear ∝ 1/D, so doubling+quadrupling the radius
+        relative to the 50nm reference should scale t_clear by the same
+        factor — a direct physical consequence of Stokes-Einstein, not a
+        tuned parameter."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P38
+
+        r = deep_P38(_drug_bundle(), _dds_bundle(),
+                      _combo_bundle({"Size_nm": 200.0}), {})
+        assert r["value"] == 24.0  # 6h * (200/50)
+        assert r["validated"] is True  # 6 <= 24 <= 48
+
+    def test_missing_size_fails_cleanly(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P38
+
+        r = deep_P38(_drug_bundle(), _dds_bundle(),
+                      _combo_bundle({"Size_nm": 0.0}), {})
+        assert r["validated"] is False
+        assert r["confidence"] == "FAILED"
+
+
+class TestDeepP18ActiveTargeting:
+    """MM/GBSA-style ΔG from a validated ligand-receptor Kd lookup table."""
+
+    def test_known_ligand_resolves_to_its_receptor_and_dg(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P18
+
+        r = deep_P18(_drug_bundle(), _dds_bundle(),
+                      _combo_bundle({"Surface_Ligand": "Transferrin"}), {"score": 50})
+        assert r["raw"]["receptor"] == "TfR1"
+        assert r["value"] == -10.5
+        assert r["validated"] is True  # |−10.5| >= 8.0
+
+    def test_weak_ligand_is_not_validated(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P18
+
+        r = deep_P18(_drug_bundle(), _dds_bundle(),
+                      _combo_bundle({"Surface_Ligand": "TAT"}), {})
+        assert r["value"] == -6.5
+        assert r["validated"] is False  # |−6.5| < 8.0
+
+    def test_unrecognized_ligand_falls_back_to_generic_receptor(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P18
+
+        r = deep_P18(_drug_bundle(), _dds_bundle(),
+                      _combo_bundle({"Surface_Ligand": "made_up_peptide_37"}), {})
+        assert r["raw"]["receptor"] == "unknown_BBB_receptor"
+        assert r["value"] == -7.0
+
+    def test_no_ligand_bypasses_computation_entirely(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P18
+
+        r = deep_P18(_drug_bundle(), _dds_bundle(), _combo_bundle({}), {})
+        assert r["validated"] is False
+        assert r["value"] == 0
+        assert "No surface ligand" in r["method"]
+
+
+class TestDeepP47BindingAffinity:
+    """LIE-approximation fallback — same formula whether it's reached via
+    real_docking_engine's own fallback or the deep-engine's inline copy."""
+
+    def test_lie_delta_g_matches_published_aqvist_formula(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P47
+
+        logp, tpsa, hbd, hba = 3.0, 60.0, 2, 5
+        drug = _drug_bundle(drug_logp={"value": logp}, drug_tpsa={"value": tpsa},
+                             drug_hbd={"value": hbd}, drug_hba={"value": hba})
+        r = deep_P47(drug, _dds_bundle(), _combo_bundle(), {"score": 50, "value": -5})
+
+        alpha, beta = 0.181, 0.137
+        expected = -(alpha * logp + beta * (50 - tpsa / 5) + 0.5 * (hbd + hba) * 0.3)
+        expected = max(-20, min(-1, expected))
+        assert r["value"] == round(expected, 2)
+        assert "LIE approximation" in r["method"]
+        assert "LOW" in r["confidence"]
+
+
+class TestDeepP31Biodistribution:
+    """7-organ whole-body distribution — deterministic weighted split, no ODE."""
+
+    def test_organ_distribution_matches_hand_computation(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P31
+
+        drug = _drug_bundle(bbb_permeability={"value": 5.0})
+        r = deep_P31(drug, _dds_bundle(),
+                      _combo_bundle({"Size_nm": 250.0, "Zeta_Potential_mV": -30.0}),
+                      {})
+
+        # brain=5, liver=35 (size>200), spleen=20 (|zeta|>25), kidney=8,
+        # lung=5, heart=3, muscle=100 → sum=176, brain_norm=5/176*100
+        expected_brain_pct = round(5.0 / 176.0 * 100, 2)
+        assert r["value"] == expected_brain_pct
+        assert r["raw"]["organ_distribution_pct"]["liver"] == round(35 / 176 * 100, 2)
+
+    def test_active_targeting_ligand_triples_brain_uptake_share(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P31
+
+        drug = _drug_bundle(bbb_permeability={"value": 5.0})
+        no_ligand = deep_P31(drug, _dds_bundle(),
+                              _combo_bundle({"Size_nm": 250.0, "Zeta_Potential_mV": -30.0}),
+                              {})
+        with_ligand = deep_P31(drug, _dds_bundle(),
+                                _combo_bundle({"Size_nm": 250.0, "Zeta_Potential_mV": -30.0,
+                                               "Surface_Ligand": "Transferrin"}),
+                                {})
+        assert with_ligand["value"] > no_ligand["value"]
+        assert with_ligand["raw"]["ligand_boost"] is True
+        assert no_ligand["raw"]["ligand_boost"] is False
+
+
+class TestDeepPBPKODEs:
+    """3- and 4-compartment PBPK ODE integrators (P13, P44) — checks the
+    deterministic rate constants they build and the physically-required
+    direction of the ligand-targeting effect, without hand-solving the ODE."""
+
+    def test_p13_ligand_targeting_raises_brain_exposure(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P13
+
+        drug = _drug_bundle(bbb_permeability={"value": 5.0})
+        no_ligand = deep_P13(drug, _dds_bundle(), _combo_bundle({}), {})
+        with_ligand = deep_P13(drug, _dds_bundle(),
+                                _combo_bundle({"Surface_Ligand": "Transferrin"}), {})
+
+        assert with_ligand["raw"]["k_bb_in_per_h"] == round(no_ligand["raw"]["k_bb_in_per_h"] * 3, 4)
+        assert with_ligand["value"] > no_ligand["value"]  # higher brain AUC ratio
+
+    def test_p13_fails_cleanly_without_scipy(self, monkeypatch):
+        import builtins
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P13
+
+        real_import = builtins.__import__
+
+        def blocked(name, *a, **kw):
+            if name == "scipy.integrate" or name.startswith("scipy"):
+                raise ImportError("blocked for test")
+            return real_import(name, *a, **kw)
+
+        monkeypatch.setattr(builtins, "__import__", blocked)
+        r = deep_P13(_drug_bundle(), _dds_bundle(), _combo_bundle({}), {})
+        assert r["validated"] is False
+        assert r["confidence"] == "FAILED"
+
+    def test_p44_glymphatic_rate_matches_stokes_einstein_size_scaling(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import deep_P44
+
+        small = deep_P44(_drug_bundle(), _dds_bundle(),
+                          _combo_bundle({"Size_nm": 50.0}), {})
+        large = deep_P44(_drug_bundle(), _dds_bundle(),
+                          _combo_bundle({"Size_nm": 300.0}), {})
+        # k_glymph = 0.2 / max(1, size/100) — unchanged at/under 100nm,
+        # inversely proportional above it.
+        assert small["raw"]["k_glymph_per_h"] == 0.2
+        assert large["raw"]["k_glymph_per_h"] == round(0.2 / 3.0, 4)
+
+
+class TestDeepValidationDispatch:
+    """evaluate_deep_for_top1() — the real/HPC-deferred split must stay
+    exhaustive and non-overlapping across all 28 Class-B principles."""
+
+    def test_deep_functions_and_hpc_only_partition_cleanly(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import DEEP_FUNCTIONS, HPC_ONLY_PRINCIPLES
+
+        overlap = set(DEEP_FUNCTIONS) & set(HPC_ONLY_PRINCIPLES)
+        assert overlap == set()
+        assert len(DEEP_FUNCTIONS) == 7
+
+    def test_evaluate_deep_for_top1_covers_every_registered_principle(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import (
+            DEEP_FUNCTIONS,
+            HPC_ONLY_PRINCIPLES,
+            evaluate_deep_for_top1,
+        )
+
+        out = evaluate_deep_for_top1(_drug_bundle(), _dds_bundle(), _combo_bundle({}), {})
+        assert set(out) == set(DEEP_FUNCTIONS) | set(HPC_ONLY_PRINCIPLES)
+        # An HPC-only principle must carry the honest pass-through marker.
+        assert "external HPC run" in out["P01"]["improvement_over_surrogate"]
+        # A real DEEP_FUNCTIONS principle must not carry that marker.
+        assert "external HPC run" not in out["P38"]["improvement_over_surrogate"]
+
+    def test_a_raising_deep_function_is_caught_and_marked_failed(self):
+        """A malformed Excel cell (non-numeric zeta potential) makes
+        deep_P31's float() conversion raise — the dispatcher must catch
+        it and report _failed() for that principle only, not crash the
+        whole batch."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import evaluate_deep_for_top1
+
+        bad_combo = _combo_bundle({"Zeta_Potential_mV": "not_a_number"})
+        out = evaluate_deep_for_top1(_drug_bundle(), _dds_bundle(), bad_combo, {})
+        assert out["P31"]["validated"] is False
+        assert out["P31"]["confidence"] == "FAILED"
+        # Other principles in the same batch must still compute normally.
+        assert out["P38"]["confidence"] != "FAILED"
