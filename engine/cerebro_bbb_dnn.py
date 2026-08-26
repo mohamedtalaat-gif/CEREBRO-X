@@ -5,11 +5,15 @@ CEREBRO-X |  cerebro_bbb_dnn.py  —  BBB Permeability DNN Classifier
 Created by: Muhammad Talaat — CEREBRO-X
 
 A real, trained, held-out-tested deep neural network for blood-brain barrier
-(BBB) permeability classification — replacing the earlier fake GNN pseudo-
-graph component (see src/core/pipeline.py::GNNEngine, which has been fixed
-to no longer leak its target but is still not a real molecular-structure
-model; this module is the honest, working alternative for BBB permeability
-specifically).
+(BBB) permeability classification, on flat molecular descriptors. The earlier
+fake GNN pseudo-graph component that used to live in
+src/core/pipeline.py::GNNEngine (fully-connected graphs of identical
+duplicated nodes, no real atoms or bonds) has been removed entirely rather
+than kept in a disclosed-but-broken state — it was dead code either way.
+A real, graph-structure GNN now lives in engine/cerebro_molecular_gnn.py,
+trained on the same BBBP dataset this module uses, specifically to give an
+honest answer to whether a real molecular graph adds anything over this
+DNN's flat descriptors on the same task — not assumed, checked.
 
 Data
 ----

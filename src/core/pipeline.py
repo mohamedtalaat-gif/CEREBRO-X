@@ -132,16 +132,6 @@ try:
 except ImportError:
     _HAS_PYDANTIC = False
 
-try:
-    import torch
-    import torch.nn.functional as F
-    from torch import nn
-    from torch_geometric.data import Data
-    from torch_geometric.nn import GCNConv, global_mean_pool
-    _HAS_GNN = True
-except ImportError:
-    _HAS_GNN = False
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.  OUTPUT FOLDER STRUCTURE  (single root — nothing written outside it)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1095,169 +1085,19 @@ class AdvancedMLEngine:
         return df, ensemble, metrics
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 13. GNN ENGINE  (PyTorch Geometric / networkx fallback)
+# 13. GNN ENGINE  (networkx fallback; real graph-structure GNN lives in
+# engine/cerebro_molecular_gnn.py, trained on the public BBBP dataset with
+# genuine RDKit atom/bond graphs, wired into the live pipeline directly —
+# not this legacy standalone-script class. The fabricated pseudo-graph
+# model that used to live here (MolecularGNN, _build_graphs, train_gnn —
+# fully-connected graphs of identical duplicated nodes, no real atoms or
+# bonds) has been removed rather than kept as a disclosed-but-unreachable
+# component: it was never actually invoked by the real system either way
+# (its only caller was this file's own dead __main__ block), so fixing its
+# math without deleting it would have left an inert fabrication risk in
+# place for no benefit.
 # ─────────────────────────────────────────────────────────────────────────────
-if _HAS_GNN:
-    class MolecularGNN(nn.Module):
-        """
-        3-layer Graph Convolutional Network over GNNEngine's per-drug pseudo-
-        graph (see GNNEngine's class docstring — this is NOT a real molecular
-        atom/bond graph, despite the class name kept here for compatibility).
-        Architecture: GCN×3 → global_mean_pool → MLP×2.
-        Input: 9-dim tabular descriptor vector, duplicated across N pseudo-nodes.
-        Output: scalar binding-affinity prediction.
-        """
-        def __init__(self, node_feat=9, hidden=64, out=1):
-            super().__init__()
-            self.c1 = GCNConv(node_feat, hidden)
-            self.c2 = GCNConv(hidden, hidden)
-            self.c3 = GCNConv(hidden, hidden//2)
-            self.bn1= nn.BatchNorm1d(hidden)
-            self.bn2= nn.BatchNorm1d(hidden)
-            self.fc1= nn.Linear(hidden//2, 32)
-            self.fc2= nn.Linear(32, out)
-            self.drop = nn.Dropout(0.2)
-
-        def forward(self, data):
-            x, ei, b = data.x, data.edge_index, data.batch
-            x = F.relu(self.bn1(self.c1(x, ei)))
-            x = self.drop(x)
-            x = F.relu(self.bn2(self.c2(x, ei)))
-            x = F.relu(self.c3(x, ei))
-            x = global_mean_pool(x, b)
-            return self.fc2(F.relu(self.fc1(x))).squeeze(-1)
-
 class GNNEngine:
-    """
-    IMPORTANT — read before trusting any output of this class:
-
-    This is NOT a molecular graph model. There is no SMILES/atom/bond
-    structure available at this point in the pipeline (df_mab carries only
-    tabular descriptors — MW, LogP, half-life, etc. — resolved per-drug, not
-    per-atom). What `_build_graphs` builds is a fully-connected graph of N
-    IDENTICAL pseudo-nodes, all copies of the same per-drug feature vector,
-    where N is an arbitrary function of molecular weight. Running a GCN over
-    that structure is mathematically close to a permutation-invariant MLP —
-    it does not encode 3D topology, atom identity, or bond connectivity, and
-    should not be described as doing so (earlier revisions of this file's
-    documentation incorrectly claimed "atoms=nodes, bonds=edges" and cited
-    QM9/Gilmer et al. 2017, which do not apply to this construction — that
-    language has been removed).
-
-    A genuine molecular-graph GNN would need real per-atom features built
-    from RDKit on a resolved SMILES string (see src/core/molecule_engine.py
-    for SMILES resolution, and src/core/real_docking_engine.py for the
-    RDKit 3D-embedding pattern this would need to reuse). That is a real,
-    larger piece of work — tracked as a roadmap item, not implemented here.
-    """
-
-    @staticmethod
-    def _build_graphs(df: pd.DataFrame) -> list:
-        if not _HAS_GNN: return []
-        # Affinity columns are the training target (y) below and must never
-        # also appear in the input features — including one here previously
-        # caused the model to be trained with the answer inside its own
-        # input (target leakage), making any reported loss/accuracy invalid.
-        aff_col = next((c for c in ["Docking_Affinity_kcal","Binding_Affinity_kcal",
-                                     "Estimated_Affinity_kcal"] if c in df.columns), None)
-        num_cols = [c for c in ["MW_Da","LogP","Half_Life_Days","CNS_Tropism"]
-                    if c in df.columns and c != aff_col]
-        if not num_cols: return []
-        X_norm   = MinMaxScaler().fit_transform(df[num_cols].fillna(0).values)
-        out, idx_list = [], list(df.index)
-        for i, row in df.iterrows():
-            n  = max(3, min(10, int(row.get("MW_Da",500)/50)))
-            nf = np.tile(X_norm[idx_list.index(i)][:min(9,len(num_cols))], (n,1))
-            if nf.shape[1] < 9:
-                nf = np.hstack([nf, np.zeros((n, 9-nf.shape[1]))])
-            s = [a for a in range(n) for b in range(n) if a!=b]
-            d = [b for a in range(n) for b in range(n) if a!=b]
-            y_val = float(abs(row[aff_col])) if aff_col else 0.0
-            out.append(Data(
-                x          = torch.tensor(nf, dtype=torch.float),
-                edge_index = torch.tensor([s,d], dtype=torch.long),
-                y          = torch.tensor([y_val], dtype=torch.float)))
-        return out
-
-    @classmethod
-    def train_gnn(cls, df: pd.DataFrame, epochs: int = 50):
-        if not _HAS_GNN:
-            log.info("  GNN skipped (install torch + torch-geometric)"); return None
-        if len(df) < 4:
-            log.warning("  GNN skipped — < 4 samples"); return None
-        log.info("Training MolecularGNN …")
-        from torch_geometric.loader import DataLoader
-        loader = DataLoader(cls._build_graphs(df), batch_size=4, shuffle=True)
-        model  = MolecularGNN(node_feat=9, hidden=64)
-        opt    = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
-        sched  = torch.optim.lr_scheduler.StepLR(opt, step_size=20, gamma=0.5)
-        loss_fn= nn.MSELoss()
-        losses = []
-        model.train()
-        for ep in range(epochs):
-            el = 0.0
-            for batch in loader:
-                opt.zero_grad(); out = model(batch)
-                l  = loss_fn(out, batch.y); l.backward(); opt.step(); el += l.item()
-            sched.step(); losses.append(el/len(loader))
-            if (ep+1)%10==0: log.info(f"    GNN epoch {ep+1} loss={losses[-1]:.4f}")
-        gp = PATHS["models"] / "gnn_model.pt"
-        torch.save(model.state_dict(), gp)
-        fig,ax = plt.subplots(figsize=(8,4))
-        ax.plot(losses,color="purple",lw=2)
-        ax.set(xlabel="Epoch",ylabel="MSE Loss",
-               title="GNN Training Loss Curve"); ax.grid(True,alpha=0.3)
-        plt.tight_layout()
-        fig.savefig(PATHS["figures"]/"GNN_Training_Loss.png",dpi=300); plt.close()
-        write_doc(gp, {
-            "overview":
-                "PyTorch Geometric Graph Convolutional Network trained on a "
-                "PER-DRUG pseudo-graph built from tabular descriptors (MW, "
-                "LogP, half-life, CNS tropism) — NOT a real molecular "
-                "structure graph. See GNNEngine's class docstring for why.",
-            "significance":
-                "Limited: every node in a given drug's pseudo-graph carries an "
-                "identical, duplicated copy of that drug's tabular feature "
-                "vector, and edges are a fully-connected placeholder (not real "
-                "bonds). This construction does not encode atom identity, 3D "
-                "topology, or bond connectivity — it is architecturally closer "
-                "to a permutation-invariant MLP over the same descriptors "
-                "than to a true molecular-graph model. Treat its output as "
-                "experimental, not as evidence of structure-aware prediction.",
-            "strategic_decision":
-                "Training loss reflects fit to the tabular descriptors only; "
-                "it is not evidence that graph structure adds predictive "
-                "signal, since no real structural variation exists between "
-                "nodes in this construction.",
-            "theoretical_science":
-                "GCN layer: h_v^(l+1) = σ(Σ_{u∈N(v)} W^l·h_u^l / √(d_v·d_u))\n"
-                "Global mean pooling aggregates node embeddings to a single "
-                "per-drug vector. With identical node features and a complete "
-                "graph, this reduces close to pooling over duplicated copies "
-                "of one vector, not a multi-hop structural receptive field.",
-            "practical_science":
-                "No benchmark validation has been run for this construction. "
-                "The earlier claim of QM9/Gilmer et al. (2017) validation was "
-                "incorrect — QM9 is a real-molecule 3D-structure benchmark and "
-                "does not apply to this per-drug pseudo-graph. Remove/replace "
-                "this component with a genuine RDKit-derived atom/bond graph "
-                "(real SMILES → real per-atom features, see "
-                "src/core/molecule_engine.py for SMILES resolution) before "
-                "citing it as a structure-aware model in any external report.",
-            "methodology":
-                "1. Build a fully-connected pseudo-graph of N=f(MW) identical "
-                "   nodes from tabular descriptors (affinity columns excluded "
-                "   from features to avoid target leakage; see _build_graphs).\n"
-                "2. 3-layer GCN + BatchNorm + Dropout(0.2).\n"
-                "3. Adam + StepLR scheduler.\n"
-                "4. 50 epochs, batch=4.\n"
-                "5. Save state_dict to .pt",
-            "computational_architecture":
-                "PyTorch Geometric · GCNConv · global_mean_pool · "
-                "DataLoader · Adam · StepLR. GPU-compatible.",
-        })
-        log.info(f"  GNN saved → {gp}")
-        return model
 
     @staticmethod
     def networkx_fingerprint(df: pd.DataFrame) -> pd.DataFrame:
@@ -1652,7 +1492,7 @@ class ReportingEngine:
         xgb_tag = " + XGB" if _HAS_XGB else ""
         shap_tag = "enabled" if _HAS_SHAP else "install shap"
         jlib_tag = "enabled" if _HAS_JOBLIB else "install joblib"
-        gnn_tag  = "PyTorch Geometric" if _HAS_GNN else "networkx fallback"
+        gnn_tag  = "networkx graph centrality (real GNN moved to cerebro_molecular_gnn.py)"
         prom_tag = "enabled on :8001" if _HAS_PROM else "install prometheus-client"
 
         report = f"""
@@ -1810,11 +1650,10 @@ if __name__ == "__main__":
     if df_mab.empty:
         log.error("No valid drug data -- check Missing_Data_Log.txt"); sys.exit(1)
 
-    # GNN
-    if _HAS_GNN:
-        GNNEngine.train_gnn(df_mab, epochs=50)
-    else:
-        df_mab = GNNEngine.networkx_fingerprint(df_mab)
+    # Graph-structure GNN training now lives in engine/cerebro_molecular_gnn.py
+    # (real RDKit atom/bond graphs on the public BBBP dataset), wired into
+    # the live pipeline directly rather than this legacy script path.
+    df_mab = GNNEngine.networkx_fingerprint(df_mab)
 
     # ML
     base_feats = ["MW_Da","LogP","Half_Life_Days","Docking_Affinity_kcal"]
