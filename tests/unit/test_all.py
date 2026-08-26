@@ -2016,3 +2016,134 @@ class TestPhysicsViscositySolventResolver:
 
         r = resolve_physics_viscosity_solvent(researcher_override=2e-3)
         assert r["value"] == 2e-3 and r["tier"] == 0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 22. QUANTUM/ATOMIC RESOLVER (categories/quantum_atomic.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestQuantumAtomicResolver:
+    def test_mendeleev_polarizability_is_converted_from_bohr3_to_angstrom3(self):
+        """Regression test for a real unit-conversion bug: mendeleev's
+        dipole_polarizability attribute is in Bohr³ (confirmed directly —
+        mendeleev reports H at 4.507 Bohr³), not Å³ as the resolver assumed.
+        Using it unconverted overstated every atomic polarizability by
+        ~6.75x. Checked against the file's own independently-sourced
+        Schwerdtfeger 2019 fallback table, which the converted mendeleev
+        value should land close to."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.quantum_atomic import (
+            _atomic_polarizability,
+        )
+
+        # Real experimental atomic polarizability of hydrogen is ~0.667 Å³ —
+        # this file's own fallback table agrees. mendeleev raw is 4.507 Bohr³;
+        # unconverted that would wrongly read back as ~4.5.
+        assert _atomic_polarizability("H") == pytest.approx(0.667, abs=0.05)
+        assert _atomic_polarizability("C") == pytest.approx(1.76, abs=0.15)
+
+    def test_molecular_polarizability_sums_atomic_contributions(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.quantum_atomic import (
+            _atomic_polarizability,
+            resolve_quantum_polarizability,
+        )
+
+        r = resolve_quantum_polarizability(smiles="CCO")  # ethanol: C,C,O + 3 heavy atoms' H
+        expected = (_atomic_polarizability("C") + _atomic_polarizability("C")
+                    + _atomic_polarizability("O") + 3 * 0.667)
+        assert r["value"] == pytest.approx(expected, abs=1e-2)
+        assert r["tier"] == 5
+
+    def test_no_smiles_falls_back_to_typical_drug_polarizability(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.quantum_atomic import (
+            resolve_quantum_polarizability,
+        )
+
+        r = resolve_quantum_polarizability(smiles="")
+        assert r["value"] == 15.0
+        assert r["tier"] == 7
+
+    def test_dipole_moment_rdkit_path_returns_a_real_geometry_based_value(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.quantum_atomic import (
+            resolve_quantum_dipole_moment,
+        )
+
+        r = resolve_quantum_dipole_moment(smiles="CCO")  # ethanol has a real, nonzero dipole
+        assert r["tier"] == 3
+        assert r["value"] > 0.5  # ethanol's real dipole moment is ~1.7 D
+
+    def test_homo_lumo_gap_shrinks_with_more_aromatic_rings(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.quantum_atomic import (
+            resolve_quantum_homo_lumo_gap,
+        )
+
+        few_rings = resolve_quantum_homo_lumo_gap(aromatic_rings=1)
+        many_rings = resolve_quantum_homo_lumo_gap(aromatic_rings=5)
+        assert many_rings["value"] < few_rings["value"]
+        assert few_rings["value"] == pytest.approx(5.5 - 0.4 * 1, rel=1e-9)
+
+    def test_homo_lumo_gap_has_a_physical_floor(self):
+        """Extended conjugation can't push the gap below the floor the
+        formula hard-clamps at (max(2.5, ...))."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.quantum_atomic import (
+            resolve_quantum_homo_lumo_gap,
+        )
+
+        r = resolve_quantum_homo_lumo_gap(aromatic_rings=20)
+        assert r["value"] == 2.5
+
+    def test_atomic_charges_sum_is_nonzero_for_a_real_molecule(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.quantum_atomic import (
+            resolve_quantum_atomic_charges_sum,
+        )
+
+        r = resolve_quantum_atomic_charges_sum(smiles="CCO")
+        assert r["tier"] == 3
+        assert r["value"] > 0
+
+    def test_ionization_energy_known_element_matches_nist_table(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.quantum_atomic import (
+            resolve_quantum_ionization_energy,
+        )
+
+        r = resolve_quantum_ionization_energy(symbol="C")
+        assert r["value"] == pytest.approx(11.260, abs=0.01)
+
+    def test_unrecognized_symbol_falls_back_to_honest_hydrogen_like_baseline(self):
+        """Regression test: this branch used to compute
+        R·(Z_eff/n)²·n² with a hardcoded n=2 'second-shell baseline' —
+        but n cancels out of that formula algebraically for ANY value,
+        so it always silently returned the fixed hydrogen ground-state
+        energy (13.606 eV) dressed up as a per-element Slater's-rules
+        derivation. Now it's labeled for what it actually is."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.quantum_atomic import (
+            resolve_quantum_ionization_energy,
+        )
+
+        r = resolve_quantum_ionization_energy(symbol="Xx_not_a_real_element")
+        assert r["value"] == pytest.approx(13.606, abs=0.001)
+        assert r["source"] == "cerebro_value_resolver:hydrogen_like_baseline"
+        assert r["confidence"] == "LOW"
+
+    def test_researcher_overrides_short_circuit_all_five_resolvers(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.quantum_atomic import (
+            resolve_quantum_atomic_charges_sum,
+            resolve_quantum_dipole_moment,
+            resolve_quantum_homo_lumo_gap,
+            resolve_quantum_ionization_energy,
+            resolve_quantum_polarizability,
+        )
+
+        for fn in (resolve_quantum_polarizability, resolve_quantum_dipole_moment,
+                   resolve_quantum_homo_lumo_gap, resolve_quantum_atomic_charges_sum,
+                   resolve_quantum_ionization_energy):
+            r = fn(researcher_override=7.0)
+            assert r["value"] == 7.0 and r["tier"] == 0

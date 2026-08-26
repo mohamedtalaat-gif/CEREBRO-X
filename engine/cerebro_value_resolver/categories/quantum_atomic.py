@@ -27,15 +27,22 @@ from .._core import _HAS_MENDELEEV, _HAS_RDKIT, _resolved, register
 log = logging.getLogger("CEREBRO-RESOLVER.quantum")
 
 
+_BOHR3_TO_ANGSTROM3 = 0.529177210903 ** 3   # CODATA 2018 Bohr radius, cubed
+
+
 def _atomic_polarizability(symbol: str) -> float | None:
     """Atomic polarizability (Å³) via mendeleev or hardcoded short table."""
     if _HAS_MENDELEEV:
         try:
             import mendeleev
             el = mendeleev.element(symbol)
-            # mendeleev returns dipole_polarizability in Å³
+            # mendeleev.dipole_polarizability is in Bohr³ (atomic units), not
+            # Å³ — confirmed against its own H/C values (4.507/11.3 Bohr³),
+            # which only match the well-known experimental 0.667/1.76 Å³
+            # after this conversion. Using it unconverted overstated every
+            # atomic polarizability by ~6.75x (1/0.1482).
             v = getattr(el, "dipole_polarizability", None)
-            if v is not None: return float(v)
+            if v is not None: return float(v) * _BOHR3_TO_ANGSTROM3
         except Exception: pass
     # Short fallback table (Schwerdtfeger 2019 atomic polarizabilities, Å³)
     POL = {"H":0.667,"C":1.76,"N":1.10,"O":0.802,"S":2.90,
@@ -251,27 +258,19 @@ def resolve_quantum_ionization_energy(symbol: str = "C",
                                      "https://physics.nist.gov/PhysRefData/ASD",
                           live_db_misses=[],
                           extra={"unit": "eV"})
-    # No element symbol provided or symbol not in NIST short table.
-    # Compute IE from Slater's rules first principles: IE ≈ 13.6·Z_eff² eV
-    # using effective nuclear charge for the highest occupied orbital.
-    # Default Z_eff for a generic main-group atom is ~1.0 (hydrogen-like baseline).
-    # This is a TRUE computation, not a default.
-    Z_eff = 1.0   # generic main-group baseline (hydrogen-like)
-    n_principal = 2   # second-shell baseline
+    # No element symbol provided, not in the NIST short table, and mendeleev
+    # couldn't resolve it either (an invalid/unrecognized symbol). The
+    # Bohr/Rydberg hydrogen-like IE formula R·(Z_eff/n)²·n² algebraically
+    # reduces to R·Z_eff² for ANY value of n — the n's cancel exactly — so
+    # this is not actually a per-element Slater's-rules computation; it's
+    # the fixed hydrogen ground-state ionization energy used as a generic
+    # last-resort baseline, same honest spirit as this file's other
+    # "typical_drug"/tier-7 fallbacks.
     Rydberg_eV = 13.605693    # NIST CODATA 2018
-    ie_computed = Rydberg_eV * (Z_eff / n_principal) ** 2 * n_principal**2
-    return _resolved(value=round(ie_computed, 3), tier=7,
-                      source="cerebro_value_resolver:slater_rules",
-                      method="IE computed via Slater's rules: IE = 13.6·(Z_eff/n)²·n² eV "
-                              "for hydrogen-like baseline (Z_eff=1.0, n=2)",
-                      computational_method=(
-                          f"Step 1: Element symbol {symbol!r} not in NIST short table. "
-                          f"Step 2: Apply Slater's rules with hydrogen-like baseline "
-                          f"(Z_eff=1.0, n=2). "
-                          f"Step 3: IE = R·(Z_eff/n)²·n² where R = 13.605693 eV (NIST CODATA 2018). "
-                          f"Step 4: IE = {Rydberg_eV} × (1.0/2)² × 2² = {ie_computed:.3f} eV. "
-                          f"This is a FIRST-PRINCIPLES estimate, not a default."),
-                      reference="Slater JC (1930) Phys Rev 36:57; "
-                                 "NIST CODATA 2018 fundamental constants",
+    return _resolved(value=round(Rydberg_eV, 3), tier=7,
+                      source="cerebro_value_resolver:hydrogen_like_baseline",
+                      method="Generic hydrogen-like ionization-energy baseline "
+                              "(no data for this element symbol)",
+                      reference="NIST CODATA 2018 fundamental constants",
                       live_db_misses=["mendeleev (no value for this symbol)"],
-                      extra={"unit": "eV"})
+                      extra={"confidence": "LOW", "unit": "eV"})
