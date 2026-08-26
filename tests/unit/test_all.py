@@ -2297,3 +2297,107 @@ class TestDdsTypeClassifier:
         assert r["value"] == "material"
         assert r["tier"] == 7
         assert r["source"] == "cerebro_value_resolver:material_class_inferred"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 24. TARGET-BINDING + MANUFACTURING RESOLVER (categories/drug_target_and_mfg.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestDrugTargetBindingResolvers:
+    """name='' keeps _chembl_target_activity's network call from firing
+    (it short-circuits on a falsy name), so these exercise the tier-7
+    typical-drug fallback deterministically and offline."""
+
+    def test_researcher_override_short_circuits(self):
+        import src.path_resolver  # noqa: F401
+        import cerebro_value_resolver.categories.drug_target_and_mfg  # noqa: F401
+        from cerebro_value_resolver._core import resolve_value
+
+        r = resolve_value("drug_target_kd", name="", researcher_override=12.5)
+        assert r["value"] == 12.5 and r["tier"] == 0
+
+    def test_kd_ic50_ki_fall_back_to_their_own_typical_drug_defaults(self):
+        import src.path_resolver  # noqa: F401
+        import cerebro_value_resolver.categories.drug_target_and_mfg  # noqa: F401
+        from cerebro_value_resolver._core import resolve_value
+
+        assert resolve_value("drug_target_kd", name="")["value"] == 100.0
+        assert resolve_value("drug_target_ic50", name="")["value"] == 50.0
+        assert resolve_value("drug_target_ki", name="")["value"] == 50.0
+        assert resolve_value("drug_target_kd", name="")["tier"] == 7
+
+
+class TestDrugLoadingCapacityResolver:
+    def test_bunjes_rule_applies_to_lipid_carriers(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_target_and_mfg import (
+            resolve_drug_loading_capacity_pct,
+        )
+
+        r = resolve_drug_loading_capacity_pct(carrier="liposome", logp=5.0)
+        assert r["value"] == pytest.approx(10.0)  # 5.0 * 2.0
+        assert r["tier"] == 6
+
+    def test_bunjes_rule_is_floored_and_capped(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_target_and_mfg import (
+            resolve_drug_loading_capacity_pct,
+        )
+
+        floored = resolve_drug_loading_capacity_pct(carrier="liposome", logp=-8.0)
+        assert floored["value"] == 2.0
+        capped = resolve_drug_loading_capacity_pct(carrier="liposome", logp=50.0)
+        assert capped["value"] == 40.0
+
+    def test_polymer_carrier_uses_its_own_heuristic(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_target_and_mfg import (
+            resolve_drug_loading_capacity_pct,
+        )
+
+        r = resolve_drug_loading_capacity_pct(carrier="plga", logp=2.0, mw_Da=300.0)
+        assert r["value"] == pytest.approx(16.0)  # 10 + min(8, 3) + 3 (mw<400)
+        assert r["tier"] == 6
+
+    def test_unknown_carrier_falls_back_to_median_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_target_and_mfg import (
+            resolve_drug_loading_capacity_pct,
+        )
+
+        r = resolve_drug_loading_capacity_pct(carrier="some_exotic_carrier")
+        assert r["value"] == 8.0
+        assert r["tier"] == 7
+
+
+class TestMaterialPdiAndPorosityResolvers:
+    def test_known_carriers_return_their_table_defaults(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_target_and_mfg import (
+            resolve_material_pdi,
+            resolve_material_porosity,
+        )
+
+        assert resolve_material_pdi(carrier="dendrimer")["value"] == 0.05
+        assert resolve_material_pdi(carrier="exosome")["value"] == 0.30
+        assert resolve_material_porosity(carrier="liposome")["value"] == 0.0
+        assert resolve_material_porosity(carrier="nanogel")["value"] == 0.85
+
+    def test_unknown_carrier_falls_back_to_generic_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_target_and_mfg import (
+            resolve_material_pdi,
+            resolve_material_porosity,
+        )
+
+        assert resolve_material_pdi(carrier="unobtainium")["value"] == 0.20
+        assert resolve_material_porosity(carrier="unobtainium")["value"] == 0.10
+
+    def test_researcher_overrides_short_circuit(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_value_resolver.categories.drug_target_and_mfg import (
+            resolve_material_pdi,
+            resolve_material_porosity,
+        )
+
+        assert resolve_material_pdi(researcher_override=0.42)["value"] == 0.42
+        assert resolve_material_porosity(researcher_override=0.77)["value"] == 0.77
