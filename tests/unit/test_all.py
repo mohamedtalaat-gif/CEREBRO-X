@@ -520,10 +520,31 @@ class TestCompliance:
     def test_encryption_roundtrip(self):
         from src.compliance.privacy import EncryptionEngine
         engine = EncryptionEngine()
-        if engine.available:
-            ct = engine.encrypt("sensitive data")
-            pt = engine.decrypt(ct)
-            assert pt == "sensitive data"
+        assert engine.available, (
+            "encryption must be active even with no ENCRYPTION_KEY set in "
+            "a non-production environment — it should never silently no-op"
+        )
+        ct = engine.encrypt("sensitive data")
+        assert ct != "sensitive data"  # actually encrypted, not passed through
+        pt = engine.decrypt(ct)
+        assert pt == "sensitive data"
+
+    def test_encryption_fails_hard_in_production_without_key(self, monkeypatch):
+        """Same fail-hard-on-missing-secret pattern already used for
+        JWT_SECRET_KEY and CEREBRO_ADMIN_PASSWORD in src/api/auth.py —
+        refuse to start with sensitive-field encryption silently disabled."""
+        import importlib
+
+        import src.compliance.privacy as privacy_module
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.delenv("ENCRYPTION_KEY", raising=False)
+        importlib.reload(privacy_module)
+        try:
+            with pytest.raises(RuntimeError):
+                privacy_module.EncryptionEngine()
+        finally:
+            monkeypatch.delenv("ENVIRONMENT", raising=False)
+            importlib.reload(privacy_module)
 
     def test_retention_check(self):
         from src.compliance.privacy import DataClass, RetentionManager
@@ -878,6 +899,26 @@ class TestRateLimiting:
         # Everything before the limit kicks in should be a real auth
         # response (401 for bad creds), not silently dropped.
         assert 401 in statuses[:5]
+
+    def test_app_refuses_to_boot_in_production_with_wildcard_cors(self):
+        """Same fail-hard pattern as the JWT/admin-password/encryption
+        checks — a real subprocess import, not a mock, since this needs to
+        catch the app failing to boot at all, and reloading src.api.app
+        in-process would pollute the module other tests in this file share."""
+        import os
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        env = {**os.environ, "ENVIRONMENT": "production"}
+        env.pop("CORS_ORIGINS", None)
+        result = subprocess.run(
+            [sys.executable, "-c", "import src.path_resolver; import src.api.app"],
+            cwd=str(Path(__file__).resolve().parents[2]),
+            env=env, capture_output=True, text=True, timeout=30,
+        )
+        assert result.returncode != 0
+        assert "CORS_ORIGINS" in result.stderr
 
 
 # ═════════════════════════════════════════════════════════════════════════════

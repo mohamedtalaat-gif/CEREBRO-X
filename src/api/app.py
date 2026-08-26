@@ -323,6 +323,14 @@ except ImportError:
 _cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
 _cors_wildcard = _cors_origins == ["*"]
 if _cors_wildcard:
+    from cerebro_auth import IS_PRODUCTION as _cors_is_production
+    if _cors_is_production:
+        raise RuntimeError(
+            "CORS_ORIGINS is unset (defaulting to '*'), but "
+            "ENVIRONMENT=production. Refusing to start with every origin "
+            "on the internet allowed to call this API. Set CORS_ORIGINS "
+            "to your real frontend origin(s) before starting in production."
+        )
     log.warning(
         "[CORS] CORS_ORIGINS not set (defaulting to '*') — allow_credentials "
         "forced to False. Set CORS_ORIGINS to your real frontend origin(s) "

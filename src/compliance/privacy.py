@@ -76,6 +76,8 @@ COMPLIANCE_DB = Path(os.environ.get(
 COMPLIANCE_DB.parent.mkdir(parents=True, exist_ok=True)
 
 ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "")
+ENVIRONMENT    = os.environ.get("ENVIRONMENT", "development").strip().lower()
+IS_PRODUCTION  = ENVIRONMENT == "production"
 
 # Audit-trail hash chain: a plain sha256 hash chain has no secret, so anyone
 # with write access to COMPLIANCE_DB could recompute valid-looking chained
@@ -208,16 +210,46 @@ class EncryptionEngine:
     def __init__(self, key: str = None):
         self._key = key or ENCRYPTION_KEY
         self._fernet = None
-        if _HAS_CRYPTO and self._key:
-            try:
-                if len(self._key) == 44:
-                    self._fernet = Fernet(self._key.encode())
-                else:
-                    self._fernet = Fernet(Fernet.generate_key())
-                    log.warning("[CRYPTO] Using auto-generated key — "
-                                "set ENCRYPTION_KEY for persistence")
-            except Exception as e:
-                log.warning(f"[CRYPTO] Init failed: {e}")
+
+        if not _HAS_CRYPTO:
+            if IS_PRODUCTION:
+                raise RuntimeError(
+                    "ENVIRONMENT=production but the 'cryptography' package "
+                    "isn't installed — refusing to run with encryption "
+                    "silently disabled for sensitive fields. Install it "
+                    "(pip install cryptography) before starting in production."
+                )
+            log.warning("[CRYPTO] 'cryptography' package not installed — "
+                        "encrypt()/decrypt() will be no-ops in this "
+                        "(non-production) environment.")
+            return
+
+        valid_key = self._key if self._key and len(self._key) == 44 else None
+        if valid_key:
+            self._fernet = Fernet(valid_key.encode())
+            return
+
+        if IS_PRODUCTION:
+            raise RuntimeError(
+                "ENCRYPTION_KEY is unset or not a valid 44-character Fernet "
+                "key, but ENVIRONMENT=production. Refusing to start with "
+                "sensitive-field encryption silently disabled. Generate one "
+                "with EncryptionEngine.generate_key() and set it in the "
+                "environment before starting in production."
+            )
+
+        # Not production: keep working, but never let encrypt()/decrypt()
+        # silently pass data through unencrypted just because no key was
+        # configured — that already happened once here and went unnoticed.
+        # A per-process key means data encrypted this run won't decrypt
+        # after a restart; that's an acceptable dev-only tradeoff, silently
+        # skipping encryption entirely is not.
+        self._fernet = Fernet(Fernet.generate_key())
+        log.warning("[CRYPTO] ENCRYPTION_KEY unset or invalid — using an "
+                     "ephemeral per-process key. Fine for local dev; "
+                     "anything encrypted this run won't decrypt after a "
+                     "restart. Set a real ENCRYPTION_KEY before relying on "
+                     "this outside local development.")
 
     def encrypt(self, plaintext: str) -> str:
         if not self._fernet:
