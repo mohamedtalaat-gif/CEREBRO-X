@@ -32,7 +32,7 @@ SURFACE_PROPERTIES = {
                      "gamma_mN_m": 25, "Hamaker_J": 3e-21},
     "dendrimer":   {"zeta_mV": +20,  "epsilon_r": 30.0, "n": 1.48,
                      "gamma_mN_m": 32, "Hamaker_J": 5e-21},
-    "metallic":    {"zeta_mV": -30,  "epsilon_r": -np_inf if False else 2.0,
+    "metallic":    {"zeta_mV": -30,  "epsilon_r": 2.0,
                      "n": 0.18,    # gold at 589 nm
                      "gamma_mN_m": 1100, "Hamaker_J": 3e-19},
     "solid_lipid": {"zeta_mV": -20,  "epsilon_r": 5.5,  "n": 1.47,
@@ -73,10 +73,6 @@ def _build_surface_resolver(category: str, prop_key: str, unit: str,
                           extra={"confidence":"LOW", "unit": unit})
     resolver.__name__ = f"resolve_{category}"
     return resolver
-
-
-# patch syntax error in dict above (np_inf)
-SURFACE_PROPERTIES["metallic"]["epsilon_r"] = 2.0
 
 
 _build_surface_resolver("material_zeta_intrinsic", "zeta_mV", "mV", -10.0,

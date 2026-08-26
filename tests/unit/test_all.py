@@ -1740,3 +1740,88 @@ class TestPhysicsDLVOResolver:
             assert r["value"] == 1.23
             assert r["tier"] == 0
             assert r["source"] == "researcher_override"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 20. MATERIAL-CLASS LOOKUP TABLES (lipid / surface / polymer)
+# ═════════════════════════════════════════════════════════════════════════════
+def _resolve(category, **kwargs):
+    """These three material-property files build their resolvers with a
+    factory (_build_*_resolver) that registers each one under @register but
+    never binds it to a named module attribute — so, unlike bbb_perm.py's
+    directly-defined functions, they're only reachable through the shared
+    registry, exactly as production code (cerebro_resolved_bundles.py) calls
+    them."""
+    import src.path_resolver  # noqa: F401
+    import cerebro_value_resolver.categories.material_lipid  # noqa: F401
+    import cerebro_value_resolver.categories.material_polymer  # noqa: F401
+    import cerebro_value_resolver.categories.material_surface  # noqa: F401
+    from cerebro_value_resolver._core import resolve_value
+    return resolve_value(category, **kwargs)
+
+
+class TestMaterialLipidResolver:
+    def test_known_lipid_type_returns_its_israelachvili_table_value(self):
+        r = _resolve("material_lipid_tm", lipid_type="DSPC")
+        assert r["value"] == 55.0
+        assert r["tier"] == 7
+
+    def test_lipid_type_takes_priority_over_carrier(self):
+        r = _resolve("material_lipid_tm", carrier="liposome", lipid_type="dppc")
+        assert r["value"] == 41.0  # DPPC's own Tm, not the generic liposome default
+
+    def test_unrecognized_carrier_falls_back_to_generic_liposome_default(self):
+        r = _resolve("material_lipid_packing_parameter", carrier="some_unknown_carrier")
+        assert r["value"] == 0.95  # falls through to the "liposome" table entry
+
+    def test_cholesterol_has_no_melting_point_falls_to_generic_default(self):
+        """chol's Tm_C is explicitly None in the table — the resolver must
+        not return None silently, it should fall through to the t7 default."""
+        r = _resolve("material_lipid_tm", lipid_type="chol")
+        assert r["value"] == 35.0  # generic_lipid default, not None
+
+    def test_researcher_override_short_circuits(self):
+        r = _resolve("material_lipid_bending_modulus", researcher_override=99.0)
+        assert r["value"] == 99.0 and r["tier"] == 0
+
+
+class TestMaterialSurfaceResolver:
+    def test_metallic_carrier_dielectric_is_the_real_fixed_value(self):
+        """Regression guard: this dict entry used to be built from a broken
+        `-np_inf if False else 2.0` expression papered over by a redundant
+        post-hoc assignment a few lines down. Cleaned up to a plain literal —
+        this pins the value stays 2.0 (gold's real approximate epsilon_r)."""
+        r = _resolve("material_dielectric", carrier="metallic")
+        assert r["value"] == 2.0
+
+    def test_known_carrier_returns_its_table_value(self):
+        r = _resolve("material_hamaker_constant", carrier="plga")
+        assert r["value"] == 6e-21
+        assert r["tier"] == 7
+
+    def test_unknown_carrier_falls_back_to_generic_default(self):
+        r = _resolve("material_refractive_index", carrier="not_a_real_carrier")
+        assert r["value"] == 1.46
+        assert r["confidence"] == "LOW"
+
+
+class TestMaterialPolymerResolver:
+    def test_known_polymer_returns_its_table_value(self):
+        r = _resolve("material_polymer_tg", carrier="pla")
+        assert r["value"] == 60.0
+        assert r["tier"] == 7
+
+    def test_plga_has_no_melting_point_falls_to_generic_default(self):
+        """PLGA is amorphous — Tm_C is explicitly None in the table."""
+        r = _resolve("material_polymer_tm", carrier="plga")
+        assert r["value"] == 100.0  # generic default, not None
+        assert "warning" in r
+
+    def test_unknown_carrier_falls_back_to_generic_default(self):
+        r = _resolve("material_polymer_density", carrier="unobtainium")
+        assert r["value"] == 1.25
+        assert r["confidence"] == "LOW"
+
+    def test_researcher_override_short_circuits(self):
+        r = _resolve("material_polymer_mw", carrier="plga", researcher_override=45000.0)
+        assert r["value"] == 45000.0 and r["tier"] == 0
