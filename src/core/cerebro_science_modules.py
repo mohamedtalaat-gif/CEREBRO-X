@@ -308,6 +308,18 @@ class PBPK_CNS_DigitalTwin:
         k_out = p['k_cell_out']  # cell -> ISF (1/h)
 
         # 1. Plasma: dose input - elimination - BBB transfer - peripheral
+        # PS_out is used for two distinct, both-real transfer steps that
+        # happen to share one rate constant: (a) BBB compartment efflux
+        # deeper into brain (Cbb -> Cisf, PS_out*Cbb) and (b) direct
+        # brain-to-blood efflux transporter flux (Cisf -> Cp, PS_out*Cisf
+        # — this is what the "brain->blood" comment on PS_out refers to).
+        # Plasma's gain here is step (b); the matching loss belongs on
+        # Cisf (see dCisf below) — that loss term was missing, so this
+        # gain had no counterpart anywhere in the system and fabricated
+        # mass. Verified with a real solve_ivp run (all clearance/CSF/
+        # glymphatic terms zeroed to isolate just the BBB/ISF terms):
+        # total system mass grew ~7% (3000 -> 3211.5) over 5h with the
+        # missing term.
         dCp = (p['input_rate'] / Vp
                - (CL / Vp) * Cp
                - PS_in * fu * Cp / Vp
@@ -319,14 +331,22 @@ class PBPK_CNS_DigitalTwin:
         dCbb = (PS_in * fu * Cp - PS_out * Cbb) / Vbb
 
         # 3. Brain ISF
+        # Cell-exchange terms (k_in/k_out) are written as bare
+        # concentration rates, which only conserves mass if Visf==Vc —
+        # they don't (Visf=280 mL, Vc=840 mL, a 3x difference), so the
+        # cell-uptake loss and cell-return gain here are scaled by the
+        # Vc/Visf ratio to keep d(mass)/dt consistent with dCc below
+        # (mass flux k_in*Cisf*Visf must equal what Cc gains, and
+        # k_out*Cc*Vc must equal what Cisf gains).
         dCisf = (PS_out * Cbb / Visf
+                 - PS_out * Cisf / Visf
                  - k_in * Cisf
-                 + k_out * Cc
+                 + k_out * Cc * (Vc / Visf)
                  - Qgl / Visf * Cisf
                  - Qcsf / Visf * Cisf)
 
         # 4. Brain cells (intracellular)
-        dCc = k_in * Cisf - k_out * Cc
+        dCc = k_in * Cisf * (Visf / Vc) - k_out * Cc
 
         # 5. CSF
         dCcsf = (Qcsf / Vcsf * Cisf

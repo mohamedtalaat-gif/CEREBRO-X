@@ -1345,6 +1345,116 @@ class TestThermodynamicsEngineLogPThreading:
         assert "logp=d.get" in src or "logp=d[" in src
 
 
+class TestPBPKCNSMassConservation:
+    """PBPK_CNS_DigitalTwin._build_odes is a 6-compartment mechanistic ODE
+    system (Plasma/BBB/ISF/Cell/CSF/Peripheral) that feeds the "PBPK-CNS
+    Digital Twin" report section — AUC_plasma, AUC_brain, Kp_brain,
+    Cmax_brain, LogBB. Found two independent mass-conservation bugs while
+    auditing it, both from dropping/mis-scaling a term when converting a
+    real mass-transfer model into concentration-rate ODEs:
+
+    (1) Plasma's brain-to-blood efflux gain (+PS_out*Cisf/Vp, matching
+    the "PS_out: brain->blood" comment) had no matching loss term on
+    Cisf — Cisf only ever gained from PS_out*Cbb (the separate BBB-to-ISF
+    transit step, correctly paired with dCbb's loss), never lost its own
+    PS_out*Cisf back to plasma. That's a real missing term, not a
+    relabeling of which compartment plasma exchanges with — verified
+    directly: with only BBB/ISF/Plasma transfer active (all clearance,
+    CSF, and glymphatic terms zeroed), total system mass grew ~7% over
+    5 simulated hours instead of staying constant.
+
+    (2) The ISF<->Cell exchange (k_cell_in/k_cell_out) was written as
+    bare concentration rates (dCisf -= k_in*Cisf, dCc += k_in*Cisf),
+    which only conserves mass if the two compartments have equal volume
+    — they don't (V_ISF=280 mL, V_intracell=840 mL, CNS_PHYSIOLOGY's own
+    constants). Fixed by scaling both directions by the Vc/Visf ratio so
+    mass flux (not raw concentration) is what's actually conserved.
+
+    Both fixed by explicit derivation in mass space (V_i * dC_i/dt) and
+    verified numerically: an isolated BBB/ISF/Plasma sub-system, an
+    isolated ISF/Cell sub-system, and a full system with only legitimate
+    elimination-type sinks active (CL, CL_per, CSF resorption) — the last
+    case must show mass monotonically decreasing, never increasing."""
+
+    @staticmethod
+    def _physio_volumes():
+        from src.core.cerebro_science_modules import CNS_PHYSIOLOGY
+        return dict(Vp=3000.0, Vbb=CNS_PHYSIOLOGY.V_BBB_wall,
+                    Visf=CNS_PHYSIOLOGY.V_ISF, Vc=CNS_PHYSIOLOGY.V_intracell,
+                    Vcsf=CNS_PHYSIOLOGY.V_CSF, Vper=25000.0)
+
+    def _total_mass(self, sol, vols):
+        Cp, Cbb, Cisf, Cc, Ccsf, Cper = sol.y
+        return (vols["Vp"]*Cp + vols["Vbb"]*Cbb + vols["Visf"]*Cisf +
+                vols["Vc"]*Cc + vols["Vcsf"]*Ccsf + vols["Vper"]*Cper)
+
+    def test_bbb_isf_plasma_transfer_conserves_mass(self):
+        import numpy as np
+        from scipy.integrate import solve_ivp
+        from src.core.cerebro_science_modules import PBPK_CNS_DigitalTwin
+        vols = self._physio_volumes()
+        params = dict(vols, Q_brain=0, Q_CSF=0, Q_glymphatic=0,
+                      PS_in=100.0, PS_out=50.0, CL=0.0, CLd=0.0,
+                      CL_per=0.0, fu=1.0, k_cell_in=0.0, k_cell_out=0.0,
+                      input_rate=0.0)
+        t_eval = np.linspace(0, 5, 50)
+        sol = solve_ivp(PBPK_CNS_DigitalTwin._build_odes, (0, 5),
+                         [1.0, 0, 0, 0, 0, 0], args=(params,), t_eval=t_eval,
+                         method="Radau", rtol=1e-9, atol=1e-13)
+        mass = self._total_mass(sol, vols)
+        assert mass[-1] == pytest.approx(mass[0], abs=1e-6)
+
+    def test_isf_cell_exchange_conserves_mass_despite_volume_mismatch(self):
+        import numpy as np
+        from scipy.integrate import solve_ivp
+        from src.core.cerebro_science_modules import PBPK_CNS_DigitalTwin
+        vols = self._physio_volumes()
+        params = dict(vols, Q_brain=0, Q_CSF=0, Q_glymphatic=0,
+                      PS_in=0.0, PS_out=0.0, CL=0.0, CLd=0.0, CL_per=0.0,
+                      fu=1.0, k_cell_in=0.3, k_cell_out=0.1, input_rate=0.0)
+        t_eval = np.linspace(0, 5, 50)
+        sol = solve_ivp(PBPK_CNS_DigitalTwin._build_odes, (0, 5),
+                         [0, 0, 1.0, 0, 0, 0], args=(params,), t_eval=t_eval,
+                         method="Radau", rtol=1e-9, atol=1e-13)
+        mass = self._total_mass(sol, vols)
+        assert mass[-1] == pytest.approx(mass[0], abs=1e-6)
+
+    def test_full_system_mass_only_decreases_via_legitimate_sinks(self):
+        """With only real elimination-type sinks active (CL/CLd-paired/
+        CL_per/CSF resorption) and no fabricated sources, total mass must
+        be monotonically non-increasing — never spike upward."""
+        import numpy as np
+        from scipy.integrate import solve_ivp
+        from src.core.cerebro_science_modules import PBPK_CNS_DigitalTwin
+        vols = self._physio_volumes()
+        params = dict(vols, Q_brain=0, Q_CSF=20.0, Q_glymphatic=5.0,
+                      PS_in=80.0, PS_out=40.0, CL=0.0, CLd=30.0,
+                      CL_per=0.0, fu=0.5, k_cell_in=0.2, k_cell_out=0.1,
+                      input_rate=0.0)
+        t_eval = np.linspace(0, 5, 50)
+        sol = solve_ivp(PBPK_CNS_DigitalTwin._build_odes, (0, 5),
+                         [1.0, 0, 0, 0, 0, 0], args=(params,), t_eval=t_eval,
+                         method="Radau", rtol=1e-9, atol=1e-13)
+        mass = self._total_mass(sol, vols)
+        assert all(mass[i+1] <= mass[i] + 1e-9 for i in range(len(mass)-1))
+
+    def test_real_simulation_produces_sane_kp_brain(self):
+        """End-to-end smoke test: a real drug/DDS profile must still run
+        cleanly through the fixed ODEs and produce a physically sane
+        (0 < Kp_brain < 1, typical for a poorly-BBB-penetrant unencapsulated
+        baseline) result, not crash or produce nonsense."""
+        from src.core.cerebro_science_modules import PBPK_CNS_DigitalTwin
+        mol_profile = {"MW_Da": 379.5, "LogP": 4.31, "Half_Life_Days": 3.0,
+                        "Protein_Binding_pct": 96.0, "BBB_permeability_pct": 5.0}
+        top_dds = {"encapsulation_efficiency_pct": 80, "BBB_Enhanced_Pct": 40,
+                   "Stealth_Index": 0.6, "Endosomal_Escape_Eff": 0.6}
+        result = PBPK_CNS_DigitalTwin.simulate(mol_profile, top_dds, dose_mg=10.0,
+                                                disease_state="alzheimer_3")
+        assert 0 < result["Kp_brain"] < 1
+        assert result["AUC_plasma_ugh_mL"] > 0
+        assert result["Cmax_brain_ug_mL"] > 0
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 11. FULL PIPELINE INTEGRATION (run.py -> pipeline_runner.py, end-to-end)
 # ═════════════════════════════════════════════════════════════════════════════
