@@ -247,17 +247,33 @@ def patched_train(cls, df: pd.DataFrame, feature_cols: list[str],
 
     ensemble = VotingRegressor(estimators)
 
-    # K-Fold CV
-    nk = min(5, len(X_s))
-    cv = KFold(n_splits=nk, shuffle=True, random_state=42)
-    try:
-        cvs    = cross_val_score(ensemble, X_s, y, cv=cv, scoring="r2", n_jobs=-1)
-        cv_r2  = float(np.mean(cvs))
-        cv_std = float(np.std(cvs))
-        log.info(f"  K-Fold CV R²={cv_r2:.4f}±{cv_std:.4f}")
-    except Exception as e:
-        log.warning(f"  CV failed: {e}")
-        cv_r2 = cv_std = 0.0
+    # K-Fold CV — guard against n_samples too small for a valid split.
+    # This function replaces AdvancedMLEngine.train() at runtime via
+    # apply_patches(), so pipeline.py's own CV_MIN_SAMPLES guard on the
+    # original train() never actually executes once patched. The two
+    # current call sites (pipeline_runner.py) both pre-pad single-drug
+    # trials with synthetic neighbours before calling train(), so this
+    # wasn't reachable through them — but this function had no guard of
+    # its own: called directly with fewer than 2 rows, KFold(n_splits=1)
+    # raises immediately (reproduced with a real 1-row DataFrame). Fixing
+    # here too rather than trusting every future caller to remember to
+    # pre-pad first.
+    CV_MIN_SAMPLES = 6
+    if len(X_s) < CV_MIN_SAMPLES:
+        cv_r2 = cv_std = float("nan")
+        log.warning(f"  [CV] SKIPPED — only {len(X_s)} samples "
+                    f"(need >= {CV_MIN_SAMPLES}). Result = N/A.")
+    else:
+        nk = max(2, min(5, len(X_s) // 2))
+        cv = KFold(n_splits=nk, shuffle=True, random_state=42)
+        try:
+            cvs    = cross_val_score(ensemble, X_s, y, cv=cv, scoring="r2", n_jobs=-1)
+            cv_r2  = float(np.mean(cvs))
+            cv_std = float(np.std(cvs))
+            log.info(f"  K-Fold CV R²={cv_r2:.4f}±{cv_std:.4f}")
+        except Exception as e:
+            log.warning(f"  CV failed: {e}")
+            cv_r2 = cv_std = float("nan")
 
     # HPT — standalone RF on scaled data
     best_rf = RandomForestRegressor(n_estimators=200, max_depth=8,
@@ -673,7 +689,9 @@ class AnimationEngine:
                 "how quickly each candidate rises and falls relative to "
                 "the 50% therapeutic threshold.",
             "theoretical_science":
-                "C(t) = C₀·e^(−kt),  k = ln2/t½,  C₀ = 100·(150kDa/MW_Da)\n"
+                "C(t) = C₀·e^(−kt),  k = ln2/t½,  "
+                "C₀ = min(100, 100·(150kDa/MW_Da))% (capped at 100% of "
+                "administered dose; see AnalyticsEngine.simulate_pkpd)\n"
                 "One-compartment first-order elimination model. "
                 "Animation built by incrementally revealing time points "
                 "from t=0 to t=60 days in 60 equal steps.",

@@ -1261,6 +1261,55 @@ class TestPipelineLipinskiAndPKPD:
         assert cfg["Days_Above_50pct"] == pytest.approx(3.0, abs=0.05)
 
 
+class TestPatchedTrainCVGuard:
+    """pipeline_patches.patched_train is what actually runs in production —
+    apply_patches() monkey-patches it in as AdvancedMLEngine.train at
+    runtime (called for real from pipeline_runner.py) — so
+    pipeline.py's own CV_MIN_SAMPLES guard on the original train() never
+    executes once patched. patched_train had no equivalent guard: called
+    directly with a single-row DataFrame, nk = min(5, len(X_s)) resolves
+    to 1 and KFold(n_splits=1) raises immediately. The two current
+    call sites happen to pre-pad single-drug trials with synthetic
+    neighbours before calling train(), so this wasn't reachable through
+    them today, but the function itself had no defense — fixed to match
+    pipeline.py's own guard rather than relying on every future caller to
+    remember to pre-pad."""
+
+    def test_single_row_dataframe_does_not_crash(self):
+        import pandas as pd
+        from src.core.pipeline_patches import patched_train
+        df = pd.DataFrame({
+            "Drug": ["Donepezil"], "MW_Da": [379.5], "LogP": [4.31],
+            "Half_Life_Days": [3.0], "Docking_Affinity_kcal": [-8.5],
+        })
+        df_out, ensemble, metrics = patched_train(
+            None, df,
+            feature_cols=["MW_Da", "LogP", "Half_Life_Days", "Docking_Affinity_kcal"])
+        assert metrics["cv_r2"] != metrics["cv_r2"]  # NaN, not a crash
+        assert "ML_Success_Probability" in df_out.columns
+
+    def test_realistic_sample_size_still_produces_real_cv_score(self):
+        """Guards against overcorrecting: a normal-sized dataset (the
+        augmented single-drug case produces ~9 rows in the real pipeline)
+        must still get a real K-Fold CV score, not NaN."""
+        import numpy as np
+        import pandas as pd
+        from src.core.pipeline_patches import patched_train
+        rng = np.random.RandomState(0)
+        n = 9
+        df = pd.DataFrame({
+            "Drug": [f"Drug{i}" for i in range(n)],
+            "MW_Da": rng.uniform(200, 500, n),
+            "LogP": rng.uniform(1, 5, n),
+            "Half_Life_Days": rng.uniform(1, 10, n),
+            "Docking_Affinity_kcal": rng.uniform(-10, -6, n),
+        })
+        _, _, metrics = patched_train(
+            None, df,
+            feature_cols=["MW_Da", "LogP", "Half_Life_Days", "Docking_Affinity_kcal"])
+        assert metrics["cv_r2"] == metrics["cv_r2"]  # not NaN
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 11. FULL PIPELINE INTEGRATION (run.py -> pipeline_runner.py, end-to-end)
 # ═════════════════════════════════════════════════════════════════════════════
