@@ -4184,3 +4184,89 @@ class TestCinematicPrimitivesLookups:
         assert get_ligand_info("RVG29")["receptor"].startswith("Nicotinic")
         assert get_ligand_info(None) == LIGAND_RECEPTOR_MAP[""]
         assert get_ligand_info("") == LIGAND_RECEPTOR_MAP[""]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 41. CINEMATIC SCENE ENGINE (cerebro_cinematic_engine.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestCinematicEngineHelpers:
+    def test_b_value_and_b_tier_handle_missing_and_malformed_bundles(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_engine import _b_tier, _b_value
+
+        assert _b_value({"x": {"value": 5.0}}, "x", 0) == 5.0
+        assert _b_value({"x": {"value": None}}, "x", 99) == 99   # explicit None -> default
+        assert _b_value("not a dict", "x", 99) == 99
+        assert _b_tier({"x": {"tier": 3}}, "x") == 3
+        assert _b_tier({}, "x") == 7   # unresolved defaults to lowest-confidence tier
+
+    def test_hash_id_is_deterministic_and_short(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_engine import _hash_id
+
+        h1 = _hash_id("DrugA", "DDS1", "C01")
+        h2 = _hash_id("DrugA", "DDS1", "C01")
+        h3 = _hash_id("DrugB", "DDS1", "C01")
+        assert h1 == h2 and len(h1) == 8
+        assert h1 != h3
+
+    def test_safe_filename_strips_unsafe_characters(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_engine import _safe_filename
+
+        assert _safe_filename("Drug/Name: Test!") == "Drug_Name__Test_"
+        assert _safe_filename(None) == "x"
+        assert len(_safe_filename("x" * 100)) == 40
+
+    def test_drug_class_narrative_covers_every_modality_with_real_citations(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_engine import _drug_class_narrative
+
+        mab = _drug_class_narrative("monoclonal_antibody")
+        assert "Lecanemab" in mab["clinical_example"]
+        oligo = _drug_class_narrative("oligonucleotide")
+        assert "Nusinersen" in oligo["clinical_example"]
+        default = _drug_class_narrative("totally_unknown_modality")
+        assert "Donepezil" in default["clinical_example"]   # falls back to small molecule
+
+
+class TestCinematicSuiteGeneration:
+    @pytest.mark.slow
+    def test_generates_all_five_scenes_for_a_real_drug(self):
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_engine import generate_cinematic_suite
+        from cerebro_resolved_bundles import resolve_dds_bundle, resolve_drug_bundle
+
+        db = resolve_drug_bundle(
+            name="Donepezil",
+            smiles="COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2",
+            molecule_class="small_molecule")
+        dds = resolve_dds_bundle(carrier_type="plga", ligand="transferrin", formulation_id="F1")
+        top1 = {"Formulation_Name": "Tf-PLGA", "Carrier_Type": "plga",
+                "Size_nm": 100, "Zeta_Potential_mV": -25, "PDI": 0.2,
+                "Surface_Ligand": "transferrin", "Drug_Loading_Pct": 15,
+                "Release_Kinetics": "sustained", "pH_Trigger": 6.5,
+                "Composite_Score": 80.0, "Principle_Composite_Score": 80.0}
+        with tempfile.TemporaryDirectory() as td:
+            paths = generate_cinematic_suite(db, dds, top1, Path(td))
+            assert len(paths) == 5
+            for p in paths:
+                assert p.exists()
+                assert p.stat().st_size > 1000   # not an empty/error stub
+
+    def test_a_single_failing_scene_does_not_abort_the_whole_suite(self):
+        """generate_cinematic_suite catches per-scene exceptions — a
+        malformed bundle missing _meta shouldn't crash the whole run,
+        just log and skip whichever scene(s) choke on it."""
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_engine import generate_cinematic_suite
+
+        with tempfile.TemporaryDirectory() as td:
+            paths = generate_cinematic_suite({}, {}, {}, Path(td))
+            assert isinstance(paths, list)   # doesn't raise, even with nothing real to render
