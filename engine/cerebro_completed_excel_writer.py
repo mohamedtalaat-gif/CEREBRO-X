@@ -611,7 +611,7 @@ def _write_drug_dds_principle_matrix_sheet(wb, idx: int, dr: dict) -> None:
     Full DDS × Principle matrix sheet.
 
     Rows: every DDS in the drug's formulation list (ranked by composite)
-    Cols: every principle (P1.1, P1.2, …, P7.3)
+    Cols: every principle (P01, P02, …, P62)
     Values: per-principle score (0-100) for that DDS
 
     Plus a Composite column (weighted total) and group columns G1..G7.
@@ -638,15 +638,21 @@ def _write_drug_dds_principle_matrix_sheet(wb, idx: int, dr: dict) -> None:
     ws["A1"] = (f"Drug {idx}: {drug_name} — Full DDS × Principle Score Matrix")
     ws["A1"].font = Font(bold=True, size=14, color="0f2040")
     ws["A2"] = (f"All {len(matrix)} formulations from the Excel ranked "
-                f"top-to-bottom by CNS-weighted composite (25 principles). "
-                f"Hover any cell for the score; refer to Principle_Explanations "
-                f"sheet for what each Pn.n means and how it's computed.")
+                f"top-to-bottom by CNS-weighted composite (57 Class-A "
+                f"principles). Hover any cell for the score; refer to "
+                f"Principle_Explanations sheet for what each Pnn means "
+                f"and how it's computed.")
     ws["A2"].font = Font(italic=True, color="9CA3AF")
 
     # Build column list: sorted principle keys from first DDS
     sample_principles = sorted(matrix[0]["principles"].keys())
-    group_cols = ["G1_CNS_Delivery","G2_Release","G3_Stability","G4_Safety",
-                   "G5_Glymphatic","G6_Manufacturability","G7_DrugDDS_Fit"]
+    # Must match cerebro_62_orchestrator.PRINCIPLE_GROUPS exactly — these
+    # names key into m["groups"] below, which the orchestrator built with
+    # its own group names ("..._Kinetics", "..._BBB"). The old names here
+    # ("G2_Release", "G5_Glymphatic") never matched, so those two columns
+    # silently showed 0 for every DDS row regardless of the real score.
+    group_cols = ["G1_CNS_Delivery","G2_Release_Kinetics","G3_Stability","G4_Safety",
+                   "G5_Glymphatic_BBB","G6_Manufacturability","G7_DrugDDS_Fit"]
     hdrs = ["Rank", "DDS Name", "Composite"] + group_cols + sample_principles
 
     # Header row
@@ -809,18 +815,32 @@ def _write_drug_dds_breakdown_sheet(wb, idx: int, dr: dict) -> None:
 def _write_principle_explanations_sheet(wb) -> None:
     """
     The "62-principle textbook" sheet — one row per principle with:
-      ID | Group | Explanation | Method | Reference | Higher_is_Better
+      ID | Group | Class | Weight | Explanation | Computational Method | Reference
 
     Researcher can refer to this any time they're confused about a metric.
+
+    Reads from the live cerebro_62_principles_catalog (62 principles) +
+    cerebro_62_orchestrator.PRINCIPLE_GROUPS — the same sources that
+    actually produce the scores shown in the DDS×Principle matrix sheets
+    elsewhere in this workbook. This sheet used to be built from
+    cerebro_dds_principle_evaluator's old 25-principle v21 tables, which
+    predate the current 62-principle system: a researcher would see
+    "P01".."P62" everywhere else in the workbook, then land on this
+    glossary and find 25 unrelated "P1.1_..."-style IDs that don't match
+    anything else in the file — a source-of-truth sheet documenting a
+    different system than the one that actually ran.
     """
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     try:
-        from cerebro_dds_principle_evaluator import PRINCIPLE_DOCS, PRINCIPLE_WEIGHTS
+        from cerebro_62_principles_catalog import PRINCIPLES_62
+        from cerebro_62_orchestrator import PRINCIPLE_GROUPS
     except ImportError:
-        log.debug("[COMPLETED-WRITER] dds_principle_evaluator not importable — "
+        log.debug("[COMPLETED-WRITER] principles catalog not importable — "
                   "skipping principle-explanation sheet")
         return
+
+    pid_to_group = {pid: g for g, pids in PRINCIPLE_GROUPS.items() for pid in pids}
 
     ws = wb.create_sheet("Principle_Explanations")
     ws["A1"] = "CEREBRO-X — Principle Reference Sheet"
@@ -831,7 +851,7 @@ def _write_principle_explanations_sheet(wb) -> None:
                 "for any decision based on CEREBRO-X output.")
     ws["A2"].font = Font(italic=True, color="9CA3AF")
 
-    hdrs = ["ID", "Group", "Weight", "Higher=Better",
+    hdrs = ["ID", "Group", "Class", "Weight",
             "Explanation", "Computational Method", "Reference"]
     for j, h in enumerate(hdrs, 1):
         c = ws.cell(4, j, h)
@@ -841,36 +861,38 @@ def _write_principle_explanations_sheet(wb) -> None:
     ws.row_dimensions[4].height = 28
 
     # Sort principles by ID for consistency
-    for i, pid in enumerate(sorted(PRINCIPLE_DOCS.keys()), 5):
-        doc = PRINCIPLE_DOCS[pid]
-        weight = PRINCIPLE_WEIGHTS.get(pid, 0)
+    for i, pid in enumerate(sorted(PRINCIPLES_62.keys()), 5):
+        doc = PRINCIPLES_62[pid]
+        group = pid_to_group.get(pid, "")
+        weight = doc.get("weight_cns", 0)
         ws.cell(i, 1, pid)
-        ws.cell(i, 2, doc.get("group",""))
-        ws.cell(i, 3, f"{weight*100:.1f}%")
-        ws.cell(i, 4, "Yes" if doc.get("higher_is_better") else "No")
-        e = ws.cell(i, 5, doc.get("explanation",""))
+        ws.cell(i, 2, group.replace("_", " "))
+        ws.cell(i, 3, doc.get("class", ""))
+        ws.cell(i, 4, f"{weight*100:.1f}%")
+        e = ws.cell(i, 5, doc.get("title_en", ""))
         e.alignment = Alignment(wrap_text=True, vertical="top")
-        m = ws.cell(i, 6, doc.get("method",""))
+        m = ws.cell(i, 6, doc.get("method_surrogate", ""))
         m.alignment = Alignment(wrap_text=True, vertical="top")
-        r = ws.cell(i, 7, doc.get("reference",""))
+        r = ws.cell(i, 7, doc.get("reference", ""))
         r.alignment = Alignment(wrap_text=True, vertical="top")
         # Color group rows
         GROUP_COLOR = {
-            "CNS Delivery":      "DDEBCB",
-            "Release Kinetics":  "FFEB9C",
-            "Stability":         "D9D9D9",
-            "Safety":            "FFD7B5",
-            "Glymphatic":        "C2D6F0",
-            "Manufacturability": "F0E5C2",
-            "Drug-DDS Fit":      "E5DAF2",
+            "G1_CNS_Delivery":      "DDEBCB",
+            "G2_Release_Kinetics":  "FFEB9C",
+            "G3_Stability":         "D9D9D9",
+            "G4_Safety":            "FFD7B5",
+            "G5_Glymphatic_BBB":    "C2D6F0",
+            "G6_Manufacturability": "F0E5C2",
+            "G7_DrugDDS_Fit":       "E5DAF2",
+            "G8_Translational":     "F2E5DA",
         }
-        clr = GROUP_COLOR.get(doc.get("group",""), "FFFFFF")
+        clr = GROUP_COLOR.get(group, "FFFFFF")
         for j in (1,2,3,4):
             ws.cell(i, j).fill = PatternFill("solid", fgColor=clr)
         ws.row_dimensions[i].height = 56
 
     # Column widths
-    widths = [22, 18, 8, 12, 50, 36, 38]
+    widths = [8, 22, 16, 8, 50, 46, 38]
     for j, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(j)].width = w
 

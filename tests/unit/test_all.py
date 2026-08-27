@@ -4022,3 +4022,95 @@ class TestMultiDrugComparisonChampionSheet:
             ]
             assert per_principle_cells
             assert any(v != 0 for v in per_principle_cells)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 39. COMPLETED-DATA EXCEL WRITER (cerebro_completed_excel_writer.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestCompletedExcelWriterPrincipleSheets:
+    """Same bug family as the Champion_DDS_Compare sheet fix: this writer
+    also had two sheets built around the old v21 25-principle ID/group
+    scheme, disconnected from the live 62-principle data actually being
+    written everywhere else in the same workbook."""
+
+    @pytest.mark.slow
+    def test_dds_principle_matrix_group_columns_are_real_not_all_zero(self):
+        """Regression test: the DDS×Principle matrix sheet's group_cols
+        list used the old 'G2_Release'/'G5_Glymphatic' names, which never
+        matched cerebro_62_orchestrator's real 'G2_Release_Kinetics'/
+        'G5_Glymphatic_BBB' keys in m["groups"] — so those two of seven
+        group columns silently showed 0 for every DDS row in every
+        drug's per-drug DDSxP sheet, the primary formulation-ranking
+        matrix a researcher would actually look at."""
+        import tempfile
+        from pathlib import Path
+
+        import openpyxl
+        import pandas as pd
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_orchestrator import evaluate_all_dds_62
+        from cerebro_completed_excel_writer import write_completed_excel
+        from cerebro_resolved_bundles import resolve_drug_bundle
+
+        db = resolve_drug_bundle(
+            name="Donepezil",
+            smiles="COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2",
+            molecule_class="small_molecule")
+        df_dds = pd.DataFrame([{
+            "Formulation_ID": "F001", "Formulation_Name": "Tf-PLGA",
+            "Carrier_Type": "plga", "Size_nm": 100, "Zeta_Potential_mV": -25,
+            "PDI": 0.2, "Encapsulation_Efficiency_pct": 75,
+            "Surface_Ligand": "transferrin", "PEGylation_Degree_mol_pct": 5,
+            "Release_Kinetics": "sustained", "Scale_Up_Readiness": "pilot",
+        }])
+        r = evaluate_all_dds_62(drug_bundle=db, df_dds=df_dds, drug_name="Donepezil")
+        drug_results = [{
+            "drug_name": "Donepezil", "mol_profile": {"_source_audit": {}},
+            "df_dds": r["ranked_df"],
+            "dds_principle_matrix": r["all_dds_principles"],
+            "dds_principle_breakdown": r["all_dds_breakdown"],
+            "principles": {}, "deep_results": r.get("deep_results", {}),
+            "deep_summary": r.get("deep_summary", {}),
+            "translational": r.get("translational", {}),
+            "fallback_chain": r.get("fallback_chain", []),
+        }]
+        with tempfile.TemporaryDirectory() as td:
+            out = write_completed_excel(drug_results, Path(td) / "test.xlsx")
+            wb = openpyxl.load_workbook(out)
+            ws = wb["D1_Donepezil_DDSxP"]
+            header = [c.value for c in ws[4]]
+            row1 = [c.value for c in ws[5]]
+            assert row1[header.index("G2_Release_Kinetics")] != 0
+            assert row1[header.index("G5_Glymphatic_BBB")] != 0
+
+    @pytest.mark.slow
+    def test_principle_explanations_sheet_lists_all_62_current_principles(self):
+        """Regression test: this glossary sheet used to be built from
+        cerebro_dds_principle_evaluator's old 25-principle table — a
+        researcher would see 'P01'..'P62' everywhere else in the same
+        workbook, then find 25 unrelated 'P1.1_...'-style rows here that
+        matched nothing else in the file. Now sourced from the same live
+        catalog that actually produced every score in the workbook."""
+        import tempfile
+        from pathlib import Path
+
+        import openpyxl
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_completed_excel_writer import write_completed_excel
+
+        drug_results = [{
+            "drug_name": "Donepezil", "mol_profile": {"_source_audit": {}},
+            "df_dds": None, "dds_principle_matrix": [], "dds_principle_breakdown": [],
+            "principles": {},
+        }]
+        with tempfile.TemporaryDirectory() as td:
+            out = write_completed_excel(drug_results, Path(td) / "test.xlsx")
+            wb = openpyxl.load_workbook(out)
+            ws = wb["Principle_Explanations"]
+            ids = [ws.cell(i, 1).value for i in range(5, ws.max_row + 1)]
+            ids = [i for i in ids if i]
+            assert len(ids) == 62
+            assert "P01" in ids and "P62" in ids
+            assert not any(i.startswith("P1.") for i in ids)   # no old-format leftovers
