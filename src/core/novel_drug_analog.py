@@ -63,6 +63,7 @@ def _live_chembl_similarity(smiles: str, threshold_pct: int = 60,
                 "name":           pref,
                 "chembl_id":      cid,
                 "similarity_pct": round(sim, 2),
+                "similarity_is_exact": True,   # ChEMBL returns a real per-compound Tanimoto score
                 "_source":        f"https://www.ebi.ac.uk/chembl/compound_report_card/{cid}/",
                 "method":         "live_chembl_tanimoto",
             })
@@ -105,7 +106,16 @@ def _live_pubchem_similarity(smiles: str, threshold: int = 90,
                 out.append({
                     "name":           title,
                     "pubchem_cid":    cid,
+                    # PubChem's similarity-search endpoint returns the set of
+                    # CIDs meeting the threshold, not a per-compound score —
+                    # this is a floor ("at least `threshold`% similar"), not
+                    # a measurement. Every hit used to report this identical
+                    # value as "similarity_pct" with no indication it wasn't
+                    # actually computed per-molecule, which then competed
+                    # directly against ChEMBL's real per-compound Tanimoto
+                    # scores in the best-match selection below.
                     "similarity_pct": float(threshold),
+                    "similarity_is_exact": False,
                     "_source":        f"https://pubchem.ncbi.nlm.nih.gov/compound/{cid}",
                     "method":         "live_pubchem_2d",
                 })
@@ -157,14 +167,17 @@ def find_closest_analog(drug_name: str, mol_profile: dict,
 
     best = max(all_hits, key=lambda h: h["similarity_pct"])
     is_novel = best["similarity_pct"] < 70
+    sim_phrase = (f"{best['similarity_pct']:.1f}% similarity"
+                  if best.get("similarity_is_exact", True)
+                  else f"≥{best['similarity_pct']:.0f}% similarity "
+                       f"(PubChem threshold — not an exact per-compound score)")
     return {
         "is_novel_drug":  is_novel,
         "confirmed_absent_from_databases": False,
         "closest_analog": best,
         "all_hits":        all_hits,
         "disclaimer": (f"Closest live analog: {best['name']} "
-                        f"({best['similarity_pct']:.1f}% similarity via "
-                        f"{best['method']}). "
+                        f"({sim_phrase} via {best['method']}). "
                         f"Source: {best.get('_source','—')}. "
                         f"This match is derived from live database queries — "
                         f"no hardcoded reference list."),
