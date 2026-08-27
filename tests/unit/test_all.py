@@ -786,6 +786,116 @@ class TestRealDockingEngine:
 # silently turn them into another §4.3-style "docstring says X, code does Y"
 # mismatch without a test failing.
 
+class TestNCAEngine:
+    """Regression tests for NCAEngine.analyse's dose-to-molar conversion.
+
+    Found while auditing pbbm_engine.py: dose_umol was computed with a
+    hardcoded MW of 454 Da regardless of the actual drug, even though
+    PBBMOrchestrator.run_full already resolves the real MW a few lines
+    before calling NCAEngine — it just never threaded it through. Every
+    drug whose real MW differs from 454 got a silently wrong CL/Vd."""
+
+    def _mono_exp_decay(self):
+        import numpy as np
+        t = np.linspace(0, 24, 50)
+        C = 10 * np.exp(-0.1 * t)
+        return t, C
+
+    def test_real_mw_changes_clearance_and_volume_vs_placeholder(self):
+        from src.core.pbbm_engine import NCAEngine
+        t, C = self._mono_exp_decay()
+
+        no_mw   = NCAEngine.analyse(t, C, dose_mg=10.0)
+        real_mw = NCAEngine.analyse(t, C, dose_mg=10.0, mw_da=180.16)
+
+        assert no_mw["CL_apparent"] != real_mw["CL_apparent"]
+        assert no_mw["Vd_ss"] != real_mw["Vd_ss"]
+        # dose_umol is directly proportional to 1/MW, so CL and Vd scale
+        # by exactly the ratio of the fallback MW to the real MW.
+        expected_ratio = 454.0 / 180.16
+        assert real_mw["CL_apparent"] / no_mw["CL_apparent"] == pytest.approx(
+            expected_ratio, rel=1e-3)
+
+    def test_missing_mw_falls_back_to_documented_placeholder(self):
+        """mw_da=None (or 0) must fall back to the documented 454 Da
+        placeholder, not raise or silently divide by zero."""
+        from src.core.pbbm_engine import NCAEngine
+        t, C = self._mono_exp_decay()
+
+        via_none    = NCAEngine.analyse(t, C, dose_mg=10.0, mw_da=None)
+        via_zero    = NCAEngine.analyse(t, C, dose_mg=10.0, mw_da=0)
+        via_explicit= NCAEngine.analyse(t, C, dose_mg=10.0, mw_da=454.0)
+
+        assert via_none["CL_apparent"] == via_explicit["CL_apparent"]
+        assert via_zero["CL_apparent"] == via_explicit["CL_apparent"]
+
+    def test_analyse_dataframe_threads_mw_through_to_analyse(self):
+        """analyse_dataframe must pass mw_da down to analyse rather than
+        dropping it — this is the exact wiring gap the bug was in."""
+        import pandas as pd
+        from src.core.pbbm_engine import NCAEngine
+        t, C = self._mono_exp_decay()
+        df = pd.DataFrame({"Hour": t, "Conc_umol_L": C, "Organ": "blood",
+                            "Drug": "TestDrug"})
+
+        no_mw   = NCAEngine.analyse_dataframe(df, dose_mg=10.0)
+        real_mw = NCAEngine.analyse_dataframe(df, dose_mg=10.0, mw_da=180.16)
+
+        assert no_mw["CL_apparent"].iloc[0] != real_mw["CL_apparent"].iloc[0]
+
+
+class TestPBBMEngineACAT:
+    """Regression tests for PBBMEngine.run_acat's dissolution physics.
+
+    Found while auditing pbbm_engine.py: solubility_mg_mL, particle_size_um,
+    mw_da, route, and n_points were all accepted as parameters, and a
+    Noyes-Whitney dissolution_rate_per_h() helper was written, but nothing
+    in the segment loop ever called it or referenced solubility/particle
+    size — fa_total depended only on permeability/pKa. Two drugs with the
+    same permeability but 1,000,000x different solubility (and 100x
+    different particle size) produced bit-identical output — meaning
+    BCS class II/IV (dissolution-limited) compounds got a permeability-only
+    result mislabeled as a full ACAT dissolution+transit+permeability
+    model. Fixed by capping per-segment absorption at the dissolved
+    fraction (Dose Number gated, particle-size-scaled first-order
+    dissolution)."""
+
+    def test_poor_solubility_reduces_absorption_vs_high_solubility(self):
+        from src.core.pbbm_engine import PBBMEngine
+        r_soluble = PBBMEngine.run_acat(
+            dose_mg=10, mw_da=379.5, logp=4.31,
+            solubility_mg_mL=100.0, particle_size_um=5.0)
+        r_insoluble = PBBMEngine.run_acat(
+            dose_mg=10, mw_da=379.5, logp=4.31,
+            solubility_mg_mL=0.0001, particle_size_um=500.0)
+        assert r_insoluble["fa_total"] < r_soluble["fa_total"]
+        assert r_insoluble["F_oral"] < r_soluble["F_oral"]
+
+    def test_large_particle_size_alone_reduces_absorption(self):
+        """Isolates the particle-size effect (Noyes-Whitney surface-area
+        scaling) from solubility — same solubility, only particle size
+        differs."""
+        from src.core.pbbm_engine import PBBMEngine
+        r_fine   = PBBMEngine.run_acat(
+            dose_mg=10, mw_da=379.5, logp=4.31,
+            solubility_mg_mL=0.05, particle_size_um=5.0)
+        r_coarse = PBBMEngine.run_acat(
+            dose_mg=10, mw_da=379.5, logp=4.31,
+            solubility_mg_mL=0.05, particle_size_um=500.0)
+        assert r_coarse["fa_total"] < r_fine["fa_total"]
+
+    def test_highly_soluble_high_permeability_drug_still_absorbs_well(self):
+        """BCS Class I-like input (Do << 1) must not be penalised by the
+        dissolution cap — this guards against an overcorrection that
+        would make every drug look dissolution-limited."""
+        from src.core.pbbm_engine import PBBMEngine
+        r = PBBMEngine.run_acat(
+            dose_mg=10, mw_da=200.0, logp=2.0,
+            solubility_mg_mL=50.0, particle_size_um=25.0,
+            peff_cm_s=5e-4)
+        assert r["fa_total"] > 0.5
+
+
 class TestPBBMPredictors:
     """Regression tests for the QSAR correlations in ADMETPredictor —
     pinned against donepezil (a real, well-characterized small molecule
@@ -825,6 +935,151 @@ class TestPBBMPredictors:
         result = ADMETPredictor.predict_permeability(">sp|P12345|FASTA_HEADER")
         assert result["Peff_cm_s"] is None
         assert result["_method"] == "heuristic_QSAR"  # unchanged default
+
+    def test_predict_solubility_uses_real_mw_not_hardcoded_342(self):
+        """Found while auditing pbbm_engine.py: predict_solubility converted
+        Yalkowsky logSw (mol/L) to mg/mL with a hardcoded 342 Da constant,
+        even though full_admet_profile already resolves the real MW and
+        simply never passed it through. Every drug with MW != 342 got a
+        systematically wrong Sw_mg_mL (and every biorelevant solubility
+        derived from it: S_pH, FaSSGF, FaSSIF, FeSSIF)."""
+        from src.core.pbbm_engine import ADMETPredictor
+        donepezil = "COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2"
+        no_mw   = ADMETPredictor.predict_solubility(donepezil, logp=4.31)
+        real_mw = ADMETPredictor.predict_solubility(donepezil, logp=4.31, mw=379.5)
+        assert no_mw["Sw_mg_mL"] != real_mw["Sw_mg_mL"]
+        # Both values are individually round()ed to 4 dp before the ratio
+        # is taken, so a tight tolerance would fail on rounding noise at
+        # these small magnitudes (~0.006) — 2% comfortably separates a
+        # real ~11% MW-driven shift from that rounding noise.
+        assert real_mw["Sw_mg_mL"] / no_mw["Sw_mg_mL"] == pytest.approx(
+            379.5 / 342.0, rel=0.02)
+
+    def test_full_admet_profile_threads_mw_into_solubility(self):
+        """full_admet_profile already has the real mw in scope (it's a
+        parameter) — this is the exact wiring gap the bug was in."""
+        from src.core.pbbm_engine import ADMETPredictor
+        donepezil = "COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2"
+        profile = ADMETPredictor.full_admet_profile(
+            donepezil, "donepezil", mw=379.5, logp=4.31)
+        direct = ADMETPredictor.predict_solubility(donepezil, logp=4.31, mw=379.5)
+        assert profile["Sw_mg_mL"] == direct["Sw_mg_mL"]
+
+
+class TestFormulationAdvisor:
+    """FormulationAdvisor.biowaiver_assessment used to accept a bcs_class
+    parameter that the body never referenced (it always recomputed its own
+    inferred_class from solubility/permeability) — removed the misleading
+    unused parameter rather than leaving a caller to think it has effect."""
+
+    def test_biowaiver_class_i_high_sol_high_perm_is_eligible(self):
+        from src.core.pbbm_engine import FormulationAdvisor
+        result = FormulationAdvisor.biowaiver_assessment(
+            dose_mg=10.0, solubility_mg_mL=10.0, permeability_cm_s=5e-4)
+        assert result["BCS_class"] == "I"
+        assert result["biowaiver_eligible"] is True
+
+    def test_biowaiver_class_iv_low_sol_low_perm_not_eligible(self):
+        from src.core.pbbm_engine import FormulationAdvisor
+        result = FormulationAdvisor.biowaiver_assessment(
+            dose_mg=10.0, solubility_mg_mL=0.001, permeability_cm_s=1e-6)
+        assert result["BCS_class"] == "IV"
+        assert result["biowaiver_eligible"] is False
+
+
+class TestOptimisationAndSensitivity:
+    """OptimisationEngine (SAEM/f-SAEM/PSO-LCI) has no live caller in the
+    real pipeline (it needs real observed concentration-time data the
+    automated PBBM run doesn't have) — verified via full-repo grep. Tests
+    here exercise it directly since it's real, working code available for
+    future calibration against experimental data."""
+
+    def test_saem_recovers_known_parameter_on_simple_quadratic(self):
+        import numpy as np
+        from src.core.pbbm_engine import OptimisationEngine
+        target = np.array([3.0])
+
+        def objective(theta):
+            return float(np.sum((theta - target) ** 2))
+
+        result = OptimisationEngine.saem(
+            objective, theta0=np.array([0.0]), bounds=[(-10, 10)], n_iter=200)
+        # SAEM is a stochastic Metropolis-within-SAEM search, not gradient
+        # descent — it can stall short of the exact optimum within a fixed
+        # iteration budget. Assert real progress toward the target rather
+        # than tight convergence, to avoid a flaky test on this genuinely
+        # stochastic algorithm.
+        assert abs(result["theta_opt"][0] - 3.0) < abs(0.0 - 3.0)
+        assert result["obj_opt"] < 2.0
+
+    def test_pso_lci_recovers_known_parameter(self):
+        import numpy as np
+        from src.core.pbbm_engine import OptimisationEngine
+        target = np.array([2.0, -1.0])
+
+        def objective(theta):
+            return float(np.sum((theta - target) ** 2))
+
+        result = OptimisationEngine.pso_lci(
+            objective, bounds=[(-5, 5), (-5, 5)], n_particles=20, n_iter=60)
+        assert np.allclose(result["theta_opt"], target, atol=0.5)
+
+    def test_ota_sensitivity_ranks_influential_parameter_higher(self):
+        import numpy as np
+        from src.core.pbbm_engine import SensitivityAnalyser
+
+        def model(theta):
+            # second parameter dominates the output
+            return theta[0] * 0.01 + theta[1] * 10.0
+
+        df = SensitivityAnalyser.ota_sensitivity(
+            model, np.array([1.0, 1.0]), ["weak", "strong"])
+        top = df.iloc[0]["Parameter"]
+        assert top == "strong"
+
+    def test_uncertainty_propagation_returns_sane_distribution(self):
+        import numpy as np
+        from src.core.pbbm_engine import SensitivityAnalyser
+
+        def model(theta):
+            return float(theta[0] * theta[1])
+
+        result = SensitivityAnalyser.uncertainty_propagation(
+            model, np.array([10.0, 2.0]), param_cv=0.1, n_samples=200)
+        assert result["n_valid_samples"] > 0
+        assert result["p5"] < result["mean"] < result["p95"]
+
+
+class TestPBBMOrchestratorEndToEnd:
+    """Real end-to-end run of the full PBBM suite against a real drug
+    (donepezil) — not a mock. Exercises ACAT, PBPK, NCA, metabolite tree,
+    ADMET, formulation strategy, and sensitivity analysis together, and
+    confirms the master report is written without crashing on any of the
+    values produced by the fixes above."""
+
+    DONEPEZIL_SMILES = "COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2"
+
+    def test_run_full_produces_all_result_sections_and_report(self, tmp_path):
+        from src.core.pbbm_engine import PBBMOrchestrator
+        mol_profile = {"MW_Da": 379.5, "LogP": 4.31, "Half_Life_Days": 3.0,
+                        "Protein_Binding_pct": 96.0, "Sw_mg_mL": 0.1}
+        results = PBBMOrchestrator.run_full(
+            drug_name="Donepezil", smiles=self.DONEPEZIL_SMILES,
+            mol_profile=mol_profile, df_dds=None, trial_dir=tmp_path,
+            dose_mg=10.0, route="oral", n_workers=2)
+
+        for key in ("acat", "pbpk", "nca", "metabolites", "admet",
+                    "formulation_strategy", "sensitivity"):
+            assert key in results, f"missing PBBM result section: {key}"
+
+        assert 0 < results["acat"]["fa_total"] <= 1
+        assert results["admet"]["Sw_mg_mL"] > 0
+
+        report = tmp_path / "pbbm_results" / "PBBM_Master_Report_Donepezil.txt"
+        assert report.exists()
+        text = report.read_text()
+        assert "ABSORPTION (ACAT MODEL)" in text
+        assert "NON-COMPARTMENTAL ANALYSIS" in text
 
 
 # ═════════════════════════════════════════════════════════════════════════════

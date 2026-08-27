@@ -145,15 +145,21 @@ class PBBMEngine:
     ACAT = Advanced Compartmental Absorption and Transit model
     (Yu & Amidon 1999, Pharm Res).
 
-    Kp (tissue:plasma) is estimated via Rodgers-Rowland (Rodgers & Rowland,
-    J Pharm Sci 95:1113, 2006) — distinct from science_engines.PBPKEngine's
-    Poulin-Theil-based 7-compartment model (2026-07-25: found disconnected
+    Kp (tissue:plasma) here is a simplified logP-power-law approximation
+    (Kp = 10^(slope·logP), slope fit per organ) — in the spirit of
+    lipophilicity-driven tissue-partition models, but not a literal
+    implementation of either Poulin-Theil (Poulin & Theil 2002, J Pharm
+    Sci 91:129) or Rodgers-Rowland (Rodgers & Rowland 2006, J Pharm Sci
+    95:1113), which both additionally require tissue-composition data and
+    drug-ionization-class handling this simplified version doesn't use.
+    This is distinct from science_engines.PBPKEngine's own 7-compartment
+    model (2026-07-25: found disconnected
     with zero live callers, then re-wired directly into pipeline_runner.py
     as a supplementary science_results/ output rather than left dead or
     silently merged with this one). Three independent PBPK computations
     now genuinely run per trial: this engine (ADMET/report output,
-    Rodgers-Rowland), science_engines.PBPKEngine (science_results/,
-    Poulin-Theil, supplementary cross-check), and
+    simplified logP-power-law Kp), science_engines.PBPKEngine
+    (science_results/, Poulin-Theil, supplementary cross-check), and
     cerebro_science_modules.run_all_science_modules() (visualisation/video
     feed). Each is labeled with its own method and citation rather than
     presented as one unified "the" PBPK number — reconciling them into a
@@ -192,7 +198,15 @@ class PBBMEngine:
                   route:        str = "oral",
                   n_points:     int = 200) -> dict:
         """
-        ACAT oral absorption model.
+        ACAT oral absorption model — dissolution- and permeability-limited.
+
+        Per-segment absorbed fraction is capped by both a permeability
+        term (Peff/ionisation-driven) and a dissolution term (Noyes-Whitney
+        lumped first-order rate, scaled by particle size, gated by Dose
+        Number Do = dose/(solubility×segment fluid volume)) — so a
+        BCS class II/IV compound with poor solubility or large particles
+        shows genuinely reduced fa_total, not just a permeability-only
+        result labeled as ACAT.
 
         Returns:
           fa_total     — fraction absorbed (0–1)
@@ -214,12 +228,20 @@ class PBBMEngine:
                 fb = 1 / (1 + 10**(pH - pka_b))   # base: ionised at low pH
             return max(fa, fb)
 
-        # Diffusion layer dissolution (Noyes-Whitney)
-        def dissolution_rate_per_h(pH, segment):
-            _, _, L_cm, r_cm, tr_h, seg_pH, _ = (None,) + segment[1]
-            # simplified: Cs × dissolution_rate × (1 - ionised_frac)
-            ion_f = ionised_frac(seg_pH, pka_acid, pka_base)
-            return dissolution_rate * (1 - ion_f * 0.8)  # ionised form dissolves slower
+        # Diffusion layer dissolution (Noyes-Whitney, lumped first-order):
+        # dissolved fraction over a segment's transit time, rate scaled
+        # inversely with particle size (Noyes-Whitney surface-area effect,
+        # normalised to the function's own 50 µm reference default) and
+        # reduced for the ionised form (lower effective Cs at the
+        # membrane). Absorption in a segment cannot exceed what has
+        # actually dissolved there — this is what makes fa_total sensitive
+        # to solubility/particle size for BCS class II/IV compounds,
+        # not permeability alone.
+        def dissolved_fraction(seg_pH, tr_h):
+            ion_f  = ionised_frac(seg_pH, pka_acid, pka_base)
+            k_diss = dissolution_rate * (50.0 / max(1.0, particle_size_um)) \
+                     * (1 - ion_f * 0.8)
+            return 1 - math.exp(-max(0.0, k_diss) * tr_h)
 
         fa_total    = 0.0
         segment_abs = {}
@@ -228,6 +250,13 @@ class PBBMEngine:
         for seg_name, (L, r, tr_h, seg_pH, peff_scale) in segments:
             # Segment volume (cm³ → mL)
             vol_mL = math.pi * r**2 * L
+
+            # Dose Number (Amidon BCS framework): dose vs. what can
+            # dissolve in this segment's fluid volume — Do > 1 means
+            # dissolution, not permeability, limits absorption here.
+            Do = dose_mg / max(1e-9, solubility_mg_mL * vol_mL)
+            dissolved_frac = dissolved_fraction(seg_pH, tr_h) / max(1.0, Do)
+            dissolved_frac = max(0.0, min(1.0, dissolved_frac))
 
             # Effective permeability in this segment
             peff_seg = peff_cm_s * peff_scale * 3600  # convert to cm/h
@@ -242,9 +271,11 @@ class PBBMEngine:
             ion_f  = ionised_frac(seg_pH, pka_acid, pka_base)
             ka_eff = ka * (1 - ion_f * 0.9)
 
-            # Fraction absorbed in this segment
-            fa_seg = 1 - math.exp(-ka_eff * tr_h)
-            fa_seg = max(0, min(fa_seg, 1))
+            # Fraction absorbed in this segment (permeability-limited)
+            fa_seg_perm = 1 - math.exp(-ka_eff * tr_h)
+            fa_seg_perm = max(0, min(fa_seg_perm, 1))
+            # Dissolution-limited: cannot absorb more than has dissolved
+            fa_seg = min(fa_seg_perm, dissolved_frac)
 
             available = prev_undissolved * (1 - fa_total)
             absorbed  = available * fa_seg
@@ -296,13 +327,13 @@ class PBBMEngine:
         8-compartment PBPK model with flow-limited kinetics.
 
         Compartments: blood, lung, liver, kidney, muscle, fat, brain, gut.
-        Kp (tissue:plasma) estimated via Poulin-Theil method from logP.
+        Kp (tissue:plasma) is a simplified logP-power-law fit
+        (Kp = 10^(slope·logP), slope tuned per organ) — not a literal
+        Poulin-Theil or Rodgers-Rowland implementation; see class docstring.
 
         ODEs:
           dCt/dt = (Q_t/V_t) * (Cb/Rb - Ct/Kp_t)
           dCb/dt = ΣQ_t*(Ct/Kp_t - Cb/Rb)/V_b - CL_renal*Cb
-
-        Reference: Rodgers & Rowland, J Pharm Sci 2006; PMID:16639716
         """
         organs = {
             "blood":   dict(Q=None, V=PHYSIOLOGY["Vblood_L"],   Kp_slope=0),
@@ -318,7 +349,8 @@ class PBBMEngine:
         fu = max(0.01, (100 - prot_bind_pct) / 100)
         Rb = 0.55 + 1.4 * fu   # blood-to-plasma ratio (Hinderling 1997)
 
-        # Kp per organ (Poulin-Theil lipophilicity model)
+        # Kp per organ (simplified logP-power-law fit, not a literal
+        # Poulin-Theil/Rodgers-Rowland implementation — see class docstring)
         def kp(org):
             if org == "blood": return 1.0
             slope = organs[org]["Kp_slope"]
@@ -407,7 +439,7 @@ class PBBMEngine:
             "F_oral":        F_oral,
             "CL_total_L_h":  round(CL_total, 4),
             "Vd_L":          round(Vd_L * PHYSIOLOGY["BW_kg"], 2),
-            "model":         "8-cmt_PBPK_Rodgers-Rowland",
+            "model":         "8-cmt_PBPK_logP-power-law-Kp",
         }
 
         if output_dir:
@@ -416,8 +448,11 @@ class PBBMEngine:
             _doc(out, {
                 "Overview": f"8-compartment PBPK simulation for {drug_name}.",
                 "Scientific basis":
-                    "Flow-limited PBPK model with Poulin-Theil Kp estimation.\n"
-                    "Kp = 10^(slope×logP) per organ (slope from Rodgers 2006).\n"
+                    "Flow-limited PBPK model with a simplified logP-power-law\n"
+                    "Kp estimation: Kp = 10^(slope×logP) per organ, slope fit\n"
+                    "per organ — not a literal Poulin-Theil or Rodgers-Rowland\n"
+                    "implementation (both require tissue-composition data and\n"
+                    "drug-ionization-class handling this simplified model omits).\n"
                     "LogBB = log10(AUC_brain/AUC_blood). Target > -1 for CNS drugs.\n"
                     "ODEs solved by scipy RK45 (rtol=1e-6, atol=1e-9).",
                 "Interpretation":
@@ -426,7 +461,10 @@ class PBBMEngine:
                     f"LogBB > -1 → adequate BBB penetration.\n"
                     f"LogBB < -2 → poor penetration — carrier essential.",
                 "References":
-                    "Rodgers & Rowland, J Pharm Sci 95:1: 1113-1122 (2006).\n"
+                    "Poulin & Theil, J Pharm Sci 91:129-156 (2002) and\n"
+                    "Rodgers & Rowland, J Pharm Sci 95:1113-1122 (2006) — cited\n"
+                    "as the tissue-partition literature this model approximates,\n"
+                    "not as an exact implementation of either method.\n"
                     "ICRP 2002 Reference Man physiological parameters.",
             })
             log.info(f"  [PBPK] → {out}")
@@ -461,7 +499,8 @@ class NCAEngine:
     @staticmethod
     def analyse(time_h: np.ndarray, conc: np.ndarray,
                  dose_mg: float = 1.0, iv: bool = True,
-                 n_terminal_pts: int = 4) -> dict[str, float]:
+                 n_terminal_pts: int = 4,
+                 mw_da: float | None = None) -> dict[str, float]:
         """
         Full NCA from concentration-time arrays.
 
@@ -471,6 +510,9 @@ class NCAEngine:
           dose_mg  : administered dose (mg)
           iv       : True if IV administration
           n_terminal_pts: points to use for terminal slope estimation
+          mw_da    : drug molecular weight (Da), used to convert dose to
+                     µmol for CL/Vd; falls back to a 454 Da class-typical
+                     placeholder only when the real MW is unavailable
         """
         t = np.array(time_h, dtype=float)
         C = np.array(conc,   dtype=float)
@@ -539,7 +581,8 @@ class NCAEngine:
         MRT = round(aumc_inf / AUC_0_inf, 4) if AUC_0_inf > 0 else None
 
         # PK parameters
-        dose_umol  = dose_mg * 1000 / 454.0   # approximate if MW unknown
+        mw_eff     = mw_da if mw_da and mw_da > 0 else 454.0  # class-typical fallback if MW unknown
+        dose_umol  = dose_mg * 1000 / mw_eff
         CL         = round(dose_umol / AUC_0_inf, 4) if AUC_0_inf > 0 else None
         Vd_ss      = round(CL * MRT, 4) if CL and MRT else None
         Vd_z       = round(CL / lambda_z, 4) if CL and lambda_z else None
@@ -568,6 +611,7 @@ class NCAEngine:
                            drug_col: str = "Drug",
                            organ:    str = "blood",
                            dose_mg:  float = 10.0,
+                           mw_da:    float | None = None,
                            output_dir: Path | None = None) -> pd.DataFrame:
         """Run NCA on all drugs in a PBPK DataFrame."""
         results = []
@@ -580,7 +624,7 @@ class NCAEngine:
             sub = sub.sort_values(time_col)
             t   = sub[time_col].values
             c   = sub[conc_col].values
-            r   = cls.analyse(t, c, dose_mg=dose_mg)
+            r   = cls.analyse(t, c, dose_mg=dose_mg, mw_da=mw_da)
             r["Drug"]  = drug
             r["Organ"] = organ
             results.append(r)
@@ -729,7 +773,12 @@ class MetaboliteTracker:
                 "Overview": f"Metabolite tracking tree for {parent_name} (depth={max_depth}).",
                 "Scientific basis":
                     "Michaelis-Menten kinetics per CYP/UGT/SULT/MAO pathway.\n"
-                    "v = Vmax × C / (Km + C). Km from in vitro microsomal data.\n"
+                    "v = Vmax × C / (Km + C). Km/Vmax use literature-typical\n"
+                    "generic pathway defaults (DEFAULT_CYP) unless a real\n"
+                    "per-drug in vitro microsomal cyp_profile is supplied to\n"
+                    "simulate_metabolic_tree — the current pipeline caller\n"
+                    "does not supply one, so every drug currently uses the\n"
+                    "same generic defaults, not drug-specific measurements.\n"
                     "Generation 0 = parent. G1 = primary metabolites. G2 = secondary.",
                 "Interpretation":
                     "High AUC metabolite = pharmacologically active concern.\n"
@@ -1079,7 +1128,8 @@ class ADMETPredictor:
     @staticmethod
     def predict_solubility(smiles: str,
                             pH: float = 6.8,
-                            logp: float = None) -> dict:
+                            logp: float = None,
+                            mw: float = None) -> dict:
         """
         Aqueous solubility models (S+Sw, intrinsic, pH-dependent, biorelevant).
 
@@ -1091,6 +1141,11 @@ class ADMETPredictor:
           FaSSIF:       Intestinal fasted: biorelevant solubility in bile salts
           FeSSIF:       Intestinal fed: higher surfactant → higher sol
           Supersaturation: ratio of kinetic to thermodynamic solubility
+
+        logSw is on a mol/L basis (Yalkowsky); converting to mg/mL requires
+        the drug's real molecular weight (mol/L × g/mol = g/L = mg/mL) — a
+        342 Da class-typical placeholder is used only when the real MW is
+        unavailable.
 
         Reference: Yalkowsky & Valvani, J Pharm Sci 1980;
                    Jamali & Mehvar 2012 (biorelevant).
@@ -1104,7 +1159,8 @@ class ADMETPredictor:
 
         # Native solubility (Yalkowsky)
         logSw = 0.5 - 0.01 * (Tm_C - 25) - logp
-        Sw_mg_mL = round(10**logSw * 342, 4)   # approx MW 342 correction
+        mw_eff = mw if mw and mw > 0 else 342.0  # class-typical fallback if MW unknown
+        Sw_mg_mL = round(10**logSw * mw_eff, 4)
 
         # pH-dependent (Henderson-Hasselbalch)
         pka_data = ADMETPredictor.predict_pka(smiles)
@@ -1356,7 +1412,7 @@ class ADMETPredictor:
         profile.update(lp_data)
         logp = logp or lp_data.get("logP") or 1.0
 
-        profile.update(cls.predict_solubility(smiles, pH, logp))
+        profile.update(cls.predict_solubility(smiles, pH, logp, mw))
         profile.update(cls.predict_permeability(smiles, mw, logp))
         profile.update(cls.predict_transport(smiles, logp, mw))
         profile.update(cls.predict_pk_parameters(smiles, mw, logp, prot_bind_pct))
@@ -1453,12 +1509,19 @@ class FormulationAdvisor:
         }
 
     @staticmethod
-    def biowaiver_assessment(bcs_class: str, dose_mg: float,
+    def biowaiver_assessment(dose_mg: float,
                               solubility_mg_mL: float,
                               permeability_cm_s: float,
                               dissolution_pct_15min: float = None) -> dict:
         """
         BCS-based biowaiver eligibility (FDA 2000 + ICH M9 2021).
+
+        BCS class is inferred here from solubility_mg_mL/permeability_cm_s
+        (not taken as an input) — a caller-supplied class was previously
+        accepted as a parameter but silently ignored by the body, which
+        always computed its own inferred_class; the misleading unused
+        parameter has been removed rather than left to confuse a caller
+        into thinking it has any effect.
 
         BCS Class I:  High sol + High perm → biowaiver eligible
         BCS Class III:High sol + Low perm → waiver possible (ICH M9)
@@ -1761,7 +1824,7 @@ class PBBMOrchestrator:
                 df_nca = NCAEngine.analyse_dataframe(
                     results["pbpk"], time_col="Hour",
                     conc_col="Conc_umol_L", organ="blood",
-                    dose_mg=dose_mg, output_dir=out_dir)
+                    dose_mg=dose_mg, mw_da=mw, output_dir=out_dir)
                 results["nca"] = df_nca
         except Exception as e:
             log.warning(f"  [NCA] {e}")
@@ -1800,7 +1863,7 @@ class PBBMOrchestrator:
             fu = float(results.get("admet",{}).get("fu_human_pct") or 10) / 100
             ddi  = FormulationAdvisor.assess_ddi(drug_name, _logp_fa, fu)
             bw   = FormulationAdvisor.biowaiver_assessment(
-                "II", dose_mg, _sol_fa, _peff)
+                dose_mg, _sol_fa, _peff)
             dili = FormulationAdvisor.liver_safety_score(
                 _logp_fa, _mw_fa, dose_mg * 30)
             results["formulation_strategy"] = {
@@ -1951,12 +2014,21 @@ def _write_pbbm_report(results: dict, drug_name: str,
     report_path.write_text("\n".join(lines), encoding="utf-8")
     _doc(report_path, {
         "Overview": f"Complete PBBM master report for {drug_name}.",
-        "Covers": "All 37 PBBM requirements: ACAT absorption, 8-cmt PBPK, "
-                  "NCA, metabolite tree, SAEM optimisation, full ADMET, "
-                  "DDI, biowaiver, DILI, sensitivity analysis.",
+        "Covers": "ACAT absorption, 8-cmt PBPK, NCA, metabolite tree, full "
+                  "ADMET, DDI, biowaiver, DILI, sensitivity analysis. "
+                  "(SAEM/f-SAEM/PSO-LCI calibration (OptimisationEngine) is "
+                  "implemented but not run here — it needs real observed "
+                  "concentration-time data this automated pipeline doesn't "
+                  "have; it's available for calibration against experimental "
+                  "PK data when that becomes available.)",
         "Regulatory status":
-            "All methods reference published peer-reviewed QSAR models and "
-            "FDA/ICH guidance documents. Suitable for IND-enabling studies.",
+            "Methods are informed by published peer-reviewed models and "
+            "FDA/ICH guidance documents, but several sub-models (Kp, some "
+            "ADMET/QSAR terms) are simplified heuristics or Tier-6/7 "
+            "class-typical fallbacks, not validated per-compound measurements. "
+            "This report is a research/decision-support aid, not a validated "
+            "IND-enabling study — any regulatory submission requires "
+            "independent experimental confirmation of the values used.",
         "References":
             "FDA BCS Guidance 2000; ICH M9 2021; ICH E14;\n"
             "Rodgers & Rowland 2006; Yu & Amidon 1999;\n"
