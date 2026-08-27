@@ -703,7 +703,14 @@ loop();
 # ──────────────────────────────────────────────────────────────────────────
 def make_c03_pk_profile(drug_bundle: dict, dds_bundle: dict,
                             top_dds: dict, out_dir: Path) -> Path:
-    """C03: Pharmacokinetic time course with plasma + brain ISF curves."""
+    """C03: Pharmacokinetic time course with plasma + brain ISF curves.
+
+    NOTE: this is a stylized illustration, not the pipeline's validated PBPK
+    prediction. Curve shape uses the drug's real half-life and BBB%, but the
+    absorption rate constant and dose are arbitrary and unitless — the real
+    3-compartment ODE result lives in cerebro_62_deep_engine.deep_P13. The
+    rendered HTML discloses this to the viewer; don't drop that disclaimer.
+    """
     import math
     drug_name = drug_bundle.get("_meta", {}).get("name", "Drug")
     drug_type = drug_bundle.get("_meta", {}).get("drug_type", "small_molecule")
@@ -766,6 +773,8 @@ def make_c03_pk_profile(drug_bundle: dict, dds_bundle: dict,
   border-collapse:collapse;margin-top:6px;font-feature-settings:'tnum'}}
 .pk-stats td{{padding:4px 0}}
 .pk-stats td:last-child{{text-align:right;color:#F8FAFC;font-weight:500}}
+.pk-stats .disclaimer{{font-size:9px;color:#64748B;line-height:1.4;margin-top:8px;
+  padding-top:8px;border-top:1px solid rgba(148,163,184,0.15)}}
 .pk-title{{position:fixed;top:80px;left:32px;z-index:50;max-width:340px}}
 .pk-title .info-card{{padding:14px 18px;--accent:{dp["primary"]}}}
 </style></head><body>
@@ -787,12 +796,13 @@ def make_c03_pk_profile(drug_bundle: dict, dds_bundle: dict,
     <div class="eyebrow">PK Parameters</div>
     <table>
       <tr><td>Half-life</td><td>{half_life:.2f} d</td></tr>
-      <tr><td>Plasma C_max</td><td>{cmax_p:.2f} μg/mL</td></tr>
-      <tr><td>Brain C_max</td><td>{cmax_b:.4f} μg/mL</td></tr>
+      <tr><td>Plasma C_max</td><td>{cmax_p:.2f} a.u.</td></tr>
+      <tr><td>Brain C_max</td><td>{cmax_b:.4f} a.u.</td></tr>
       <tr><td>AUC plasma</td><td>{auc_p:.1f}</td></tr>
       <tr><td>AUC brain</td><td>{auc_b:.2f}</td></tr>
       <tr><td>Brain/Plasma</td><td>{(auc_b/max(auc_p,1e-9))*100:.2f}%</td></tr>
     </table>
+    <div class="disclaimer">Stylized illustration — curve shape reflects this drug's real half-life &amp; BBB permeability, but absolute values are not a calibrated dose/PK prediction. See the PDF/Excel report for the validated 3-compartment PBPK ODE result.</div>
   </div>
 </div>
 
@@ -888,7 +898,7 @@ function loop(){{
   ctx.save();
   ctx.translate(20, padT + pH/2);
   ctx.rotate(-Math.PI/2);
-  ctx.fillText("Concentration (μg/mL)", 0, 0);
+  ctx.fillText("Concentration (a.u.)", 0, 0);
   ctx.restore();
 
   // Compute n_visible from progress

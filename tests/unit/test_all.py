@@ -4272,6 +4272,68 @@ class TestCinematicSuiteGeneration:
             assert isinstance(paths, list)   # doesn't raise, even with nothing real to render
 
 
+class TestC03PkProfileHonestLabeling:
+    """C03's curve is a stylized Bateman-function illustration (arbitrary
+    ka + unitless dose) — real per-drug half-life and BBB% drive the curve
+    SHAPE, but the plotted numbers are not a calibrated PBPK prediction. The
+    real 3-compartment ODE result lives in cerebro_62_deep_engine.deep_P13.
+    The scene must disclose this to the viewer instead of implying the
+    numbers are lab-real concentrations."""
+
+    def test_scene_does_not_claim_a_real_concentration_unit(self):
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_engine import make_c03_pk_profile
+
+        drug = _drug_bundle(pk_halflife={"value": 2.0},
+                              bbb_permeability={"value": 12.0})
+        top_dds = {"Formulation_Name": "Test-DDS"}
+        with tempfile.TemporaryDirectory() as td:
+            p = make_c03_pk_profile(drug, _dds_bundle(), top_dds, Path(td))
+            html = p.read_text()
+            assert "μg/mL" not in html   # no fabricated real-looking unit
+
+    def test_scene_discloses_it_is_a_stylized_illustration(self):
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_engine import make_c03_pk_profile
+
+        drug = _drug_bundle(pk_halflife={"value": 2.0},
+                              bbb_permeability={"value": 12.0})
+        top_dds = {"Formulation_Name": "Test-DDS"}
+        with tempfile.TemporaryDirectory() as td:
+            p = make_c03_pk_profile(drug, _dds_bundle(), top_dds, Path(td))
+            html = p.read_text()
+            assert "Stylized illustration" in html
+            assert "PDF/Excel report" in html
+
+    def test_curve_shape_still_reflects_real_half_life_and_bbb_percent(self):
+        """The fix must not touch the part that already works: the curve's
+        shape (elimination rate, brain lag/scale) is driven by the real
+        per-drug half-life and BBB% pulled from the bundle."""
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_engine import make_c03_pk_profile
+
+        top_dds = {"Formulation_Name": "Test-DDS"}
+        with tempfile.TemporaryDirectory() as td:
+            slow = _drug_bundle(pk_halflife={"value": 5.0},
+                                  bbb_permeability={"value": 12.0})
+            fast = _drug_bundle(pk_halflife={"value": 0.2},
+                                  bbb_permeability={"value": 12.0})
+            html_slow = make_c03_pk_profile(slow, _dds_bundle(), top_dds, Path(td)).read_text()
+            html_fast = make_c03_pk_profile(fast, _dds_bundle(), top_dds, Path(td)).read_text()
+            assert "5.00 d" in html_slow
+            assert "0.20 d" in html_fast
+            assert html_slow != html_fast
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 42. PDB RESOLVER (src/core/pdb_resolver.py)
 # ═════════════════════════════════════════════════════════════════════════════
@@ -4329,3 +4391,84 @@ class TestPdbResolver:
         r = resolve_pdb_for_drug("a-drug-name-with-no-pdb-structure-xyz-123")
         assert r["pdb_id"] is None
         assert r["confidence"] == "LOW"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 43. NOVEL DRUG ANALOG ENGINE (src/core/novel_drug_analog.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestNovelDrugAnalog:
+    def test_no_smiles_reports_honest_disclaimer_not_a_fabricated_hit(self):
+        import src.path_resolver  # noqa: F401
+        from src.core.novel_drug_analog import find_closest_analog
+
+        r = find_closest_analog("SomeDrug", {}, smiles="")
+        assert r["is_novel_drug"] is True
+        assert r["closest_analog"]["similarity_pct"] == 0.0
+        assert "no smiles" in r["disclaimer"].lower()
+
+    def test_reference_drugs_table_is_permanently_empty_by_design(self):
+        """v22.1 removed the embedded 220-drug reference list specifically
+        because it let unrelated hardcoded drug names leak into outputs
+        when the researcher's own input was incomplete."""
+        import src.path_resolver  # noqa: F401
+        from src.core.novel_drug_analog import REFERENCE_DRUGS
+
+        assert REFERENCE_DRUGS == []
+
+    def test_pubchem_threshold_hits_are_not_silently_ranked_as_exact_matches(self):
+        """Regression test for a real bug: PubChem's similarity endpoint
+        returns CIDs meeting a threshold, not a per-compound score — every
+        hit used to report the identical threshold value as 'similarity_pct'
+        with nothing marking it as an estimate, so it competed directly
+        against ChEMBL's real per-compound Tanimoto scores in the best-
+        match selection, and the disclaimer text stated it as if it were
+        an exact measurement. Now flagged via similarity_is_exact and the
+        disclaimer wording changes when the winning hit is threshold-only."""
+        import src.path_resolver  # noqa: F401
+        import src.core.novel_drug_analog as nda
+
+        def fake_chembl(smiles, threshold_pct=60, limit=5):
+            return [{"name": "RealChemblHit", "chembl_id": "CHEMBL1",
+                     "similarity_pct": 75.0, "similarity_is_exact": True,
+                     "_source": "x", "method": "live_chembl_tanimoto"}]
+
+        def fake_pubchem(smiles, threshold=90, limit=5):
+            return [{"name": "ThresholdOnlyHit", "pubchem_cid": 123,
+                     "similarity_pct": 90.0, "similarity_is_exact": False,
+                     "_source": "y", "method": "live_pubchem_2d"}]
+
+        orig_chembl, orig_pubchem = nda._live_chembl_similarity, nda._live_pubchem_similarity
+        nda._live_chembl_similarity = fake_chembl
+        nda._live_pubchem_similarity = fake_pubchem
+        try:
+            r = nda.find_closest_analog("SomeDrug", {}, smiles="CCO")
+        finally:
+            nda._live_chembl_similarity = orig_chembl
+            nda._live_pubchem_similarity = orig_pubchem
+
+        assert r["closest_analog"]["name"] == "ThresholdOnlyHit"   # 90 > 75, still wins on the number
+        assert "not an exact per-compound score" in r["disclaimer"]
+
+    def test_chembl_hit_disclaimer_reads_as_an_exact_measurement(self):
+        import src.path_resolver  # noqa: F401
+        import src.core.novel_drug_analog as nda
+
+        def fake_chembl(smiles, threshold_pct=60, limit=5):
+            return [{"name": "RealChemblHit", "chembl_id": "CHEMBL1",
+                     "similarity_pct": 88.0, "similarity_is_exact": True,
+                     "_source": "x", "method": "live_chembl_tanimoto"}]
+
+        def fake_pubchem(smiles, threshold=90, limit=5):
+            return []
+
+        orig_chembl, orig_pubchem = nda._live_chembl_similarity, nda._live_pubchem_similarity
+        nda._live_chembl_similarity = fake_chembl
+        nda._live_pubchem_similarity = fake_pubchem
+        try:
+            r = nda.find_closest_analog("SomeDrug", {}, smiles="CCO")
+        finally:
+            nda._live_chembl_similarity = orig_chembl
+            nda._live_pubchem_similarity = orig_pubchem
+
+        assert "88.0% similarity via live_chembl_tanimoto" in r["disclaimer"]
+        assert "threshold" not in r["disclaimer"]
