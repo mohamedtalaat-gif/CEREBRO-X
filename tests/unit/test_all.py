@@ -3459,3 +3459,55 @@ class TestSurrogateDispatcher:
         assert set(out) == set(SURROGATE_FUNCTIONS)
         for pid, r in out.items():
             assert r["confidence"] != "FAILED", f"{pid} unexpectedly failed: {r}"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 32. MODULE-PATH SHIMS (CEREBRO_Pipeline.py, cerebro_enterprise_infra.py,
+#     cerebro_pipeline_patches.py, src/path_resolver.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestModulePathShims:
+    """These shims exist so the flat `import CEREBRO_Pipeline`-style calls
+    used throughout the codebase resolve to the real src/ modules without
+    changing the process's working directory. The one behavior that must
+    hold for all of them: cwd is exactly what it was before the import,
+    even though the modules they wrap freeze+restore os.chdir internally."""
+
+    def test_shim_imports_leave_the_working_directory_unchanged(self):
+        import os
+
+        import src.path_resolver  # noqa: F401
+
+        cwd_before = os.getcwd()
+        import CEREBRO_Pipeline  # noqa: F401
+        import cerebro_enterprise_infra  # noqa: F401
+        import cerebro_pipeline_patches  # noqa: F401
+
+        assert os.getcwd() == cwd_before
+
+    def test_shims_register_themselves_in_sys_modules(self):
+        import sys
+
+        import src.path_resolver  # noqa: F401
+        import CEREBRO_Pipeline  # noqa: F401
+        import cerebro_enterprise_infra  # noqa: F401
+        import cerebro_pipeline_patches  # noqa: F401
+
+        for name in ("CEREBRO_Pipeline", "cerebro_enterprise_infra",
+                     "cerebro_pipeline_patches"):
+            assert name in sys.modules
+
+    def test_pipeline_paths_are_patched_to_the_project_root_not_src_core(self):
+        """CEREBRO_Pipeline.py reconstructs PATHS as
+        `_new_root / _pl.PATHS[_k].name` — this only stays correct because
+        every entry in the real PATHS dict (src/core/pipeline.py) is a
+        single flat directory name (data, models, figures, ...) with no
+        nested subdirectories; verifying that invariant holds so a future
+        nested path wouldn't silently get flattened and lose its parent."""
+        import src.path_resolver  # noqa: F401
+        import CEREBRO_Pipeline
+
+        for key, path in CEREBRO_Pipeline.PATHS.items():
+            assert path.name == path.parts[-1]  # no nested subpath was collapsed
+            assert "outputs" in path.parts
+        assert "src" not in CEREBRO_Pipeline.PATHS["data"].parts
+        assert "core" not in CEREBRO_Pipeline.PATHS["data"].parts
