@@ -246,8 +246,16 @@ def compare_drugs(drug_results: list[dict],
             continue
 
         scores = _normalize_score(values, direction)
-        winner = max(scores.items(), key=lambda kv: kv[1])[0]
-        winner_counts[winner] += 1
+        # A genuine tie (e.g. every drug fell back to the same Tier-7
+        # class-mean default for this metric) normalizes every score to
+        # 100.0 — max() would then arbitrarily pick whichever drug happens
+        # to be listed first, silently crediting it with a "win" it didn't
+        # actually earn over the others. Report it as an explicit tie
+        # instead, and don't count it toward anyone's winner_counts.
+        is_tie = len(set(scores.values())) == 1
+        winner = "— (tie)" if is_tie else max(scores.items(), key=lambda kv: kv[1])[0]
+        if not is_tie:
+            winner_counts[winner] += 1
         ranked_count += 1
 
         prefix = metric.split(".")[0]
@@ -515,9 +523,9 @@ def _write_champion_comparison_sheet(wb, summary: dict) -> None:
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     try:
-        from cerebro_dds_principle_evaluator import PRINCIPLE_DOCS, PRINCIPLE_WEIGHTS
+        from cerebro_62_principles_catalog import PRINCIPLES_62
     except ImportError:
-        log.debug("[CHAMPION-SHEET] evaluator unavailable — skipped")
+        log.debug("[CHAMPION-SHEET] principles catalog unavailable — skipped")
         return
 
     champions = summary.get("champions") or []
@@ -569,12 +577,17 @@ def _write_champion_comparison_sheet(wb, summary: dict) -> None:
         cell.alignment = Alignment(horizontal="center")
         cell.fill = PatternFill("solid", fgColor=VERDICT_FILL.get(c["verdict"], "FFFFFF"))
 
-    # Group-rollup rows
-    group_keys = ["G1_CNS_Delivery","G2_Release","G3_Stability","G4_Safety",
-                   "G5_Glymphatic","G6_Manufacturability","G7_DrugDDS_Fit"]
-    GROUP_COLOR = {"G1_CNS_Delivery":"DDEBCB","G2_Release":"FFEB9C",
+    # Group-rollup rows — names must match cerebro_62_orchestrator.
+    # PRINCIPLE_GROUPS exactly, since that's what actually produced
+    # champions[i]["group_scores"]'s keys (G2 is "..._Kinetics" and G5 is
+    # "..._BBB" there — this used to read "G2_Release"/"G5_Glymphatic",
+    # a leftover from an older naming scheme, so those two rows always
+    # rendered zero for every drug).
+    group_keys = ["G1_CNS_Delivery","G2_Release_Kinetics","G3_Stability","G4_Safety",
+                   "G5_Glymphatic_BBB","G6_Manufacturability","G7_DrugDDS_Fit"]
+    GROUP_COLOR = {"G1_CNS_Delivery":"DDEBCB","G2_Release_Kinetics":"FFEB9C",
                     "G3_Stability":"D9D9D9","G4_Safety":"FFD7B5",
-                    "G5_Glymphatic":"C2D6F0","G6_Manufacturability":"F0E5C2",
+                    "G5_Glymphatic_BBB":"C2D6F0","G6_Manufacturability":"F0E5C2",
                     "G7_DrugDDS_Fit":"E5DAF2"}
 
     row = 7
@@ -610,23 +623,19 @@ def _write_champion_comparison_sheet(wb, summary: dict) -> None:
                     end_row=row, end_column=2 + len(available))
     row += 1
 
-    # Build a sorted list of all principles, grouped
-    GROUP_PRINCIPLES = {
-        "G1_CNS_Delivery":  ["P1.1_BBB_transcytosis","P1.2_Receptor_targeting",
-                              "P1.3_Pgp_evasion","P1.4_Brain_AUC_ratio"],
-        "G2_Release":        ["P2.1_Burst_release_low","P2.2_Sustained_release",
-                              "P2.3_Endosomal_escape","P2.4_Release_model_fit"],
-        "G3_Stability":      ["P3.1_Shelf_life_25C","P3.2_Shelf_life_4C",
-                              "P3.3_Phase_margin","P3.4_Cold_chain_excursion"],
-        "G4_Safety":         ["P4.1_Nanotox_composite","P4.2_Hemolysis_risk_low",
-                              "P4.3_Complement_low","P4.4_RES_uptake_low"],
-        "G5_Glymphatic":     ["P5.1_Glymph_clearance","P5.2_CSF_distribution",
-                              "P5.3_Brain_residence"],
-        "G6_Manufacturability":["P6.1_Encap_adequacy","P6.2_PDI_quality",
-                                 "P6.3_Charge_stability"],
-        "G7_DrugDDS_Fit":    ["P7.1_LogP_carrier_match","P7.2_MW_pore_match",
-                              "P7.3_HBD_HBA_balance"],
-    }
+    # Grouped by the real 62-principle catalog — must match
+    # cerebro_62_orchestrator.PRINCIPLE_GROUPS exactly, since that's what
+    # actually produced champions[i]["principles"]'s keys ("P01".."P62").
+    # This used to list old v21-era dotted IDs ("P1.1_BBB_transcytosis"),
+    # which never matched anything in the live data, so every cell in
+    # this section rendered 0 for every drug regardless of its real score.
+    try:
+        from cerebro_62_orchestrator import PRINCIPLE_GROUPS
+    except ImportError:
+        log.debug("[CHAMPION-SHEET] orchestrator groups unavailable — skipping per-principle rows")
+        PRINCIPLE_GROUPS = {}
+    GROUP_PRINCIPLES = {g: pids for g, pids in PRINCIPLE_GROUPS.items()
+                         if g != "G8_Translational"}   # translational shown elsewhere
 
     for g_name, pids in GROUP_PRINCIPLES.items():
         # Group divider row
@@ -637,10 +646,10 @@ def _write_champion_comparison_sheet(wb, summary: dict) -> None:
                         end_row=row, end_column=2 + len(available))
         row += 1
         for pid in pids:
-            doc = PRINCIPLE_DOCS.get(pid, {})
-            weight = PRINCIPLE_WEIGHTS.get(pid, 0)
+            doc = PRINCIPLES_62.get(pid, {})
+            weight = doc.get("weight_cns", 0)
             ws.cell(row, 1, f"{pid}  ({weight*100:.1f}%)").font = Font(size=9)
-            descr = (doc.get("explanation","") or "")[:90]
+            descr = (doc.get("title_en","") or "")[:90]
             ws.cell(row, 2, descr).alignment = Alignment(wrap_text=True,
                                                             vertical="center")
             ws.cell(row, 2).font = Font(italic=True, size=8, color="9CA3AF")

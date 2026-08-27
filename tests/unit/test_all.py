@@ -3859,3 +3859,166 @@ class TestMoleculeExtractorEnrichment:
         out = enrich_mol_profile({"name": ""})
         assert out["MW_Da"] is None
         assert out["_descriptors_provenance"]["MW_Da"]["confidence"] == "FAILED"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 38. MULTI-DRUG COMPARISON (cerebro_multi_drug_comparison.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestMultiDrugComparisonHelpers:
+    def test_to_float_handles_commas_nan_and_bad_strings(self):
+        import math
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import _to_float
+
+        assert _to_float("1,234.5") == 1234.5
+        assert _to_float(float("nan")) is None
+        assert _to_float(True) == 1.0
+        assert _to_float("not a number") is None
+
+    def test_flatten_numeric_recurses_and_drops_underscore_and_non_numeric_keys(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import _flatten_numeric
+
+        flat = _flatten_numeric({"a": {"b": 1.0, "c": "text"}, "_hidden": 5.0, "d": 2})
+        assert flat == {"a.b": 1.0, "d": 2.0}
+
+    def test_normalize_score_higher_and_lower_directions(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import _normalize_score
+
+        vals = {"A": 10.0, "B": 20.0, "C": 30.0}
+        higher = _normalize_score(vals, "higher")
+        assert higher == {"A": 0.0, "B": 50.0, "C": 100.0}
+        lower = _normalize_score(vals, "lower")
+        assert lower == {"A": 100.0, "B": 50.0, "C": 0.0}
+
+    def test_docking_affinity_kcal_and_its_abs_variant_agree_on_direction_of_better(self):
+        """Docking_Affinity_kcal (a signed, more-negative-is-stronger
+        energy) belongs in LOWER_IS_BETTER; its _abs companion (computed
+        in compare_drugs) belongs in HIGHER_IS_BETTER — both must agree
+        that -9.0 kcal/mol beats -5.0 kcal/mol."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import _direction_for
+
+        assert _direction_for("physchem.Docking_Affinity_kcal") == "lower"
+        assert _direction_for("physchem.Docking_Affinity_kcal_abs") == "higher"
+
+
+class TestMultiDrugComparisonTieHandling:
+    def test_a_genuine_tie_is_reported_honestly_not_credited_to_whoever_is_first(self):
+        """Regression test for a real bug: when every drug lands on the
+        exact same value for a metric (a realistic case — e.g. every drug
+        falling back to the same Tier-7 class-mean default), _normalize_
+        score gives everyone 100.0, and max() then arbitrarily picked
+        whichever drug happened to be listed first as the 'winner' of a
+        comparison that was actually a dead heat, silently biasing
+        winner_counts toward that drug. Now reported as an explicit tie
+        with no winner credited."""
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import compare_drugs
+
+        drug_results = [
+            {"drug_name": "DrugA", "mol_profile": {"BBB_permeability_pct": 50.0},
+             "df_dds": None, "principles": {}},
+            {"drug_name": "DrugB", "mol_profile": {"BBB_permeability_pct": 50.0},
+             "df_dds": None, "principles": {}},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            summary = compare_drugs(drug_results, Path(td))
+        row = next(r for r in summary["per_principle"]
+                   if "BBB_permeability_pct" in r["metric"])
+        assert row["winner"] == "— (tie)"
+        assert summary["winner_counts"]["DrugA"] == 0
+        assert summary["winner_counts"]["DrugB"] == 0
+
+    def test_a_genuine_winner_is_still_credited_normally(self):
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import compare_drugs
+
+        drug_results = [
+            {"drug_name": "DrugA", "mol_profile": {"BBB_permeability_pct": 80.0},
+             "df_dds": None, "principles": {}},
+            {"drug_name": "DrugB", "mol_profile": {"BBB_permeability_pct": 20.0},
+             "df_dds": None, "principles": {}},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            summary = compare_drugs(drug_results, Path(td))
+        row = next(r for r in summary["per_principle"]
+                   if "BBB_permeability_pct" in r["metric"])
+        assert row["winner"] == "DrugA"
+        assert summary["winner_counts"]["DrugA"] == 1
+
+
+class TestMultiDrugComparisonChampionSheet:
+    @pytest.mark.slow
+    def test_champion_sheet_per_principle_scores_are_real_not_all_zero(self):
+        """Regression test for a real bug: the Champion_DDS_Compare Excel
+        sheet's per-principle-score section and two of its seven group-
+        rollup rows (G2, G5) were built around an old v21-era ID/group-
+        naming scheme (e.g. 'P1.1_BBB_transcytosis', 'G2_Release') that
+        never matched the real 62-principle data actually being fed in
+        (keyed 'P01'..'P62', groups named '...Kinetics'/'...BBB') — so
+        every one of those cells silently rendered 0 for every drug,
+        regardless of the real underlying scores. Confirmed end-to-end
+        with two real drugs through the actual orchestrator."""
+        import tempfile
+        from pathlib import Path
+
+        import openpyxl
+        import pandas as pd
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_orchestrator import evaluate_all_dds_62
+        from cerebro_multi_drug_comparison import compare_drugs
+        from cerebro_resolved_bundles import resolve_drug_bundle
+
+        db1 = resolve_drug_bundle(
+            name="Donepezil",
+            smiles="COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2",
+            molecule_class="small_molecule")
+        db2 = resolve_drug_bundle(
+            name="Rivastigmine", smiles="CCN(C)C(=O)Oc1cccc(c1)C(C)N(C)C",
+            molecule_class="small_molecule")
+        df_dds = pd.DataFrame([{
+            "Formulation_ID": "F001", "Formulation_Name": "Tf-PLGA",
+            "Carrier_Type": "plga", "Size_nm": 100, "Zeta_Potential_mV": -25,
+            "PDI": 0.2, "Encapsulation_Efficiency_pct": 75,
+            "Surface_Ligand": "transferrin", "PEGylation_Degree_mol_pct": 5,
+            "Release_Kinetics": "sustained", "Scale_Up_Readiness": "pilot",
+        }])
+        r1 = evaluate_all_dds_62(drug_bundle=db1, df_dds=df_dds, drug_name="Donepezil")
+        r2 = evaluate_all_dds_62(drug_bundle=db2, df_dds=df_dds, drug_name="Rivastigmine")
+        drug_results = [
+            {"drug_name": "Donepezil", "mol_profile": {}, "df_dds": r1["ranked_df"],
+             "dds_principle_matrix": r1["all_dds_principles"],
+             "dds_principle_breakdown": r1["all_dds_breakdown"]},
+            {"drug_name": "Rivastigmine", "mol_profile": {}, "df_dds": r2["ranked_df"],
+             "dds_principle_matrix": r2["all_dds_principles"],
+             "dds_principle_breakdown": r2["all_dds_breakdown"]},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            compare_drugs(drug_results, Path(td))
+            wb = openpyxl.load_workbook(Path(td) / "CEREBRO_X_Multi_Drug_Comparison.xlsx")
+            ws = wb["Champion_DDS_Compare"]
+
+            group_rows = {row[0]: row[2:4] for row in
+                          ws.iter_rows(min_row=8, max_row=14, values_only=True)}
+            assert group_rows["G2 Release Kinetics"] != (0, 0)
+            assert group_rows["G5 Glymphatic BBB"] != (0, 0)
+
+            per_principle_cells = [
+                cell.value
+                for row in ws.iter_rows(min_row=16, max_row=ws.max_row)
+                if row[0].value and str(row[0].value).startswith("P")
+                and "(" in str(row[0].value)
+                for cell in row[2:4] if cell.value is not None
+            ]
+            assert per_principle_cells
+            assert any(v != 0 for v in per_principle_cells)
