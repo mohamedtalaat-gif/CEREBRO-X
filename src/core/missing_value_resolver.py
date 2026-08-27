@@ -149,9 +149,17 @@ def resolve_property(drug_name: str, property_name: str,
     mol_profile = mol_profile or {}
     drug_lower  = drug_name.lower().strip()
     prop_lower  = property_name.lower()
-    
+
+    # Properties that are physically impossible at exactly 0 — see the
+    # matching note in molecule_engine.resolve_missing_properties, the only
+    # current caller. hbd/hba/tpsa/logp can legitimately BE 0 for a real
+    # molecule; treating a real 0 there as "not provided" would reject a
+    # correct api_value and fall through to a fabricated class-typical
+    # fallback instead.
+    _zero_means_unset = prop_lower in ("mw_da", "molecular_weight", "half_life_days")
+
     # ── Tier 1: API value already provided ─────────────────────────────────
-    if api_value is not None and api_value != 0:
+    if api_value is not None and not (_zero_means_unset and api_value == 0):
         return {
             "value": api_value, "_tier": 1,
             "_source": "Live API (ChEMBL/PubChem/UniProt/DrugBank)",

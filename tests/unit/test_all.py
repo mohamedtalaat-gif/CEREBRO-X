@@ -4472,3 +4472,69 @@ class TestNovelDrugAnalog:
 
         assert "88.0% similarity via live_chembl_tanimoto" in r["disclaimer"]
         assert "threshold" not in r["disclaimer"]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 44. MISSING VALUE RESOLVER (src/core/missing_value_resolver.py +
+#     src/core/molecule_engine.resolve_missing_properties)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestMissingValueResolverZeroHandling:
+    """Regression tests for a real, confirmed bug: a legitimate 0 for
+    HBD/HBA/TPSA/LogP (very common — e.g. any molecule with no -OH/-NH
+    group genuinely has HBD=0) was treated as 'missing' and could get
+    silently overwritten by a fabricated class-typical fallback (HBD=0
+    -> class-mean 2.0) whenever the live re-resolution cascade failed for
+    any reason (network issues, an unresolvable drug name). MW_Da and
+    Half_Life_Days are different — those really can't be 0 for a real
+    molecule, so 0 there still correctly means 'never set'."""
+
+    def test_legitimate_zero_hbd_survives_when_the_live_cascade_fails(self):
+        import src.path_resolver  # noqa: F401
+        import src.core.missing_value_resolver as mvr
+        from src.core.molecule_engine import resolve_missing_properties
+
+        orig_pubchem, orig_pubmed = mvr._pubchem_property, mvr._pubmed_search
+        mvr._pubchem_property = lambda *a, **k: None
+        mvr._pubmed_search = lambda *a, **k: None
+        try:
+            mol_profile = {"HBD": 0, "MW_Da": 108.14, "LogP": 2.1,
+                            "TPSA_A2": 9.2, "HBA": 1, "Half_Life_Days": 0.1}
+            out = resolve_missing_properties(mol_profile, "AnisoleLikeDrug", smiles=None)
+        finally:
+            mvr._pubchem_property, mvr._pubmed_search = orig_pubchem, orig_pubmed
+
+        assert out["HBD"] == 0          # not overwritten with the class-mean 2.0
+        assert out["TPSA_A2"] == 9.2    # not overwritten either
+
+    def test_genuinely_unset_mw_da_zero_still_gets_resolved(self):
+        import src.path_resolver  # noqa: F401
+        import src.core.missing_value_resolver as mvr
+        from src.core.molecule_engine import resolve_missing_properties
+
+        orig_pubchem, orig_pubmed = mvr._pubchem_property, mvr._pubmed_search
+        mvr._pubchem_property = lambda *a, **k: None
+        mvr._pubmed_search = lambda *a, **k: None
+        try:
+            mol_profile = {"HBD": 0, "MW_Da": 0, "LogP": 2.1,
+                            "TPSA_A2": 9.2, "HBA": 1, "Half_Life_Days": 0.1}
+            out = resolve_missing_properties(mol_profile, "AnisoleLikeDrug", smiles=None)
+        finally:
+            mvr._pubchem_property, mvr._pubmed_search = orig_pubchem, orig_pubmed
+
+        assert out["MW_Da"] != 0   # MW=0 is physically impossible -> correctly treated as missing
+        assert out["MW_Da"] == 350.0   # resolved via the small_molecule class-typical fallback
+
+    def test_resolve_property_accepts_a_real_zero_api_value_for_hbd(self):
+        import src.path_resolver  # noqa: F401
+        from src.core.missing_value_resolver import resolve_property
+
+        r = resolve_property("SomeDrug", "hbd", mol_profile={}, smiles=None, api_value=0)
+        assert r["value"] == 0
+        assert r["_tier"] == 1   # trusted as the real API-provided value, not re-derived
+
+    def test_resolve_property_treats_zero_mw_as_still_missing(self):
+        import src.path_resolver  # noqa: F401
+        from src.core.missing_value_resolver import resolve_property
+
+        r = resolve_property("SomeDrug", "mw_da", mol_profile={}, smiles=None, api_value=0)
+        assert r["_tier"] != 1   # 0 Da isn't a real molecular weight — falls through

@@ -989,11 +989,21 @@ def resolve_missing_properties(mol_profile: dict, drug_name: str,
         ("HBD",            "hbd"),
         ("HBA",            "hba"),
     ]
-    
+    # Properties that are physically impossible at exactly 0 — a stored 0
+    # there really does mean "never set". HBD/HBA/TPSA/LogP are different:
+    # plenty of real molecules genuinely have zero H-bond donors/acceptors
+    # or zero polar surface area (e.g. simple ethers, aromatic hydrocarbons),
+    # and LogP can legitimately land on exactly 0.0. Treating those as
+    # "missing" used to silently overwrite a correct 0 with a fabricated
+    # class-typical fallback (e.g. HBD=0 -> class-mean 2.0) the moment the
+    # live re-resolution cascade failed for any reason.
+    _ZERO_MEANS_UNSET = {"MW_Da", "Half_Life_Days"}
+
     audit_trail = {}
     for profile_key, prop_key in PROPERTIES_TO_RESOLVE:
         val = mol_profile.get(profile_key)
-        if val is None or val == 0:
+        is_missing = val is None or (profile_key in _ZERO_MEANS_UNSET and val == 0)
+        if is_missing:
             resolution = resolve_property(
                 drug_name=drug_name,
                 property_name=prop_key,
