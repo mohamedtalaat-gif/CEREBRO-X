@@ -3706,3 +3706,50 @@ class TestCerebroBrand:
         pytest.importorskip("reportlab")
         color = reportlab_color(GOLD)
         assert color is not None
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 36. BUNDLE INSPECTOR CLI (cerebro_inspector.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestCerebroInspectorFormatting:
+    def test_fmt_value_handles_every_type_it_documents(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_inspector import _fmt_value
+
+        assert _fmt_value(None) == "—"
+        assert _fmt_value(True) == "true"
+        assert _fmt_value(False) == "false"
+        assert _fmt_value(0.001234) == "1.234e-03"    # small float -> sci notation
+        assert _fmt_value(12345.6789) == "1.235e+04"  # large float -> sci notation
+        assert _fmt_value(3.14159) == "3.142"          # normal float -> 4 sig figs
+        assert _fmt_value({"x": 1}) == "{...}"
+        long_str = "a" * 50
+        assert _fmt_value(long_str) == "a" * 40 + "…"
+        assert _fmt_value("short") == "short"
+
+    def test_to_json_round_trips_both_bundles(self):
+        import json
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_inspector import _to_json
+
+        drug_b = {"drug_mw": {"value": 350.0, "tier": 3}, "_meta": {"name": "x"}}
+        dds_b = {"material_pdi": {"value": 0.2, "tier": 7}, "_meta": {"dds_type": "material"}}
+        out = json.loads(_to_json(drug_b, dds_b))
+        assert out["drug"]["drug_mw"]["value"] == 350.0
+        assert out["dds"]["material_pdi"]["tier"] == 7
+        assert "combo" not in out
+
+    def test_to_markdown_escapes_pipe_characters_in_method_text(self):
+        """A computational_method string containing a literal '|' would
+        break the markdown table's column structure if not escaped."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_inspector import _to_markdown
+
+        drug_b = {"drug_mw": {"value": 350.0, "tier": 3, "source": "RDKit",
+                               "_computational_method": "a | b"},
+                  "_meta": {"name": "x"}}
+        dds_b = {"_meta": {"dds_type": "material"}}
+        md = _to_markdown(drug_b, dds_b)
+        assert "a \\| b" in md
+        assert "| a | b |" not in md  # the raw unescaped pipe never appears as a cell break
