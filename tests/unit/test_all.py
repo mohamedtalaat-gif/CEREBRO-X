@@ -4270,3 +4270,62 @@ class TestCinematicSuiteGeneration:
         with tempfile.TemporaryDirectory() as td:
             paths = generate_cinematic_suite({}, {}, {}, Path(td))
             assert isinstance(paths, list)   # doesn't raise, even with nothing real to render
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 42. PDB RESOLVER (src/core/pdb_resolver.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestPdbResolver:
+    @pytest.mark.slow
+    def test_path_traversal_pdb_id_is_rejected_not_trusted(self):
+        """Security regression test for the audit's §6 Medium finding: a
+        user-supplied pdb_id must pass a strict 4-char alphanumeric check
+        before being trusted — a value like '../x' must NOT be accepted,
+        since a trusted pdb_id later builds both a download URL and a
+        local filesystem path in real_docking_engine.py. Marked slow: a
+        rejected override falls through to the real live-API cascade."""
+        import src.path_resolver  # noqa: F401
+        from src.core.pdb_resolver import resolve_pdb_for_drug
+
+        r = resolve_pdb_for_drug("SomeDrug", user_pdb_id="../x")
+        assert r["source"] != "User-provided (Excel input)"
+        assert r["pdb_id"] != "../x"
+
+    def test_valid_pdb_id_is_trusted_and_uppercased(self):
+        import src.path_resolver  # noqa: F401
+        from src.core.pdb_resolver import resolve_pdb_for_drug
+
+        r = resolve_pdb_for_drug("SomeDrug", user_pdb_id="1abc")
+        assert r["pdb_id"] == "1ABC"
+        assert r["source"] == "User-provided (Excel input)"
+        assert r["confidence"] == "HIGH"
+
+    def test_pdb_id_regex_rejects_wrong_length_and_special_characters(self):
+        import src.path_resolver  # noqa: F401
+        from src.core.pdb_resolver import _PDB_ID_RE
+
+        assert not _PDB_ID_RE.match("abc")     # too short
+        assert not _PDB_ID_RE.match("abcde")   # too long
+        assert not _PDB_ID_RE.match("ab-c")    # non-alphanumeric
+        assert _PDB_ID_RE.match("1ABC")
+
+    def test_pdb_ref_is_permanently_empty_by_design(self):
+        """Regression guard for a real (if low-severity) dead-code issue:
+        the auto-resolved confidence used to read
+        'HIGH if drug_lower in PDB_REF else MODERATE', but PDB_REF was
+        deliberately emptied in v22.1 (no hardcoded drug data) — that
+        branch could never actually produce HIGH. Confirmed the table
+        stays empty and auto-resolved confidence is honestly MODERATE."""
+        import src.path_resolver  # noqa: F401
+        from src.core.pdb_resolver import PDB_REF
+
+        assert PDB_REF == {}
+
+    @pytest.mark.slow
+    def test_no_pdb_id_available_falls_back_to_honest_blind_docking(self):
+        import src.path_resolver  # noqa: F401
+        from src.core.pdb_resolver import resolve_pdb_for_drug
+
+        r = resolve_pdb_for_drug("a-drug-name-with-no-pdb-structure-xyz-123")
+        assert r["pdb_id"] is None
+        assert r["confidence"] == "LOW"

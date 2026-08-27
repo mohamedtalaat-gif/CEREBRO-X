@@ -197,7 +197,11 @@ def resolve_pdb_for_drug(drug_name: str,
         return {
             "pdb_id":         best,
             "source":         "Auto-resolved (CEREBRO-X PDB cascade)",
-            "confidence":     "HIGH" if drug_lower in PDB_REF else "MODERATE",
+            # PDB_REF is permanently empty (see its docstring above) —
+            # "drug_lower in PDB_REF" can never be True, so this always
+            # resolved to MODERATE anyway. Made that explicit rather than
+            # leaving a condition that reads as if HIGH were reachable.
+            "confidence":     "MODERATE",
             "all_candidates": candidates,
         }
 
