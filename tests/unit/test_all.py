@@ -4114,3 +4114,32 @@ class TestCompletedExcelWriterPrincipleSheets:
             assert len(ids) == 62
             assert "P01" in ids and "P62" in ids
             assert not any(i.startswith("P1.") for i in ids)   # no old-format leftovers
+
+
+class TestCompletedExcelWriterHelpers:
+    def test_get_tier_info_prefers_source_audit_over_inference(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_completed_excel_writer import _get_tier_info
+
+        mp = {"_source_audit": {"MW_Da": {"_tier": 1, "_confidence": "HIGH"}}}
+        assert _get_tier_info(mp, "MW_Da") == {"_tier": 1, "_confidence": "HIGH"}
+
+    def test_get_tier_info_infers_tier_1_for_a_present_unaudited_value(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_completed_excel_writer import _get_tier_info
+
+        info = _get_tier_info({"MW_Da": 350.0}, "MW_Da")
+        assert info["_tier"] == 1
+
+    def test_get_tier_info_reports_tier_99_when_truly_missing(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_completed_excel_writer import _get_tier_info
+
+        assert _get_tier_info({}, "MW_Da")["_tier"] == 99
+
+    def test_flatten_principles_recurses_and_converts_booleans(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_completed_excel_writer import _flatten_principles
+
+        flat = _flatten_principles({"a": {"b": 1.0, "_hidden": 5}, "c": True, "d": [1, 2, 3]})
+        assert flat == [("a.b", 1.0), ("c", "Yes")]   # lists skipped, bool -> Yes/No, _-keys dropped
