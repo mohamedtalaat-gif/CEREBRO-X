@@ -1082,6 +1082,103 @@ class TestPBBMOrchestratorEndToEnd:
         assert "NON-COMPARTMENTAL ANALYSIS" in text
 
 
+class TestHarmonizationSourcePriority:
+    """HarmonizationEngine.harmonize_drug_records resolved a source's
+    priority by taking max() over every SOURCE_PRIORITY key that's a
+    substring of the record's _source string. "EmbeddedClinicalLibrary"
+    (priority 8) is a substring of "EmbeddedClinicalLibrary_PartialHit"
+    (intended priority 7), so max() silently promoted every partial hit to
+    the full hit's priority — a partial hit could then outrank (or wrongly
+    tie and win by list order against) a genuine full hit. Fixed to match
+    the longest (most specific) key instead of taking the max priority
+    across all substring matches."""
+
+    def test_partial_hit_source_gets_its_own_lower_priority(self):
+        from src.core.data_engineering import HarmonizationEngine
+        priority = HarmonizationEngine.SOURCE_PRIORITY[
+            "EmbeddedClinicalLibrary_PartialHit"]
+        records = [{"Half_Life_Days": 2.0,
+                    "_source": "EmbeddedClinicalLibrary_PartialHit"}]
+        result = HarmonizationEngine.harmonize_drug_records(records, "Drug")
+        assert result["_field_provenance"]["Half_Life_Days"]["priority"] == priority
+
+    def test_full_embedded_hit_outranks_partial_hit(self):
+        from src.core.data_engineering import HarmonizationEngine
+        records = [
+            {"Half_Life_Days": 2.0, "_source": "EmbeddedClinicalLibrary_PartialHit"},
+            {"Half_Life_Days": 5.0, "_source": "EmbeddedClinicalLibrary"},
+        ]
+        result = HarmonizationEngine.harmonize_drug_records(records, "Drug")
+        assert result["_field_provenance"]["Half_Life_Days"]["source"] == "EmbeddedClinicalLibrary"
+        assert result["Half_Life_Days"] == 5.0
+
+    def test_ordinary_source_priorities_unaffected(self):
+        """Regression guard: the fix must not disturb non-colliding
+        sources' normal priority resolution."""
+        from src.core.data_engineering import HarmonizationEngine
+        records = [
+            {"Half_Life_Days": 2.0, "_source": "PubMed_NLP"},
+            {"Half_Life_Days": 3.0, "_source": "DrugBank_API"},
+        ]
+        result = HarmonizationEngine.harmonize_drug_records(records, "Drug")
+        assert result["_field_provenance"]["Half_Life_Days"]["source"] == "DrugBank_API"
+
+
+class TestLineageTierLabeling:
+    """LineageEngine.record_from_drug_data mapped an integer _tier to a
+    human-readable "algorithm" label for the audit trail (this engine's
+    documented purpose is FDA 21 CFR Part 11 provenance tracking). It
+    defaulted missing _tier to 0, which tier_map resolves to
+    "EmbeddedClinicalLibrary" — but pipeline.py's live API cascade
+    (DrugBank/ChEMBL/UniProt/PubChem/PubMed, tiers 1-5) never set _tier at
+    all, so every one of those hits got recorded with a correct "source"
+    (e.g. "DrugBank") but a contradictory, wrong "algorithm"
+    ("EmbeddedClinicalLibrary") in the same audit row. Fixed to fall back
+    to the real source name when _tier is genuinely absent, and tagged
+    _tier on pipeline.py's live-tier results so the specific tier label
+    resolves correctly instead of just falling back."""
+
+    def _make_engine(self, tmp_path):
+        from src.core.data_engineering import LineageEngine
+        return LineageEngine(tmp_path / "lineage.db", tmp_path / "lineage.jsonl")
+
+    def test_missing_tier_falls_back_to_real_source_not_embedded_library(self, tmp_path):
+        le = self._make_engine(tmp_path)
+        le.record_from_drug_data("Trial_0", "Donepezil",
+            {"MW_Da": 379.5, "Half_Life_Days": 3.0, "_source": "DrugBank"})
+        df = le.get_feature_lineage("Donepezil")
+        row = df.iloc[0]
+        assert row["source"] == "DrugBank"
+        assert row["algorithm"] == "DrugBank"
+        assert row["algorithm"] != "EmbeddedClinicalLibrary"
+
+    def test_explicit_tier_resolves_to_its_named_algorithm(self, tmp_path):
+        le = self._make_engine(tmp_path)
+        le.record_from_drug_data("Trial_0", "Rivastigmine",
+            {"MW_Da": 250.0, "Half_Life_Days": 1.5,
+             "_source": "DrugBank", "_tier": 1})
+        df = le.get_feature_lineage("Rivastigmine")
+        assert df.iloc[0]["algorithm"] == "DrugBank_API"
+
+    def test_real_tier_zero_still_labels_embedded_library(self, tmp_path):
+        """Guards against overcorrecting: a genuine tier-0 embedded-library
+        hit must still resolve to its correct label."""
+        le = self._make_engine(tmp_path)
+        le.record_from_drug_data("Trial_0", "Galantamine",
+            {"MW_Da": 287.0, "Half_Life_Days": 1.0,
+             "_source": "EmbeddedClinicalLibrary", "_tier": 0})
+        df = le.get_feature_lineage("Galantamine")
+        assert df.iloc[0]["algorithm"] == "EmbeddedClinicalLibrary"
+
+    def test_pipeline_live_tier_cascade_now_tags_tier(self):
+        """Root-cause check: CascadeDataEngine.fetch_drug's tiers 1-5 loop
+        must tag _tier on whichever source actually succeeded."""
+        import inspect
+        from src.core import pipeline
+        src = inspect.getsource(pipeline.CascadeDataEngine.fetch_drug)
+        assert '_tier' in src.split("TIERS 1-5")[1].split("TIER 6")[0]
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 11. FULL PIPELINE INTEGRATION (run.py -> pipeline_runner.py, end-to-end)
 # ═════════════════════════════════════════════════════════════════════════════

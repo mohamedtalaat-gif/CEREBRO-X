@@ -535,14 +535,15 @@ class CascadeDataEngine:
 
         # ── TIERS 1-5: Live API cascade ───────────────────────────────────────
         api_result = None
-        for name, fn in [("DrugBank",       cls._try_drugbank),
-                         ("ChEMBL",         cls._try_chembl),
-                         ("UniProt",        cls._try_uniprot),
-                         ("PubChem",        cls._try_pubchem),
-                         ("PubMed_Scraper", cls._try_pubmed_scraper)]:
+        for i, (name, fn) in enumerate([("DrugBank",       cls._try_drugbank),
+                                         ("ChEMBL",         cls._try_chembl),
+                                         ("UniProt",        cls._try_uniprot),
+                                         ("PubChem",        cls._try_pubchem),
+                                         ("PubMed_Scraper", cls._try_pubmed_scraper)], start=1):
             result = fn(drug_lower)
             if result:
                 log.info(f"  [{drug}] data from {name}")
+                result.setdefault("_tier", i)
                 api_result = result
                 break
             time.sleep(0.3)

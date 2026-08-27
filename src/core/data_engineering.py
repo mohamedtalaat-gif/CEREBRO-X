@@ -816,7 +816,7 @@ class LineageEngine:
         Automatically extracts source, tier, alignment flag from the dict.
         """
         source    = data.get("_source", "unknown")
-        tier      = data.get("_tier", 0)
+        tier      = data.get("_tier")
         alignment = bool(data.get("_alignment_flag", False))
         doi       = data.get("_doi", "")
         rationale = data.get("_missing_pk_reason", "")
@@ -832,7 +832,18 @@ class LineageEngine:
             7: "EmbeddedLibrary_partial",
             8: "ClinicalDataEngine",
         }
-        algo = tier_map.get(tier, source)
+        # tier is only meaningful when the caller actually set _tier — not
+        # every fetch_drug() code path does (found while auditing this
+        # file: pipeline.py's live tiers 1-5 leave it unset). Defaulting
+        # a missing tier to 0 previously mislabeled every one of those
+        # hits as "EmbeddedClinicalLibrary" in the lineage/audit trail
+        # even though "source" correctly said e.g. "DrugBank" — an
+        # internally contradictory record in a system whose whole
+        # documented purpose is FDA 21 CFR Part 11 audit-trail accuracy.
+        # Fall back to the real source name instead of a specific,
+        # wrong tier label.
+        algo = tier_map.get(tier, source) if tier is not None else source
+        tier = tier if tier is not None else -1
 
         fields_to_track = ["MW_Da", "LogP", "Half_Life_Days",
                             "Docking_Affinity_kcal", "CSF_Plasma_Ratio",
@@ -1480,10 +1491,18 @@ class HarmonizationEngine:
                     val = float(val)
                 except (TypeError, ValueError):
                     continue
-                priority = max(
-                    (cls.SOURCE_PRIORITY.get(k, 1)
-                     for k in cls.SOURCE_PRIORITY if k in src),
-                    default=1)
+                # Match on the longest (most specific) matching key, not the
+                # highest priority among all matches — e.g. src
+                # "EmbeddedClinicalLibrary_PartialHit" also contains
+                # "EmbeddedClinicalLibrary" as a substring, and taking the
+                # max would silently promote a deliberately-downgraded
+                # partial hit (priority 7) to the full hit's priority (8).
+                matching_keys = [k for k in cls.SOURCE_PRIORITY if k in src]
+                if matching_keys:
+                    best_key = max(matching_keys, key=len)
+                    priority = cls.SOURCE_PRIORITY[best_key]
+                else:
+                    priority = 1
                 candidates.append((priority, src, val))
 
             if not candidates:
