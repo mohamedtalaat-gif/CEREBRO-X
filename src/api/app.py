@@ -585,15 +585,28 @@ async def predict_molecule(
     except Exception as e:
         raise HTTPException(500, f"Model load failed: {e}")
 
-    # Build features (simplified — real version uses MoleculeEngine)
-    features = {
-        "MW_Da": 0, "LogP": 0,
-        "Half_Life_Days": 0, "Docking_Affinity_kcal": -8.5,
-    }
+    # Real feature extraction from the submitted molecule — this used to
+    # hardcode MW_Da=0, LogP=0, Half_Life_Days=0 for every request
+    # regardless of req.molecule_input, so every prediction was
+    # identical no matter what molecule was actually submitted (only
+    # Docking_Affinity_kcal was a real, if fixed, value). Wired to the
+    # same MoleculeEngine.analyze_molecule used by the real pipeline
+    # (src/core/molecule_engine.py) instead.
+    from cerebro_molecule_engine import analyze_molecule
+    mol_profile = analyze_molecule(req.molecule_input, req.drug_name or None)
+    mw_da = mol_profile.get("MW_Da")
+    logp  = mol_profile.get("LogP")
+    hl_d  = mol_profile.get("Half_Life_Days")
+    if mw_da is None or logp is None or hl_d is None:
+        raise HTTPException(
+            422, f"Could not resolve MW/LogP/Half-Life for '{req.molecule_input[:60]}' "
+                 f"— provide a valid SMILES/InChIKey/FASTA/PDB ID or a known drug name.")
+    # Matches the same ΔG heuristic CascadeDataEngine.build_mab_dataset
+    # uses in src/core/pipeline.py — no separate docking run here.
+    docking_kcal = round(-8.5 + (logp * 0.3) - (mw_da / 180_000), 3)
+
     import numpy as np
-    X = np.array([[features["MW_Da"], features["LogP"],
-                   features["Half_Life_Days"],
-                   features["Docking_Affinity_kcal"]]])
+    X = np.array([[mw_da, logp, hl_d, docking_kcal]])
 
     try:
         score = float(model.predict(X)[0])
@@ -815,9 +828,24 @@ async def download_result(
     filepath: str,
     user: UserModel = Depends(get_current_user),
 ):
-    """Download a result file."""
-    full = Path("outputs") / filepath
-    if not full.exists():
+    """Download a result file.
+
+    Path traversal: filepath is a raw user-controlled path — this used
+    to join it onto outputs/ with no containment check, so any
+    authenticated user (this endpoint only requires get_current_user, no
+    elevated permission) could pass "../../../etc/passwd" or
+    "../../src/api/auth.py" and read any file the server process can
+    read, completely outside outputs/. Same vulnerability class as the
+    PDB-ID path-traversal finding already fixed in pdb_resolver.py, just
+    reached via a raw path parameter instead of an unvalidated ID.
+    Resolve both sides and require the result to actually be a
+    descendant of the results root before serving it.
+    """
+    results_root = Path("outputs").resolve()
+    full = (results_root / filepath).resolve()
+    if not full.is_relative_to(results_root):
+        raise HTTPException(403, "Access denied: path escapes the results directory")
+    if not full.exists() or not full.is_file():
         raise HTTPException(404, f"File not found: {filepath}")
     return FileResponse(str(full))
 

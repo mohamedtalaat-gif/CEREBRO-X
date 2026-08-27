@@ -1881,6 +1881,167 @@ class TestRateLimiting:
         assert "CORS_ORIGINS" in result.stderr
 
 
+# Module-level (not nested) so joblib can pickle/unpickle them when
+# saved to a temp file and loaded back inside the /predict endpoint.
+class _CapturingModel:
+    """Records the X array it was asked to predict on."""
+    calls = []
+    def predict(self, X):
+        _CapturingModel.calls.append(X.tolist())
+        return [0.5]
+
+
+class _DummyModel:
+    def predict(self, X):
+        return [0.5]
+
+
+class TestPredictEndpointUsesRealMoleculeFeatures:
+    """POST /predict hardcoded MW_Da=0, LogP=0, Half_Life_Days=0 for every
+    request regardless of req.molecule_input — the comment literally said
+    "simplified — real version uses MoleculeEngine" but nothing ever
+    called it, so every submitted molecule got the identical prediction.
+    Fixed by wiring in the real analyze_molecule() (src/core/molecule_engine.py)
+    already used by the actual pipeline. Verified two different real
+    molecules (donepezil, aspirin) now resolve to genuinely different
+    MW/LogP via analyze_molecule directly, and exercise the full HTTP
+    endpoint with a mocked production model artifact to confirm the
+    request actually reaches model.predict() with those real features."""
+
+    def test_different_molecules_resolve_to_different_features(self):
+        from src.core.molecule_engine import analyze_molecule
+        donepezil = analyze_molecule(
+            "COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2", "Donepezil")
+        aspirin = analyze_molecule("CC(=O)OC1=CC=CC=C1C(=O)O", "Aspirin")
+        assert donepezil["MW_Da"] != aspirin["MW_Da"]
+        assert donepezil["LogP"] != aspirin["LogP"]
+        assert donepezil["MW_Da"] is not None and donepezil["MW_Da"] > 0
+
+    def test_predict_endpoint_feeds_real_features_to_model(
+            self, test_client, auth_headers, tmp_path, monkeypatch):
+        if not auth_headers:
+            pytest.skip("auth fixture unavailable in this environment")
+        import joblib
+
+        model_path = tmp_path / "fake_model.pkl"
+        joblib.dump(_CapturingModel(), model_path)
+
+        from dataclasses import dataclass
+
+        @dataclass
+        class _FakeProd:
+            artifact_path: str
+            version: str = "1.0.0"
+            stage: str = "production"
+
+        class _FakeRegistry:
+            def get_production(self, name):
+                return _FakeProd(artifact_path=str(model_path))
+
+        import src.api.app as app_module
+        monkeypatch.setattr(app_module, "ModelRegistry", _FakeRegistry)
+        _CapturingModel.calls.clear()
+
+        r = test_client.post(
+            "/predict",
+            json={"molecule_input": "CC(=O)OC1=CC=CC=C1C(=O)O",  # aspirin
+                  "drug_name": "Aspirin"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200, r.text
+        assert len(_CapturingModel.calls) == 1
+        mw_used, logp_used, hl_used, dock_used = _CapturingModel.calls[0][0]
+        assert mw_used != 0, "MW_Da still hardcoded to 0 instead of the real molecule's MW"
+        assert logp_used != 0, "LogP still hardcoded to 0 instead of the real molecule's LogP"
+        assert abs(mw_used - 180.16) < 1.0  # real aspirin MW
+
+    def test_predict_endpoint_rejects_unresolvable_input(
+            self, test_client, auth_headers, tmp_path, monkeypatch):
+        if not auth_headers:
+            pytest.skip("auth fixture unavailable in this environment")
+        import joblib
+        from dataclasses import dataclass
+
+        model_path = tmp_path / "fake_model.pkl"
+        joblib.dump(_DummyModel(), model_path)
+
+        @dataclass
+        class _FakeProd:
+            artifact_path: str
+            version: str = "1.0.0"
+            stage: str = "production"
+
+        class _FakeRegistry:
+            def get_production(self, name):
+                return _FakeProd(artifact_path=str(model_path))
+
+        import src.api.app as app_module
+        monkeypatch.setattr(app_module, "ModelRegistry", _FakeRegistry)
+
+        r = test_client.post(
+            "/predict",
+            json={"molecule_input": "not a real molecule or drug name @@@###",
+                  "drug_name": ""},
+            headers=auth_headers,
+        )
+        assert r.status_code == 422
+
+
+class TestResultsDownloadPathTraversal:
+    """GET /results/{filepath} joined the raw user-controlled filepath
+    onto outputs/ with no containment check — any authenticated user
+    (this endpoint only requires get_current_user, not an elevated
+    permission) could request "../../../etc/passwd" or
+    "../../src/api/auth.py" and read any file the server process can
+    read, entirely outside outputs/. Same vulnerability class as the
+    PDB-ID path-traversal finding already fixed in pdb_resolver.py.
+    Fixed by resolving both sides and requiring containment via
+    Path.is_relative_to() before serving the file. Hits the real
+    endpoint through a real TestClient rather than unit-testing the
+    Path logic in isolation, since routing-layer path normalization can
+    behave differently than raw pathlib."""
+
+    def test_traversal_attempt_is_rejected(self, test_client, auth_headers):
+        if not auth_headers:
+            pytest.skip("auth fixture unavailable in this environment")
+        # A literal "../" in the URL gets collapsed by Starlette's own
+        # router before it ever reaches the handler (confirmed: it 404s
+        # against a nonexistent route rather than exercising our code at
+        # all) — that's routing hygiene, not evidence the endpoint is
+        # safe. URL-encoded traversal ("%2e%2e") bypasses that router-
+        # level normalization and reaches the handler with a real ".."
+        # in `filepath`, which is what this test needs to prove the fix
+        # actually holds. Verified directly against a real file
+        # (src/api/auth.py, which contains JWT_SECRET_KEY handling) that
+        # exists relative to the project root but must never be served
+        # through this results-only endpoint.
+        r = test_client.get(
+            "/results/%2e%2e/%2e%2e/src/api/auth.py",
+            headers=auth_headers,
+        )
+        assert r.status_code == 403, (
+            f"Expected the traversal to be rejected with 403, got "
+            f"{r.status_code}: {r.text[:200]}")
+        assert "JWT_SECRET_KEY" not in r.text
+
+    def test_legitimate_nested_path_still_works(self, test_client, auth_headers, tmp_path, monkeypatch):
+        if not auth_headers:
+            pytest.skip("auth fixture unavailable in this environment")
+        import os
+        outputs_dir = tmp_path / "outputs" / "data"
+        outputs_dir.mkdir(parents=True)
+        (outputs_dir / "real_result.csv").write_text("Drug,Score\nDonepezil,85\n")
+
+        cwd = os.getcwd()
+        os.chdir(tmp_path)
+        try:
+            r = test_client.get("/results/data/real_result.csv", headers=auth_headers)
+            assert r.status_code == 200
+            assert "Donepezil" in r.text
+        finally:
+            os.chdir(cwd)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 14. DRUG_SMILES RESOLVER — NAME MUST NEVER BE USED AS A SMILES FALLBACK
 # ═════════════════════════════════════════════════════════════════════════════
