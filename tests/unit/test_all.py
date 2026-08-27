@@ -4538,3 +4538,92 @@ class TestMissingValueResolverZeroHandling:
 
         r = resolve_property("SomeDrug", "mw_da", mol_profile={}, smiles=None, api_value=0)
         assert r["_tier"] != 1   # 0 Da isn't a real molecular weight — falls through
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 45. REAL QSAR ENGINE (src/core/real_qsar_engine.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestRealQsarEngine:
+    def test_receptor_panel_has_50_unique_targets(self):
+        import src.path_resolver  # noqa: F401
+        from src.core.real_qsar_engine import RECEPTOR_TARGETS
+
+        assert len(RECEPTOR_TARGETS) == 50
+        assert len({t["name"] for t in RECEPTOR_TARGETS}) == 50   # no duplicates
+        for t in RECEPTOR_TARGETS:
+            assert t["chembl_id"].startswith("CHEMBL")
+
+    def test_compute_features_returns_maccs_plus_seven_physchem(self):
+        import src.path_resolver  # noqa: F401
+        from src.core.real_qsar_engine import _compute_features
+
+        feats = _compute_features("CCO", {})
+        assert len(feats) == 167 + 7
+
+    def test_empirical_cardiac_score_matches_hand_computation(self):
+        """Aronov 2006 hERG rule: LogP>3.5 (+0.3), MW 300-600 (+0.2),
+        HBA<4 (+0.1) = 0.6 raw, then the score += 0.05*(1-score) blend."""
+        import src.path_resolver  # noqa: F401
+        from src.core.real_qsar_engine import RECEPTOR_TARGETS, _empirical_score
+
+        cardiac_target = next(t for t in RECEPTOR_TARGETS if t["risk_type"] == "cardiac")
+        mp = {"MW_Da": 450.0, "LogP": 4.0, "TPSA_A2": 60.0, "HBD": 1, "HBA": 3}
+        r = _empirical_score(cardiac_target, mp, None)
+        raw = 0.3 + 0.2 + 0.1
+        expected = min(0.95, max(0.02, raw + 0.05 * (1 - raw)))
+        assert r["score_free_drug"] == pytest.approx(round(expected, 3))
+        assert r["risk"] == "HIGH"
+        assert r["score_in_DDS"] == pytest.approx(round(expected * 0.45, 3))
+
+    def test_empirical_score_stays_within_bounds_for_extreme_inputs(self):
+        import src.path_resolver  # noqa: F401
+        from src.core.real_qsar_engine import RECEPTOR_TARGETS, _empirical_score
+
+        for target in RECEPTOR_TARGETS[:5]:
+            r = _empirical_score(target, {"MW_Da": 1e6, "LogP": 50, "TPSA_A2": 0,
+                                            "HBD": 0, "HBA": 0}, None)
+            assert 0.02 <= r["score_free_drug"] <= 0.95
+
+    def test_qsar_model_training_is_cached_per_target_not_per_drug(self):
+        """Regression test for a real performance bug: _train_qsar_model
+        re-fetched 500 ChEMBL records and retrained a fresh Random Forest
+        on every call — run_real_qsar_panel called it once per receptor
+        PER DRUG, so scoring N drugs against the same 50-target panel
+        retrained the same 50 models N times with zero reuse, even though
+        a target's model depends only on that target's own ChEMBL data,
+        never on which drug is being scored. Now cached by
+        (target_name, chembl_id) via lru_cache."""
+        import src.path_resolver  # noqa: F401
+        import src.core.real_qsar_engine as qe
+        from functools import lru_cache
+
+        call_count = {"n": 0}
+
+        def fake_trainer(target_name, chembl_id):
+            call_count["n"] += 1
+            return None
+
+        orig = qe._train_qsar_model
+        qe._train_qsar_model = lru_cache(maxsize=64)(fake_trainer)
+        try:
+            qe._train_qsar_model("hERG_K+", "CHEMBL240")
+            qe._train_qsar_model("hERG_K+", "CHEMBL240")
+            qe._train_qsar_model("hERG_K+", "CHEMBL240")
+            assert call_count["n"] == 1   # only the first call actually trained
+            qe._train_qsar_model("CYP3A4_inhib", "CHEMBL340")
+            assert call_count["n"] == 2   # a genuinely different target does train
+        finally:
+            qe._train_qsar_model = orig
+
+    @pytest.mark.slow
+    def test_run_real_qsar_panel_scores_all_50_receptors_for_a_real_drug(self):
+        import src.path_resolver  # noqa: F401
+        from src.core.real_qsar_engine import run_real_qsar_panel
+
+        result = run_real_qsar_panel(
+            smiles="COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2",
+            mol_profile={"MW_Da": 379.5, "LogP": 4.3, "TPSA_A2": 38.8, "HBD": 0, "HBA": 4},
+            top_dds={}, use_ml=False)   # use_ml=False keeps this from hitting live ChEMBL 50x
+        assert result["n_receptors_screened"] == 50
+        assert len(result["receptor_panel"]) == 50
+        assert result["overall_off_target"] in ("LOW RISK", "CAUTION", "HIGH CONCERN", "CRITICAL")

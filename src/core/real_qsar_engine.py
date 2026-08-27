@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+from functools import lru_cache
 from pathlib import Path
 
 log = logging.getLogger("CEREBRO-QSAR")
@@ -125,10 +126,20 @@ def _compute_features(smiles: str, mol_profile: dict) -> list[float] | None:
         return None
 
 
+@lru_cache(maxsize=64)   # 50 receptor targets — one trained model each, ever
 def _train_qsar_model(target_name: str, chembl_id: str) -> object | None:
     """
     Attempt to fetch ChEMBL data and train a Random Forest model.
     Falls back gracefully if API unavailable.
+
+    Cached by (target_name, chembl_id) — this model depends only on the
+    target's own ChEMBL bioactivity data, never on which drug is being
+    scored. Without caching, run_real_qsar_panel re-fetched 500 ChEMBL
+    records and retrained a fresh Random Forest for every one of the 50
+    targets on every single drug scored — the same hERG model rebuilt
+    from scratch each time, with no reuse even across drugs in the same
+    multi-drug comparison run. Training happens once per target per
+    process now.
     """
     try:
         import json as _j
