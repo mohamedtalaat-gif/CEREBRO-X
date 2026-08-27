@@ -3753,3 +3753,109 @@ class TestCerebroInspectorFormatting:
         md = _to_markdown(drug_b, dds_b)
         assert "a \\| b" in md
         assert "| a | b |" not in md  # the raw unescaped pipe never appears as a cell break
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 37. MOLECULE EXTRACTOR (cerebro_molecule_extractor.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestMoleculeExtractorPkaAndMicrospeciation:
+    """This is a second, independent pKa/microspeciation implementation
+    (a flat SMARTS-group lookup) alongside cerebro_value_resolver's
+    Bordwell-Hammett-Born one — different pKa methodology, but the same
+    Bjerrum 4-microspecies charge-state math, cross-verified here."""
+
+    def test_carboxylic_acid_only_group_detected_and_mostly_anionic_at_ph74(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_molecule_extractor import _rdkit_descriptors
+
+        d = _rdkit_descriptors("CC(=O)O")  # acetic acid
+        assert d["pKa_acidic"]["value"] == 4.2
+        assert d["pKa_basic"]["value"] is None
+        assert d["FractionAnionic_pH74"]["value"] > 0.99   # far above pKa at pH 7.4
+
+    def test_primary_amine_only_group_detected_and_mostly_cationic_at_ph74(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_molecule_extractor import _rdkit_descriptors
+
+        d = _rdkit_descriptors("CCN")  # ethylamine
+        assert d["pKa_basic"]["value"] == 10.6
+        assert d["FractionCationic_pH74"]["value"] > 0.99
+
+    def test_no_ionizable_groups_reports_honestly_not_fabricated(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_molecule_extractor import _rdkit_descriptors
+
+        d = _rdkit_descriptors("CC")  # ethane — no acid/base SMARTS group matches
+        assert d["pKa"]["value"] is None
+        assert d["pKa"]["confidence"] == "LOW"
+        assert d["FractionNeutral_pH74"]["value"] == 1.0
+
+    def test_zwitterion_candidate_produces_all_four_microspecies_summing_to_one(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_molecule_extractor import _rdkit_descriptors
+
+        d = _rdkit_descriptors("NCC(=O)O")  # glycine: amine + carboxylic acid
+        total = (d["FractionCationic_pH74"]["value"] + d["FractionAnionic_pH74"]["value"]
+                 + d["FractionZwitterion_pH74"]["value"] + d["FractionNeutral_pH74"]["value"])
+        assert total == pytest.approx(1.0, abs=1e-3)
+
+
+class TestMoleculeExtractorFastaDescriptors:
+    def test_aliphatic_index_matches_ikai_1980_formula(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_molecule_extractor import _aliphatic_index
+
+        assert _aliphatic_index("AAAA") == pytest.approx(100.0)   # pure Ala: X(A)=100%
+        assert _aliphatic_index("VVVV") == pytest.approx(290.0)   # pure Val: 2.9 * 100%
+        assert _aliphatic_index("") == 0.0
+
+    def test_formal_charge_confidence_matches_its_actual_rigor(self):
+        """Regression test for a real mislabeling: FormalCharge for FASTA
+        sequences is a residue-counting heuristic (ignores His, ignores
+        pH, ignores N/C-terminal charge) — not a genuine Biopython
+        ProtParam calculation like its MW_Da/pI/GRAVY siblings in the
+        same dict. It used to carry source="fasta"/confidence="HIGH",
+        the same tags as those genuine calculations, overclaiming rigor
+        it doesn't have. Now tagged the same "fasta_proxy"/MODERATE as
+        the file's other crude proxies (HBD, TPSA_A2)."""
+        pytest.importorskip("Bio")
+        import src.path_resolver  # noqa: F401
+        from cerebro_molecule_extractor import _fasta_descriptors
+
+        d = _fasta_descriptors("MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQTLGQHDFSAGEGLYTHMKALRPDEDRLSPLHSVYVDQWDWELVMGDGERSFSTRQPAYLNFDNPDMESFQMDVEIRNQIAQVWKTAFQMLGDSVSFYEDPFVCGYNRLQPYAKFPQMTAKVYRKNQMLTGARTLIYQAHDPHIENKFATLFNDQMPDNDLLEQIRISLQKGSPWDIVKQLIENDIQVELPCFVDRGDLGGGHILFVSDNKAKGRRDQEHLNVACFPGKGAGLDEEYSAPGGEQRLKTEGSSVPKGGVDMASAAKGGYPLAAAAAPGAAAAAAAAAAALGASPADGGA")
+        assert d["FormalCharge"]["source"] == "fasta_proxy"
+        assert d["FormalCharge"]["confidence"] == "MODERATE"
+        # The real Biopython calculations keep their genuinely-earned HIGH.
+        assert d["MW_Da"]["confidence"] == "HIGH"
+        assert d["pI"]["confidence"] == "HIGH"
+
+
+class TestMoleculeExtractorEnrichment:
+    def test_researcher_override_wins_but_computed_value_is_still_recorded(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_molecule_extractor import enrich_mol_profile
+
+        out = enrich_mol_profile({"smiles": "CCO", "name": "test", "LogP": 1.23})
+        assert out["LogP"] == 1.23
+        prov = out["_descriptors_provenance"]["LogP"]
+        assert prov["source"] == "researcher_override"
+        assert prov["computed_value"] is not None   # what RDKit would have said, for comparison
+
+    def test_computed_descriptor_used_when_no_override_given(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_molecule_extractor import enrich_mol_profile
+
+        out = enrich_mol_profile({"smiles": "CCO", "name": "test"})
+        assert out["MW_Da"] == pytest.approx(46.07, abs=0.01)
+        assert out["_descriptors_provenance"]["MW_Da"]["source"] == "rdkit"
+
+    def test_no_smiles_or_fasta_reports_every_descriptor_as_honestly_missing(self):
+        """name='' keeps this offline — enrich_mol_profile only attempts
+        the live PubChem/UniProt fallback fetch when a drug name is
+        given, which would make this test network-dependent."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_molecule_extractor import enrich_mol_profile
+
+        out = enrich_mol_profile({"name": ""})
+        assert out["MW_Da"] is None
+        assert out["_descriptors_provenance"]["MW_Da"]["confidence"] == "FAILED"

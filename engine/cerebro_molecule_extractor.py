@@ -307,9 +307,15 @@ def _fasta_descriptors(fasta: str) -> dict[str, Any]:
                                     "source": "fasta_proxy", "confidence": "MODERATE"},
             "HBA":               {"value": int(n_aa),
                                     "source": "fasta_proxy", "confidence": "MODERATE"},
+            # Residue-counting proxy, not a real pKa-weighted ionization
+            # calculation (ignores His and N/C-terminal charges, and has
+            # no pH-dependence) — same rigor as the HBD proxy above, not
+            # the genuine Biopython ProtParam fields (MW_Da/pI/etc.), so
+            # it gets the same "fasta_proxy"/MODERATE label those crude
+            # heuristics carry rather than the "HIGH" this used to claim.
             "FormalCharge":      {"value": int(seq.count("K")+seq.count("R")
                                                 -seq.count("D")-seq.count("E")),
-                                    "source": "fasta", "confidence": "HIGH"},
+                                    "source": "fasta_proxy", "confidence": "MODERATE"},
         }
     except Exception as e:
         log.warning(f"[MOL] FASTA analysis failed: {e}")
