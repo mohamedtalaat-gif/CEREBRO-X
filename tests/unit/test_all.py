@@ -4143,3 +4143,44 @@ class TestCompletedExcelWriterHelpers:
 
         flat = _flatten_principles({"a": {"b": 1.0, "_hidden": 5}, "c": True, "d": [1, 2, 3]})
         assert flat == [("a.b", 1.0), ("c", "Yes")]   # lists skipped, bool -> Yes/No, _-keys dropped
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 40. CINEMATIC VISUAL PRIMITIVES (cerebro_cinematic_primitives.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestCinematicPrimitivesLookups:
+    def test_drug_profile_falls_back_to_small_molecule(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_primitives import get_drug_profile
+
+        assert get_drug_profile(None)["narrative"] == "small molecule"
+        assert get_drug_profile("totally_unknown_type")["narrative"] == "small molecule"
+        assert get_drug_profile("MONOCLONAL_ANTIBODY")["shape"] == "y_shape"  # case-insensitive
+
+    def test_dds_profile_prefers_specific_match_over_generic_substring(self):
+        """AAV9 and generic AAV are both real keys — a carrier string
+        naming a specific untabled serotype (e.g. 'aav5') should still
+        resolve via the generic 'aav' entry, not silently fall through
+        to _default, and an exact 'AAV9' should get its own profile."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_primitives import get_dds_profile
+
+        aav9 = get_dds_profile("AAV9")
+        aav5 = get_dds_profile("aav5")
+        generic_aav = get_dds_profile("aav")
+        assert aav5 == generic_aav
+        assert aav9["shape"] == "icosahedral_capsid"
+
+    def test_dds_profile_unrecognized_carrier_falls_back_to_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_primitives import DDS_VISUAL_PROFILES, get_dds_profile
+
+        assert get_dds_profile("nonexistent_carrier_xyz") == DDS_VISUAL_PROFILES["_default"]
+
+    def test_ligand_info_partial_match_and_default(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_cinematic_primitives import LIGAND_RECEPTOR_MAP, get_ligand_info
+
+        assert get_ligand_info("RVG29")["receptor"].startswith("Nicotinic")
+        assert get_ligand_info(None) == LIGAND_RECEPTOR_MAP[""]
+        assert get_ligand_info("") == LIGAND_RECEPTOR_MAP[""]
