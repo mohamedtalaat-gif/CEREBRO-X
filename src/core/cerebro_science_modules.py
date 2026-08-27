@@ -1335,9 +1335,22 @@ class DDSComparisonEngine:
                 med = float(df_dds[m].median()) if m in df_dds.columns else 0
                 higher_better = m not in ["CARPA_Risk_Index", "MPS_Clearance_h",
                                            "Protein_Corona_nm"]
-                if (v > med * 1.2) == higher_better:
+                # `(v > med*1.2) == higher_better` looks like it flips the
+                # comparison for lower-is-better metrics, but it doesn't —
+                # negating "v > med*1.2" gives "v <= med*1.2", not the
+                # intended "v < med*0.8". For a lower-is-better metric
+                # (e.g. CARPA_Risk_Index, a safety score) this made an
+                # exactly-average value satisfy both the strength and
+                # weakness check, so it was misclassified as a "strength"
+                # (if/elif fires the first branch). Verified directly:
+                # v == med with higher_better=False evaluated true for
+                # BOTH branches. Fixed by comparing against the correct
+                # side explicitly instead of relying on boolean equality.
+                is_strength = v > med * 1.2 if higher_better else v < med * 0.8
+                is_weakness = v < med * 0.8 if higher_better else v > med * 1.2
+                if is_strength:
                     strengths.append(m.replace("_", " "))
-                elif (v < med * 0.8) == higher_better:
+                elif is_weakness:
                     weaknesses.append(m.replace("_", " "))
 
             summary.append({

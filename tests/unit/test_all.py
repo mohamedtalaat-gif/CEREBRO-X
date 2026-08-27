@@ -1455,6 +1455,57 @@ class TestPBPKCNSMassConservation:
         assert result["Cmax_brain_ug_mL"] > 0
 
 
+class TestDDSComparisonStrengthWeaknessClassification:
+    """DDSComparisonEngine.compare's per-formulation strengths/weaknesses
+    classification used `(v > med*1.2) == higher_better` /
+    `(v < med*0.8) == higher_better`, which looks like it flips the
+    comparison direction for lower-is-better metrics (CARPA_Risk_Index,
+    MPS_Clearance_h, Protein_Corona_nm) but doesn't — negating
+    "v > med*1.2" gives "v <= med*1.2", not "v < med*0.8". For a
+    lower-is-better metric, an exactly-average value (v == med) satisfied
+    the strength check (since v <= med*1.2 is trivially true at v==med),
+    so every formulation with an average CARPA_Risk_Index — a
+    safety-critical score — got misclassified as having a "strength"
+    there. Fixed by comparing against the correct threshold explicitly."""
+
+    def test_average_value_of_lower_is_better_metric_is_neither(self):
+        import pandas as pd
+        from src.core.cerebro_science_modules import DDSComparisonEngine
+        df = pd.DataFrame({
+            "Formulation_ID": ["F1", "F2", "F3", "F4", "F5"],
+            "Formulation_Name": ["A", "B", "C", "D", "E"],
+            "Carrier_Type": ["liposome"] * 5,
+            "Rank": [1, 2, 3, 4, 5],
+            "Composite_Score": [90, 85, 80, 75, 70],
+            "CARPA_Risk_Index": [0.2] * 5,
+        })
+        result = DDSComparisonEngine.compare(df, top_n=5)
+        for row in result["top_n_summary"]:
+            assert "CARPA Risk Index" not in row["Strengths"]
+            assert "CARPA Risk Index" not in row["Weaknesses"]
+
+    def test_genuinely_low_and_high_risk_still_classified_correctly(self):
+        """Guards against overcorrecting: real outliers on a
+        lower-is-better metric must still be flagged in the right
+        direction (low value = strength, high value = weakness)."""
+        import pandas as pd
+        from src.core.cerebro_science_modules import DDSComparisonEngine
+        df = pd.DataFrame({
+            "Formulation_ID": ["F1", "F2", "F3"],
+            "Formulation_Name": ["LowRisk", "Median", "HighRisk"],
+            "Carrier_Type": ["liposome"] * 3,
+            "Rank": [1, 2, 3],
+            "Composite_Score": [90, 85, 80],
+            "CARPA_Risk_Index": [0.1, 0.2, 0.3],
+        })
+        result = DDSComparisonEngine.compare(df, top_n=3)
+        by_name = {r["Name"]: r for r in result["top_n_summary"]}
+        assert "CARPA Risk Index" in by_name["LowRisk"]["Strengths"]
+        assert "CARPA Risk Index" in by_name["HighRisk"]["Weaknesses"]
+        assert "CARPA Risk Index" not in by_name["Median"]["Strengths"]
+        assert "CARPA Risk Index" not in by_name["Median"]["Weaknesses"]
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 11. FULL PIPELINE INTEGRATION (run.py -> pipeline_runner.py, end-to-end)
 # ═════════════════════════════════════════════════════════════════════════════
