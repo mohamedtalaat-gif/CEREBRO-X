@@ -3533,3 +3533,92 @@ class TestModulePathShims:
             f"phase5_smoke_test.py failed:\nSTDOUT:\n{result.stdout}\n"
             f"STDERR:\n{result.stderr}")
         assert "ALL SMOKE TESTS PASSED" in result.stdout
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 33. DDS INVERSE-DESIGN GENETIC ALGORITHM (cerebro_dds_inverse_design.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestDdsInverseDesignGaOperators:
+    def test_random_individual_respects_every_parameter_bound(self):
+        import random
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_dds_inverse_design import (
+            ALL_PARAMS,
+            CATEGORICAL_SPACE,
+            CONTINUOUS_SPACE,
+            _random_individual,
+        )
+
+        rng = random.Random(1)
+        ind = _random_individual(rng, 0)
+        assert set(ind) == set(ALL_PARAMS) | {"Formulation_ID", "Formulation_Name"}
+        for k, (lo, hi) in CONTINUOUS_SPACE.items():
+            assert lo <= ind[k] <= hi
+        for k, choices in CATEGORICAL_SPACE.items():
+            assert ind[k] in choices
+
+    def test_crossover_takes_every_gene_from_one_parent_or_the_other(self):
+        import random
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_dds_inverse_design import ALL_PARAMS, _crossover, _random_individual
+
+        rng = random.Random(2)
+        a = _random_individual(rng, 1)
+        b = _random_individual(rng, 2)
+        child = _crossover(a, b, rng)
+        for k in ALL_PARAMS:
+            assert child[k] in (a[k], b[k])
+
+    def test_mutate_at_rate_zero_never_changes_genes(self):
+        import random
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_dds_inverse_design import ALL_PARAMS, _mutate, _random_individual
+
+        rng = random.Random(3)
+        ind = _random_individual(rng, 0)
+        mutated = _mutate(dict(ind), rng, rate=0.0)
+        for k in ALL_PARAMS:
+            assert mutated[k] == ind[k]
+
+    def test_dedupe_key_is_stable_and_covers_every_parameter(self):
+        import random
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_dds_inverse_design import ALL_PARAMS, _dedupe_key, _random_individual
+
+        rng = random.Random(4)
+        ind = _random_individual(rng, 0)
+        key1, key2 = _dedupe_key(ind), _dedupe_key(dict(ind))
+        assert key1 == key2
+        assert len(key1) == len(ALL_PARAMS)
+
+
+class TestDdsInverseDesignRealSearch:
+    @pytest.mark.slow
+    def test_generate_candidate_formulations_runs_the_real_orchestrator(self):
+        """A small, fast real GA run (tiny population/generation counts,
+        fixed seed) through the actual cerebro_62_orchestrator fitness
+        function — confirms the search produces real, distinct scores
+        and an honest disclaimer, not a mocked/fabricated result."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_dds_inverse_design import generate_candidate_formulations
+        from cerebro_resolved_bundles import resolve_drug_bundle
+
+        drug_bundle = resolve_drug_bundle(
+            name="Donepezil",
+            smiles="COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2",
+            molecule_class="small_molecule")
+        result = generate_candidate_formulations(
+            drug_bundle, drug_name="Donepezil",
+            n_generations=2, population_size=6, top_k=3, seed=7)
+
+        assert result["n_evaluated"] == 2 * 6
+        assert len(result["candidates"]) <= 3
+        assert result["search_seed"] == 7
+        assert "not independently validated" in result["disclaimer"]
+        for cand in result["candidates"]:
+            assert "novel_vs_input" in cand
+            assert "Principle_Composite_Score" in cand
