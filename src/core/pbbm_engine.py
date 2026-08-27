@@ -159,7 +159,8 @@ class PBBMEngine:
     silently merged with this one). Three independent PBPK computations
     now genuinely run per trial: this engine (ADMET/report output,
     simplified logP-power-law Kp), science_engines.PBPKEngine
-    (science_results/, Poulin-Theil, supplementary cross-check), and
+    (science_results/, same kind of simplified logP-power-law Kp,
+    supplementary cross-check), and
     cerebro_science_modules.run_all_science_modules() (visualisation/video
     feed). Each is labeled with its own method and citation rather than
     presented as one unified "the" PBPK number — reconciling them into a

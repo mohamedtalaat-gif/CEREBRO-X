@@ -485,11 +485,18 @@ class ThermodynamicsEngine:
 
     @staticmethod
     def get_thermo_properties(drug_name: str,
-                               cas: str = None) -> dict[str, Any]:
+                               cas: str = None,
+                               logp: float | None = None) -> dict[str, Any]:
         """
         Fetch thermodynamic properties for a drug compound.
 
         Uses thermo.Chemical which pulls from DIPPR / CoolProp databases.
+
+        logp: the drug's real (e.g. RDKit-computed) LogP, used for the
+        Yalkowsky logS estimate below when available. Falls back to a
+        crude MW-based proxy (log10(MW/100), which has no real physical
+        basis — MW and LogP are only weakly correlated) only when the
+        real value isn't passed in.
         """
         result = {
             "name":            drug_name,
@@ -532,12 +539,19 @@ class ThermodynamicsEngine:
 
             # logS estimate: Yalkowsky equation (simplified)
             # logS ≈ 0.5 - 0.01(Tm - 25) - logP
-            # We use MW as proxy for logP if not available
             if result["Tm_K"] and result["MW_thermo"]:
                 tm_c = result["Tm_K"] - 273.15
-                logp_proxy = math.log10(result["MW_thermo"] / 100)
-                result["logS_approx"] = round(0.5 - 0.01*(tm_c - 25) - logp_proxy, 2)
-                result["_imputed"].append("logS_approx:Yalkowsky_eq")
+                if logp is not None:
+                    logp_used = logp
+                    result["_imputed"].append("logS_approx:Yalkowsky_eq")
+                else:
+                    # Crude MW-based fallback — no real physical basis
+                    # (MW and LogP are only weakly correlated), used only
+                    # when the caller doesn't have a real LogP to pass in.
+                    logp_used = math.log10(result["MW_thermo"] / 100)
+                    result["_imputed"].append(
+                        "logS_approx:Yalkowsky_eq_with_MW_proxy_logP")
+                result["logS_approx"] = round(0.5 - 0.01*(tm_c - 25) - logp_used, 2)
 
             # BCS class proxy based on solubility
             if result["logS_approx"]:
@@ -599,11 +613,12 @@ class ThermodynamicsEngine:
                output_dir: Path) -> pd.DataFrame:
         """
         Compute thermodynamic properties for all drugs.
-        drugs = [{"name": ..., "cas": ...}, ...]
+        drugs = [{"name": ..., "cas": ..., "logp": ...}, ...]
         """
         records = []
         for d in drugs:
-            r = cls.get_thermo_properties(d.get("name",""), d.get("cas"))
+            r = cls.get_thermo_properties(d.get("name",""), d.get("cas"),
+                                            logp=d.get("logp"))
             records.append(r)
             time.sleep(0.1)
 
@@ -1026,8 +1041,15 @@ class PBPKEngine:
       dC_tissue/dt = Q_i/V_i · (C_blood - C_tissue/Kp_i)
       dC_blood/dt  = Σ Q_i · (C_tissue_i/Kp_i - C_blood) / V_blood
 
-    where Kp_i = tissue:plasma partition coefficient, estimated via the
-    Poulin-Theil method (Rowland et al., J Pharm Sci 100:929, 2011).
+    where Kp_i = tissue:plasma partition coefficient, computed here as a
+    simplified logP-power-law fit (Kp = 10^(slope·logP), slope per organ)
+    — in the spirit of lipophilicity-driven tissue-partition models like
+    Poulin-Theil (Poulin & Theil 2002, J Pharm Sci 91:129) and
+    Rodgers-Rowland (Rodgers & Rowland 2006, J Pharm Sci 95:1113), but not
+    a literal implementation of either — both real methods additionally
+    require tissue-composition data (neutral lipid/phospholipid/water
+    fractions) and drug-ionization-class handling this simplified version
+    doesn't use.
 
     Relationship to pbbm_engine.PBBMOrchestrator (8-compartment): these are
     two independently-parametrized PBPK implementations that both run in
@@ -1035,14 +1057,16 @@ class PBPKEngine:
     PBBM suite"), feeding different downstream consumers — this engine's
     output drives the 3D visualisation/video pipeline
     (VisualisationOrchestrator), PBBMOrchestrator's drives the ADMET
-    profile and final report narrative. They use different, both-legitimate
-    Kp-estimation methods (Poulin-Theil here vs. Rodgers-Rowland 2006 in
-    PBBMOrchestrator) rather than being a silent duplicate of the same
-    model — flagged here explicitly so a reader doesn't mistake the
-    difference for citation drift. Unifying them into a single PBPK
-    computation feeding both consumers is still open follow-up work — I
-    haven't tackled it yet since it touches report/visualisation schemas
-    on both sides.
+    profile and final report narrative. Both independently use the same
+    kind of simplified logP-power-law Kp approximation described above
+    (previously mislabeled here as literal Poulin-Theil and in
+    PBBMOrchestrator as literal Rodgers-Rowland — fixed in both places to
+    describe what the formula actually is) rather than being a silent
+    duplicate of the same model — flagged here explicitly so a reader
+    doesn't mistake the difference in organ set/parametrization for
+    citation drift. Unifying them into a single PBPK computation feeding
+    both consumers is still open follow-up work — I haven't tackled it
+    yet since it touches report/visualisation schemas on both sides.
     """
 
     # Human physiological parameters (70 kg)
@@ -1070,7 +1094,9 @@ class PBPKEngine:
         organs = list(cls._ORGANS.keys())
         organs_no_blood = [o for o in organs if o != "blood"]
 
-        # Tissue:plasma Kp from logP (Poulin-Theil method simplified)
+        # Tissue:plasma Kp from logP — simplified power-law approximation,
+        # not a literal Poulin-Theil/Rodgers-Rowland implementation (see
+        # class docstring)
         def kp(organ):
             slope = cls._ORGANS[organ]["Kp_logP_slope"]
             return max(0.01, 10 ** (slope * logp))
@@ -1150,10 +1176,17 @@ class PBPKEngine:
                 "Shows which organs accumulate drug (off-target toxicity risk) "
                 "vs. which are protected. Brain concentration directly predicts efficacy.",
                 "7-compartment PBPK model with blood flow-limited kinetics.\n"
-                "Kp (tissue:plasma) estimated via Poulin-Theil method from logP.\n"
+                "Kp (tissue:plasma) is a simplified logP-power-law fit\n"
+                "(Kp = 10^(slope×logP) per organ) — not a literal Poulin-Theil\n"
+                "or Rodgers-Rowland implementation (both require tissue-\n"
+                "composition data and drug-ionization-class handling this\n"
+                "simplified version omits).\n"
                 "dC_tissue/dt = Q/V · (Cblood - Ctissue/Kp)\n"
                 "Blood flow values from ICRP 2002 Reference Man.\n"
-                "Reference: Rowland et al., J Pharm Sci 100:929 (2011).",
+                "References: Poulin & Theil, J Pharm Sci 91:129 (2002) and\n"
+                "Rodgers & Rowland, J Pharm Sci 95:1113 (2006) — cited as the\n"
+                "tissue-partition literature this model approximates, not as\n"
+                "an exact implementation of either method.",
                 "1. solve_ivp RK45 (scipy).\n"
                 "2. Kp = 10^(slope·logP) per organ.\n"
                 "3. 7 compartments: blood, lung, liver, kidney, muscle, fat, brain.\n"
@@ -1228,7 +1261,7 @@ class ScienceOrchestrator:
             log.info("[SCI] Running thermodynamics …")
             try:
                 df_thermo = ThermodynamicsEngine.batch(
-                    [{"name": drug_name}], sci_dir)
+                    [{"name": drug_name, "logp": drug_info.get("logp")}], sci_dir)
                 results["thermodynamics"] = df_thermo
             except Exception as e:
                 log.warning(f"  [SCI-Thermo] Skipped: {e}")

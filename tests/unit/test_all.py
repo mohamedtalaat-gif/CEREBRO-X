@@ -1310,6 +1310,41 @@ class TestPatchedTrainCVGuard:
         assert metrics["cv_r2"] == metrics["cv_r2"]  # not NaN
 
 
+class TestThermodynamicsEngineLogPThreading:
+    """ThermodynamicsEngine.get_thermo_properties's Yalkowsky logS estimate
+    needs a LogP input, but the function had no logp parameter at all —
+    every call fell back to logp_proxy = log10(MW/100), a formula with no
+    real physical grounding (MW and LogP are only weakly correlated),
+    even though ScienceOrchestrator.run_full already resolves the real
+    LogP into drug_info["logp"] a few lines before calling
+    ThermodynamicsEngine.batch and just never passed it through. Verified
+    with aspirin (real LogP=1.19): the MW-proxy fallback gave
+    logS_approx=-0.86, the real-LogP version gave -1.79 — aspirin's
+    actual experimental logS is close to -1.7 to -2, so the fix is a real
+    accuracy improvement, not just a labeling change."""
+
+    def test_real_logp_changes_logs_estimate_vs_mw_proxy(self):
+        pytest.importorskip("thermo")
+        from src.core.science_engines import ThermodynamicsEngine
+        no_logp   = ThermodynamicsEngine.get_thermo_properties("aspirin", cas="50-78-2")
+        real_logp = ThermodynamicsEngine.get_thermo_properties(
+            "aspirin", cas="50-78-2", logp=1.19)
+        if no_logp.get("logS_approx") is None or real_logp.get("logS_approx") is None:
+            pytest.skip("thermo/DIPPR lookup unavailable in this environment")
+        assert no_logp["logS_approx"] != real_logp["logS_approx"]
+        assert "MW_proxy" in no_logp["_imputed"][-1]
+        assert "MW_proxy" not in real_logp["_imputed"][-1]
+
+    def test_batch_threads_logp_through_to_get_thermo_properties(self):
+        """Root-cause check: batch() (called by ScienceOrchestrator.run_full
+        with drug_info["logp"] already resolved) must pass logp down."""
+        pytest.importorskip("thermo")
+        import inspect
+        from src.core.science_engines import ThermodynamicsEngine
+        src = inspect.getsource(ThermodynamicsEngine.batch)
+        assert "logp=d.get" in src or "logp=d[" in src
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 11. FULL PIPELINE INTEGRATION (run.py -> pipeline_runner.py, end-to-end)
 # ═════════════════════════════════════════════════════════════════════════════
