@@ -1506,6 +1506,102 @@ class TestDDSComparisonStrengthWeaknessClassification:
         assert "CARPA Risk Index" not in by_name["Median"]["Weaknesses"]
 
 
+class TestAdvancedModules2Integrity:
+    """Several findings from auditing cerebro_advanced_modules_2.py
+    (2695 lines, 23 classes covering points 3-62 of the 62-principle
+    framework). Most of the file is self-consistent heuristic scoring
+    with honest confidence labeling, but four real integrity issues:
+
+    (1) LyophilizationOptimizer.optimize's cake_collapse_risk check was
+    tautologically always False: T_primary_dry is *defined* as Tg - 2.0
+    within the same function, so "Tg > T_primary_dry + 5" always reduces
+    to "Tg > Tg + 3" -- impossible for any cryoprotectant, verified
+    across all six entries in Tg_prime.
+
+    (2) FDA21CFRCompliance.generate_compliance_report unconditionally
+    claimed "21 CFR Part 11 COMPLIANT" regardless of whether any audit
+    trail entries actually existed -- and log_computation(), the method
+    that writes them, is never called anywhere in the codebase (verified
+    via full-repo grep), so audit_trail.jsonl never exists in a real
+    trial. This fed directly into final_report_unified.py's own FDA
+    compliance report section.
+
+    (3) FinalModules.fto_ip_analysis returned
+    "CLEAR to file new patent" whenever a ligand simply didn't match one
+    of 3 hardcoded example patents -- a legal/IP conclusion the check
+    can't actually support, especially since USPTO PAIR/Espacenet (the
+    cited "reference") are never really queried.
+
+    (4) LiteratureMiningEngine._fallback_citations had chronologically
+    impossible PMIDs for real papers (a PMID roughly tracks its
+    publication year) -- e.g. Alvarez-Erviti 2011 cited as PMID 34678901
+    (that range is ~2021-2022), directly contradicted by this same
+    file's own RealTimeLiterature.CURATED_CITATIONS citing the identical
+    paper with PMID 21423189 (chronologically consistent with 2011)."""
+
+    def test_lyophilization_collapse_risk_is_no_longer_tautologically_false(self):
+        """Regression guard: the field must at least reflect its own
+        stated safety margin honestly, not silently claim "OK" via dead
+        logic. (The fix makes it an honest constant rather than a fake
+        risk check — this pins that it stays that way and doesn't
+        regress back to comparing Tg against itself.)"""
+        from src.core.cerebro_advanced_modules_2 import LyophilizationOptimizer
+        for cryo in ["trehalose", "sucrose", "mannitol", "glycerol", "PVP", "none"]:
+            result = LyophilizationOptimizer.optimize({}, cryoprotectant=cryo)
+            assert "Tg'-2degC" in result["cake_collapse_risk"] or \
+                   "safety margin" in result["cake_collapse_risk"]
+
+    def test_fda_compliance_not_claimed_without_real_audit_entries(self, tmp_path):
+        from src.core.cerebro_advanced_modules_2 import FDA21CFRCompliance
+        no_entries = FDA21CFRCompliance.generate_compliance_report(tmp_path)
+        assert "COMPLIANT" not in no_entries["compliance_status"]
+        assert no_entries["n_audit_entries"] == 0
+
+    def test_fda_compliance_claimed_once_real_audit_entries_exist(self, tmp_path):
+        from src.core.cerebro_advanced_modules_2 import FDA21CFRCompliance
+        FDA21CFRCompliance.log_computation(tmp_path, "TestDrug", "test_calc", "hash123")
+        with_entries = FDA21CFRCompliance.generate_compliance_report(tmp_path)
+        assert "COMPLIANT" in with_entries["compliance_status"]
+        assert with_entries["n_audit_entries"] == 1
+
+    def test_fto_analysis_does_not_claim_clear_without_caveat(self):
+        from src.core.cerebro_advanced_modules_2 import FinalModules
+        result = FinalModules.fto_ip_analysis(
+            {"Surface_Ligand": "some-novel-ligand"}, {"name": "TestDrug"})
+        assert result["FTO_clear"] is True
+        assert "NOT a real automated patent search" in result["recommendation"]
+        assert "CLEAR to file new patent" != result["recommendation"]
+
+    def test_literature_fallback_pmids_are_chronologically_plausible(self):
+        """PMIDs are assigned roughly sequentially: PMID/~1.6M per year
+        since 1996 is a workable rule of thumb. A paper's fallback PMID
+        should land within a few years of its claimed publication year,
+        not off by a decade or more."""
+        from src.core.cerebro_advanced_modules_2 import LiteratureMiningEngine
+        for carrier in ["vexosome", "liposome", "unknown"]:
+            for c in LiteratureMiningEngine._fallback_citations(carrier):
+                pmid = int(c["pmid"])
+                year = int(c["year"])
+                # Rough PMID->year mapping: PMID 1M ~ 1996, growing by
+                # roughly 1.6M/year since. Generous +/-5 year tolerance.
+                est_year = 1996 + (pmid - 1_000_000) / 1_600_000
+                assert abs(est_year - year) < 6, (
+                    f"{c['citation']}: PMID {pmid} implies ~{est_year:.0f}, "
+                    f"claimed year is {year}")
+
+    def test_alvarez_erviti_pmid_matches_verified_entry_elsewhere_in_file(self):
+        """Direct cross-reference check: this exact paper appears in both
+        LiteratureMiningEngine's fallback and RealTimeLiterature's
+        curated list — they must agree now."""
+        from src.core.cerebro_advanced_modules_2 import (
+            LiteratureMiningEngine,
+            RealTimeLiterature,
+        )
+        fallback_pmid = LiteratureMiningEngine._fallback_citations("vexosome")[0]["pmid"]
+        curated = RealTimeLiterature.CURATED_CITATIONS["vexosome_exosome"][0]
+        assert fallback_pmid in curated
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 11. FULL PIPELINE INTEGRATION (run.py -> pipeline_runner.py, end-to-end)
 # ═════════════════════════════════════════════════════════════════════════════

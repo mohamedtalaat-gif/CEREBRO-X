@@ -467,13 +467,29 @@ class LiteratureMiningEngine:
 
     @staticmethod
     def _fallback_citations(carrier_type: str) -> list[dict]:
+        """
+        PMIDs here previously failed a basic chronology sanity check
+        (PubMed IDs are assigned roughly sequentially, so a paper's PMID
+        should roughly track its publication year) and were directly
+        contradicted by this same module's own RealTimeLiterature.
+        CURATED_CITATIONS, which cites the identical Alvarez-Erviti 2011
+        and Pardridge 2012 papers with different PMIDs (21423189 and
+        22085721) that DO check out chronologically. A PMID in the
+        34-million range (as "34678901" was) corresponds to roughly
+        2021-2022, which is impossible for a paper published in 2011.
+        Replaced with the verified values from RealTimeLiterature's own
+        citation list, and dropped the unverifiable 1994 Kreuter PMID
+        (31270248 -- also chronologically impossible for 1994, off by
+        two+ decades of PMID range) in favor of a real, already-verified
+        Kreuter citation present elsewhere in this same file.
+        """
         ct = carrier_type.lower()
         citations = {
             "vexosome": [
-                {"pmid":"34678901","authors":"Alvarez-Erviti L et al.","year":"2011",
+                {"pmid":"21423189","authors":"Alvarez-Erviti L et al.","year":"2011",
                  "title":"Delivery of siRNA to the mouse brain by systemic injection of targeted exosomes",
                  "journal":"Nature Biotechnology","doi":"10.1038/nbt.1807",
-                 "citation":"Alvarez-Erviti L et al. (2011). Delivery of siRNA... Nat Biotechnol. PMID:34678901"},
+                 "citation":"Alvarez-Erviti L et al. (2011). Delivery of siRNA... Nat Biotechnol. PMID:21423189"},
             ],
             "liposome": [
                 {"pmid":"30291251","authors":"Shi J et al.","year":"2017",
@@ -483,14 +499,14 @@ class LiteratureMiningEngine:
             ],
         }
         return citations.get(ct, [
-            {"pmid":"33567412","authors":"Pardridge WM","year":"2012",
+            {"pmid":"22085721","authors":"Pardridge WM","year":"2012",
              "title":"Drug transport across the blood-brain barrier",
              "journal":"J Cereb Blood Flow Metab","doi":"10.1038/jcbfm.2012.126",
-             "citation":"Pardridge WM (2012). Drug transport across the BBB. JCBFM. PMID:33567412"},
-            {"pmid":"31270248","authors":"Kreuter J","year":"1994",
-             "title":"Colloidal drug delivery systems",
-             "journal":"J Microencapsulation","doi":"10.3109/02652049409015144",
-             "citation":"Kreuter J (1994). Colloidal drug delivery. J Microencapsul. PMID:31270248"},
+             "citation":"Pardridge WM (2012). Drug transport across the BBB. JCBFM. PMID:22085721"},
+            {"pmid":"23316008","authors":"Kreuter J","year":"2012",
+             "title":"Nanoparticulate systems for brain delivery of drugs",
+             "journal":"Adv Drug Deliv Rev","doi":"",
+             "citation":"Kreuter J (2012). Nanoparticulate systems for brain delivery of drugs. Adv Drug Deliv Rev 64 Suppl:213-22. PMID:23316008"},
         ])
 
 
@@ -788,10 +804,19 @@ class LyophilizationOptimizer:
         pdi_post = pdi * (1 + 0.1 * (1 - ee / 100))
         size_post = size_nm * (1 + 0.05 * (1 - ee / 100))
 
-        # Cake collapse risk
-        collapse_risk = Tg > T_primary_dry + 5
-        collapse_msg  = ("RISK: Tg too high -- lower primary drying temp"
-                          if collapse_risk else "OK: Tg within safe margin")
+        # Cake collapse risk. T_primary_dry is *defined* above as Tg - 2.0
+        # within this same function, so "Tg > T_primary_dry + 5" reduces
+        # algebraically to "Tg > Tg + 3" -- always False, for every
+        # cryoprotectant, regardless of input (verified numerically across
+        # all entries in Tg_prime). That made this a dead safety check
+        # that could never report a risk. There's no independent
+        # primary-drying-temperature input in this function to meaningfully
+        # check against Tg' -- the process is designed to stay exactly
+        # 2 degC below Tg' by construction -- so this states that
+        # honestly instead of presenting a "risk assessment" that
+        # structurally could never fire.
+        collapse_risk = False
+        collapse_msg  = f"OK: primary drying fixed at Tg'-2degC safety margin ({T_primary_dry:.0f} degC)"
 
         return {
             "cryoprotectant":           cryoprotectant,
@@ -1186,9 +1211,6 @@ class CryoChainExcursionEngine:
         size_nm = float(top_dds.get("size_nm") or 80)
 
         is_lipid = any(x in carrier for x in ["liposome","lipid","vexosome"])
-
-        # Enthalpy of lipid phase transition (~35 kJ/mol for DPPC)
-        dH_trans = 35000   # J/mol
         R        = 8.314
 
         if is_lipid:
@@ -1287,8 +1309,7 @@ class OrganOnChipSimulator:
         tau = 6 * eta * Q / (W * H**2)   # Pa
 
         # Physiological range: 0.5-4 dyn/cm2 = 0.05-0.4 Pa
-        tau_phys = 0.1 + 0.3  # Pa (typical)
-        shear_ok = 0.05 <= tau <= 0.5
+        shear_ok = 0.05 <= tau <= 0.4
 
         # Reynolds number
         Re = v * Dh / (eta / 1060)
@@ -1449,7 +1470,19 @@ class FDA21CFRCompliance:
 
     @classmethod
     def generate_compliance_report(cls, trial_dir: Path) -> dict:
-        """Summarize audit trail for regulatory submission."""
+        """Summarize audit trail for regulatory submission.
+
+        log_computation() is what actually writes audit_trail.jsonl
+        entries, but nothing in this codebase calls it -- verified via a
+        full-repo grep, it's dead code. That means audit_file never
+        exists in a real trial run, so unconditionally claiming
+        "21 CFR Part 11 COMPLIANT" regardless of whether any audit
+        record actually exists was a fabricated regulatory claim, not a
+        cautious default -- this report feeds directly into
+        final_report_unified.py's "FDA 21 CFR Part 11 Compliance"
+        section. Made the status conditional on real evidence (entries
+        actually present) instead.
+        """
         audit_file = trial_dir / "audit_trail.jsonl"
         entries = []
         try:
@@ -1459,12 +1492,22 @@ class FDA21CFRCompliance:
         except Exception as _exc_bare:
             pass
 
+        if entries:
+            compliance_status = "21 CFR Part 11 COMPLIANT -- electronic records with audit trail"
+            data_integrity = "SHA-256 hash chain -- tamper-evident"
+        else:
+            compliance_status = (
+                "NOT VERIFIED -- no audit trail entries found for this trial. "
+                "log_computation() must be called during computation to build "
+                "a compliant audit trail; this trial has none.")
+            data_integrity = "N/A -- no audit entries to hash-chain"
+
         return {
             "n_audit_entries":  len(entries),
             "audit_file":       str(audit_file),
-            "compliance_status":"21 CFR Part 11 COMPLIANT -- electronic records with audit trail",
+            "compliance_status": compliance_status,
             "entries_sample":   entries[:3],
-            "data_integrity":   "SHA-256 hash chain -- tamper-evident",
+            "data_integrity":   data_integrity,
         }
 
 
@@ -2021,11 +2064,25 @@ class FinalModules:
 
     @staticmethod
     def fto_ip_analysis(top_dds: dict, mol_profile: dict) -> dict:
-        """#32: Freedom to Operate (FTO) and IP landscape analysis."""
+        """#32: Freedom to Operate (FTO) and IP landscape analysis.
+
+        `blocked` below is a tiny, illustrative example list (3 entries),
+        not a real patent database query -- USPTO PAIR/Espacenet aren't
+        actually queried anywhere in this function despite being cited as
+        the "reference". A ligand simply not matching one of those 3
+        hardcoded names says nothing about the real global patent
+        landscape, so a bare "CLEAR to file new patent" conclusion drawn
+        from that absence is a legal/IP claim this check cannot support --
+        this is exactly the kind of hardcoded lookup a researcher could
+        mistake for a genuine automated FTO search. Recommendation text
+        now says so explicitly rather than presenting a real-sounding
+        legal conclusion.
+        """
         ligand  = str(top_dds.get("Surface_Ligand","")).lower()
         carrier = str(top_dds.get("Carrier_Type","")).lower()
         drug    = str(mol_profile.get("name","Drug"))
-        # Known patent landscape (representative)
+        # Illustrative example entries only -- NOT a real patent database
+        # query. See docstring.
         blocked = {
             "transferrin": "US9511152B2 (Tf-NP CNS, Pardridge/BBB Tech)",
             "angiopep-2":  "US8933030B2 (Angiochem Inc.)",
@@ -2039,13 +2096,18 @@ class FinalModules:
             "ligand":              ligand,
             "carrier":             carrier,
             "FTO_clear":           fto_clear,
-            "blocking_patent":     blocking_patent or "None identified",
+            "blocking_patent":     blocking_patent or "None identified in this illustrative 3-entry example list",
             "novelty_pct":         round(novelty*100, 0),
-            "recommendation":      ("CLEAR to file new patent" if fto_clear
-                                     else "Conduct full FTO study before filing"),
+            "recommendation":      (
+                "No match in a small illustrative example patent list — this is NOT a "
+                "real automated patent search; a professional FTO study (USPTO PAIR + "
+                "Espacenet + attorney review) is required before any filing or "
+                "clearance decision."
+                if fto_clear else
+                "Conduct full FTO study before filing"),
             "suggested_claims":    [f"Method of CNS delivery using {carrier} + {ligand}",
                                      f"Composition of {drug} in {carrier} for CNS indication"],
-            "reference":           "USPTO PAIR database; Espacenet patent search",
+            "reference":           "Illustrative example only — not a real USPTO PAIR/Espacenet query",
         }
 
     @staticmethod
