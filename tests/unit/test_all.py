@@ -1314,6 +1314,115 @@ class TestNovelDrugExplainer:
         assert "500+" not in desc
 
 
+class TestUnifiedPDFReportDecisionFramework:
+    """UnifiedPDFReport.generate's Section 15 executive decision table
+    computed go_dec ("GO"/"CONDITIONAL GO") from three real criteria but
+    then hardcoded the "Evidence" text for the OVERALL DECISION row to
+    "Proceed to IND-enabling studies" unconditionally — even when go_dec
+    was "CONDITIONAL GO" because the synthetic clinical trial explicitly
+    returned "NO-GO / REFORMULATE" (a real value cerebro_advanced_modules_2.py
+    can produce). This is the most consequential section of the whole
+    report — the one a PI reads to decide whether to proceed — so a
+    fixed "proceed" recommendation regardless of the actual verdict was a
+    serious integrity bug, not cosmetic. Fixed to state which criteria
+    actually failed instead.
+
+    Verified by mocking SimpleDocTemplate.build to capture the real
+    reportlab Table objects passed into the PDF story (their `_cellvalues`
+    are the literal table content) rather than trying to parse the
+    rendered PDF bytes."""
+
+    def _run_and_capture_story(self, monkeypatch, tmp_path, top_dds, science_results):
+        from unittest.mock import patch
+        from pathlib import Path as _P
+        from src.core.final_report_unified import UnifiedPDFReport
+
+        captured = {}
+
+        def fake_build(self, story, **kw):
+            captured["story"] = story
+            _P(self.filename).write_bytes(b"%PDF-1.4 fake")
+
+        with patch("reportlab.platypus.SimpleDocTemplate.build", fake_build):
+            UnifiedPDFReport.generate(
+                drug_name="TestDrug", trial_dir=tmp_path,
+                mol_profile={"MW_Da": 379.5, "LogP": 4.31},
+                df_dds=None, top_dds=top_dds, science_results=science_results,
+            )
+        return captured["story"]
+
+    def _decision_row(self, story):
+        from reportlab.platypus import Table
+        for t in story:
+            if isinstance(t, Table):
+                rows = t._cellvalues
+                if rows and rows[-1][0] == "OVERALL DECISION":
+                    return rows[-1]
+        return None
+
+    def test_failed_clinical_trial_does_not_recommend_proceeding(self, tmp_path):
+        story = self._run_and_capture_story(
+            None, tmp_path,
+            top_dds={"DLVO_stable": True, "DLVO_V_total_kT": 30.0,
+                     "BBB_Enhanced_Pct": 20.0},
+            science_results={
+                "synthetic_clinical": {"go_no_go": "NO-GO / REFORMULATE",
+                                        "overall_response_pct": 30, "AE_severe_pct": 12},
+                "qsar_toxicity": {"cardiac_risk": False},
+            })
+        row = self._decision_row(story)
+        assert row[1] == "CONDITIONAL GO"
+        assert "Proceed to IND-enabling studies" != row[2]
+        assert "NO-GO" in row[2]
+
+    def test_all_criteria_pass_recommends_proceeding(self, tmp_path):
+        story = self._run_and_capture_story(
+            None, tmp_path,
+            top_dds={"DLVO_stable": True, "DLVO_V_total_kT": 30.0,
+                     "BBB_Enhanced_Pct": 20.0},
+            science_results={
+                "synthetic_clinical": {"go_no_go": "GO",
+                                        "overall_response_pct": 75, "AE_severe_pct": 2},
+                "qsar_toxicity": {"cardiac_risk": False},
+            })
+        row = self._decision_row(story)
+        assert row[1] == "GO"
+        assert row[2] == "Proceed to IND-enabling studies"
+
+    def test_biologic_kp_brain_uses_auc_ratio_not_cmax_ratio(self, tmp_path):
+        """Section 3's BiologicPBPK branch computed Kp,brain from
+        Cmax_brain/Cmax_plasma, while every other Kp_brain definition in
+        this codebase (pbbm_engine.py, science_engines.py,
+        cerebro_science_modules.py) uses AUC_brain/AUC_plasma — the same
+        "Kp,brain" column label in the same PDF table meant two different
+        things depending on molecule class. Cmax ratio (0.5/10=0.05) and
+        AUC ratio ((2*24)/(100*24)=0.02) diverge for this fixture, so this
+        pins the fix rather than a case where they'd coincidentally match."""
+        story = self._run_and_capture_story(
+            None, tmp_path,
+            top_dds={"DLVO_stable": True, "DLVO_V_total_kT": 30.0,
+                     "BBB_Enhanced_Pct": 20.0},
+            science_results={
+                "pbpk_cns": {
+                    "model": "BiologicPBPK",
+                    "Cmax_brain_ug_mL": 0.5, "Cmax_plasma_ug_mL": 10.0,
+                    "AUC_CNS_day_ug_mL": 2.0, "AUC_plasma_day_ug_mL": 100.0,
+                    "T_half_effective_days": 5.0,
+                    "BBB_transcytosis_pct": 3.0,
+                },
+            })
+        from reportlab.platypus import Table
+        kp_row = None
+        for t in story:
+            if isinstance(t, Table):
+                for r in t._cellvalues:
+                    if r and r[0] == "Kp,brain":
+                        kp_row = r
+        assert kp_row is not None, "Kp,brain row not found in PBPK table"
+        kp_value = float(kp_row[1])
+        assert kp_value == pytest.approx(0.02, abs=1e-4)
+
+
 class TestPipelineIntegration:
     """Runs the real pipeline end-to-end against a real input Excel and
     checks real output artifacts were produced with sane values — not a

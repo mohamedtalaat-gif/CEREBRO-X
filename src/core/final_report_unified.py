@@ -385,7 +385,15 @@ class UnifiedPDFReport:
                 _cmax_brain = pbpk.get("Cmax_brain_ug_mL", 0)
                 _auc_brain  = pbpk.get("AUC_CNS_day_ug_mL", 0) * 24   # day→h
                 _auc_plasma = pbpk.get("AUC_plasma_day_ug_mL", 0) * 24
-                _kp_brain   = _cmax_brain / max(pbpk.get("Cmax_plasma_ug_mL", 1e-9), 1e-9)
+                # AUC ratio, not Cmax ratio — matches the Kp_brain definition
+                # used everywhere else in this codebase (pbbm_engine.py,
+                # science_engines.py, cerebro_science_modules.py all define
+                # Kp_brain = AUC_brain/AUC_plasma). This branch previously
+                # computed it from Cmax instead, so a biologic's "Kp,brain"
+                # in this exact table wasn't comparable to a small
+                # molecule's "Kp,brain" two rows of logic below, even
+                # though both render under the identical column label.
+                _kp_brain   = _auc_brain / max(_auc_plasma, 1e-9)
                 _t_half     = pbpk.get("T_half_effective_days", 0) * 24  # days→h
                 _bbb_pct    = pbpk.get("BBB_transcytosis_pct", 0)
                 _model_note = f"BiologicPBPK (FcRn + CNS transcytosis) | T½={_t_half:.1f}h"
@@ -1098,11 +1106,31 @@ class UnifiedPDFReport:
         story.append(HRFlowable(width="100%", thickness=1, color=GOLD_RL))
 
         # Summary decision table
-        go_dec = "GO" if (
-            (synth.get("go_no_go","") == "GO" if synth else True) and
-            (top_dds.get("DLVO_stable") if top_dds else True) and
-            not (qsar.get("cardiac_risk") if qsar else False)
-        ) else "CONDITIONAL GO"
+        _clinical_go   = (synth.get("go_no_go","") == "GO" if synth else True)
+        _dlvo_ok       = (top_dds.get("DLVO_stable") if top_dds else True)
+        _no_cardiac    = not (qsar.get("cardiac_risk") if qsar else False)
+        go_dec = "GO" if (_clinical_go and _dlvo_ok and _no_cardiac) else "CONDITIONAL GO"
+
+        # Evidence text must reflect which criterion actually failed —
+        # this previously hardcoded "Proceed to IND-enabling studies"
+        # regardless of go_dec, so even a synthetic trial that explicitly
+        # returned "NO-GO / REFORMULATE" (a real possible value from
+        # cerebro_advanced_modules_2.py) still showed up in the executive
+        # decision framework — the single most consequential section of
+        # the report — recommending IND-enabling progression.
+        if go_dec == "GO":
+            _decision_evidence = "Proceed to IND-enabling studies"
+        else:
+            _failed = []
+            if not _clinical_go:
+                _failed.append(f"synthetic trial returned "
+                                f"'{synth.get('go_no_go','?') if synth else '?'}'")
+            if not _dlvo_ok:
+                _failed.append("colloidal instability (DLVO)")
+            if not _no_cardiac:
+                _failed.append("cardiac off-target flag")
+            _decision_evidence = ("Reformulate/re-evaluate before IND-enabling "
+                                   f"studies — failed: {'; '.join(_failed) or 'see criteria above'}")
 
         decision_data = [
             ["Criterion",               "Status",  "Evidence"],
@@ -1118,7 +1146,7 @@ class UnifiedPDFReport:
               sterile.get("recommended_method","N/A") if sterile else "N/A"],
             ["Supply chain",            sc.get("overall_supply_risk","N/A") if sc else "N/A",
               f"Score {sc.get('supply_chain_score',0):.0f}/100" if sc else ""],
-            ["OVERALL DECISION",        go_dec, "Proceed to IND-enabling studies"],
+            ["OVERALL DECISION",        go_dec, _decision_evidence],
         ]
         story.append(tbl(decision_data, [6*cm, 3.5*cm, 7*cm], NAVY))
 
