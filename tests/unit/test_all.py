@@ -3654,3 +3654,55 @@ class TestLegacyPrincipleMetadataTables:
         import src.path_resolver  # noqa: F401
         import cerebro_completed_excel_writer  # noqa: F401
         import cerebro_multi_drug_comparison  # noqa: F401
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 35. BRAND / VISUAL IDENTITY (cerebro_brand.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestCerebroBrand:
+    def test_asset_paths_point_at_the_real_project_root_not_engine_dir(self):
+        """Regression test for a real bug: _PROJECT_ROOT was computed as
+        Path(__file__).resolve().parent, which for engine/cerebro_brand.py
+        is just engine/ itself (.parent strips only the filename) — one
+        level short of the actual project root. LOGO_PATH/PATTERN_PATH/
+        ENGINE_BG_PATH all silently pointed at engine/assets/brand/, which
+        doesn't exist; the real assets/ directory is at the project root,
+        exactly one level further up than the buggy path reached. Every
+        sibling shim in this same engine/ directory (CEREBRO_Pipeline.py,
+        cerebro_enterprise_infra.py, cerebro_pipeline_patches.py) already
+        used the correct .parent.parent for the same file layout."""
+        import src.path_resolver  # noqa: F401
+        import cerebro_brand
+
+        assert cerebro_brand.LOGO_PATH.exists()
+        assert cerebro_brand.PATTERN_PATH.exists()
+        assert cerebro_brand.ENGINE_BG_PATH.exists()
+        assert cerebro_brand.ASSETS_DIR.name == "brand"
+        assert cerebro_brand.ASSETS_DIR.parent.name == "assets"
+
+    def test_matplotlib_style_uses_declared_palette_colors(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_brand import GOLD, VOID_BASE, matplotlib_style
+
+        style = matplotlib_style()
+        assert style["figure.facecolor"] == VOID_BASE
+        assert style["axes.titlecolor"] == GOLD
+
+    def test_html_brand_header_omits_redundant_title_but_keeps_subtitle(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_brand import PROJECT_NAME, html_brand_header
+
+        redundant = html_brand_header(title="CEREBRO-X")
+        assert redundant.count(f'<div class="subtitle">{PROJECT_NAME}</div>') == 0
+
+        real = html_brand_header(title="Drug Delivery Report", subtitle="Donepezil")
+        assert "Drug Delivery Report" in real
+        assert "Donepezil" in real
+
+    def test_reportlab_color_parses_a_real_hex_string(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_brand import GOLD, reportlab_color
+
+        pytest.importorskip("reportlab")
+        color = reportlab_color(GOLD)
+        assert color is not None

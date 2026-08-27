@@ -115,7 +115,7 @@ RL_FONT_MONO    = "Courier"
 # 3.  ASSET PATHS  (resolved relative to the project root)
 # ═══════════════════════════════════════════════════════════════════════════
 
-_PROJECT_ROOT   = Path(__file__).resolve().parent
+_PROJECT_ROOT   = Path(__file__).resolve().parent.parent   # engine/ -> project root
 ASSETS_DIR      = _PROJECT_ROOT / "assets" / "brand"
 LOGO_PATH       = ASSETS_DIR / "cerebro_logo.png"
 PATTERN_PATH    = ASSETS_DIR / "cerebro_pattern.png"
