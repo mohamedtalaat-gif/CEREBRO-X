@@ -4,31 +4,41 @@ CEREBRO-X |  3D VISUALISATION & VIDEO ENGINE
 ================================================================================
 File: cerebro_visualization_3d.py
 
-Generates publication-quality and presentation-ready visuals:
+Generates publication-quality and presentation-ready visuals.
 
-  STATIC 3D FIGURES (no simulations — all from analytical data):
+Actually implemented (verified against the real function/class
+definitions and the real orchestrator call list at the bottom of this
+file — this used to list 12 figures, 4 schematics, and 2 videos, but
+only 7 figures, 2 schematics, and 2 videos exist anywhere in this file;
+Figures 08-12 and Schemas 02-03 were promised but never written, and
+Figures 06/07 below were numbered inconsistently with what the actual
+fig06_.../fig07_... functions do):
+
+  STATIC FIGURES (no simulations — all from analytical data):
     Figure 01  BBB Engineering Score ranking (enhanced horizontal bar)
     Figure 02  PK/PD concentration kinetics (multi-drug, multi-compartment)
     Figure 03  PBPK organ heatmap (drug distribution across organs)
     Figure 04  DLVO colloidal stability map (scatter: size vs. zeta)
     Figure 05  3D pharmacological space (half-life × binding × ML score)
-    Figure 06  Multi-drug radar fingerprint (polar: all molecular attributes)
-    Figure 07  Carrier type comparison (box + strip plot)
-    Figure 08  Formulation property heatmap (100 systems × 8 parameters)
-    Figure 09  HOMO-LUMO gap chart
-    Figure 10  Transcytosis energy landscape (ΔG vs. size coloured by ligand)
-    Figure 11  PEG Goldilocks curve (EE vs. PEGylation degree)
-    Figure 12  Synergy network graph (drug-carrier alliances)
+    Figure 06  Formulation property heatmap (fig06_formulation_heatmap)
+    Figure 07  Multi-drug radar fingerprint, polar (fig07_radar)
 
   BIORENDER-STYLE SCHEMATICS (SVG/PNG — no external tool):
     Schema 01  BBB crossing mechanism diagram
-    Schema 02  Vexosome cross-section anatomy
-    Schema 03  Two-compartment PK model diagram
     Schema 04  CEREBRO-X pipeline flowchart
+    (Schema 02 "Vexosome cross-section" and Schema 03 "Two-compartment PK
+    model diagram" are not implemented — kept the original 01/04 numbering
+    from BioSchematicEngine rather than renumbering, since other code may
+    already reference these by name)
 
   VIDEO (MP4):
     Video 01   PK/PD kinetics animated over time (matplotlib)
     Video 02   BBB score reveal animation (bar chart buildup)
+
+  Carrier-type comparison, HOMO-LUMO gap, transcytosis energy landscape,
+  PEG Goldilocks curve, and synergy network graphs described in earlier
+  versions of this docstring live elsewhere in the codebase (or not at
+  all) — not in this file.
 
 All files:
   • Saved as high-resolution PNG (300 DPI) + SVG where applicable
