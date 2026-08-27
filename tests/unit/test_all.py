@@ -3511,3 +3511,25 @@ class TestModulePathShims:
             assert "outputs" in path.parts
         assert "src" not in CEREBRO_Pipeline.PATHS["data"].parts
         assert "core" not in CEREBRO_Pipeline.PATHS["data"].parts
+
+    @pytest.mark.slow
+    def test_phase5_smoke_test_script_passes_end_to_end(self):
+        """engine/phase5_smoke_test.py is a standalone script (real ChEMBL
+        calls, real bundle resolution, real orchestrator run on two real
+        drugs) meant to be run directly, not imported — so the real
+        regression check is running it and confirming a clean exit, the
+        same way its own docstring says to use it against a fresh Docker
+        build."""
+        import subprocess
+        import sys
+
+        from pathlib import Path
+
+        project_root = Path(__file__).resolve().parents[2]
+        result = subprocess.run(
+            [sys.executable, str(project_root / "engine" / "phase5_smoke_test.py")],
+            cwd=project_root, capture_output=True, text=True, timeout=120)
+        assert result.returncode == 0, (
+            f"phase5_smoke_test.py failed:\nSTDOUT:\n{result.stdout}\n"
+            f"STDERR:\n{result.stderr}")
+        assert "ALL SMOKE TESTS PASSED" in result.stdout
