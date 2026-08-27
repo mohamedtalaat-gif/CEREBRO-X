@@ -358,8 +358,11 @@ def write_doc(file_path, doc: dict):
 # bioactivity DB, not a PK DB, and never returns Half-Life values).
 # ─────────────────────────────────────────────────────────────────────────────
 # CLINICAL_HL — DELETED in v22.1 (no hardcoded drug → t½ lookups).
-# Use clinical_data_engine.get_clinical_pk_with_cascade() which queries
-# OpenFDA, ChEMBL, PubChem/DrugBank, WHO EML, and PharmGKB live.
+# Use clinical_data_engine.fetch_clinical_pk(), which queries DrugBank API,
+# DailyMed FDA, OpenFDA Drug Label, PubChem Pharmacology, and PubMed NLP
+# live, in that order (ChEMBL is deliberately not queried for half-life —
+# it's a bioactivity database and never returns PK data; see
+# clinical_data_engine.py's own module docstring).
 CLINICAL_HL: dict[str, float] = {}
 
 
@@ -503,9 +506,15 @@ class CascadeDataEngine:
     def fetch_drug(cls, drug: str) -> dict | None:
         """
         Run all tiers in cascade order.
-        Tier 0 (OFFLINE, instant): CLINICAL_HL embedded library.
-        Tiers 1-5: Live API cascade.
-        Always returns a dict with MW + HL if Tier 0 hits; None only if all fail.
+
+        Tiers 0, 6, and 7 read CLINICAL_HL/MW_REF, which were deliberately
+        emptied in v22.1 (no hardcoded drug data — see their definitions
+        above) — those three tiers are dormant until/unless repopulated
+        with real, sourced data; they fall through harmlessly (empty dict
+        lookups), so in the current state only tiers 1-5 (live API
+        cascade: DrugBank, ChEMBL, UniProt, PubChem, PubMed scraper) and
+        tier 8 (clinical_data_engine.fetch_clinical_pk) can actually
+        resolve MW/Half_Life_Days.
         """
         drug_lower = drug.lower().strip()
 

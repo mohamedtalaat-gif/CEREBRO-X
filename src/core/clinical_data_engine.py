@@ -13,17 +13,20 @@ PURPOSE:
   nearest known drug, documents this fully in the output and the missing-data log.
 
 DATABASE TIER ORDER (clinical PK — each tried before giving up):
-  Tier 1:  DrugBank API            — t½, CL, Vd, F%, protein binding, CSF/plasma
-  Tier 2:  DailyMed (FDA)          — FDA label PK tables via REST
-  Tier 3:  EMA EPAR                — European label PK data
-  Tier 4:  OpenFDA drug label      — US label structured data
-  Tier 5:  Clinical Pharmacology DB — (Elsevier, key-gated)
-  Tier 6:  PharmacoKinetics.info   — public PK database
-  Tier 7:  PubChem BioAssay        — experimental assay data
-  Tier 8:  ChEMBL Clinical Activity— bioactivity with PK context
-  Tier 9:  PubMed NLP Scraper      — abstract regex + keyword extraction
-  Tier 10: PMC Full-Text Scraper   — full-text PDF/XML mining
-  Tier 11: Chemical Alignment      — nearest drug by Tanimoto/physicochemical
+  Tier 1: DrugBank API             — t½, CL, Vd, F%, protein binding, CSF/plasma
+  Tier 2: DailyMed (FDA)           — FDA label PK tables via REST
+  Tier 3: OpenFDA drug label       — US label structured data
+  Tier 4: PubChem Pharmacology     — annotation-section text mining
+  Tier 5: PubMed NLP Scraper       — abstract regex + keyword extraction (10 papers)
+  Tier 6: Embedded Library         — currently dormant; CLINICAL_PK_LIBRARY was
+                                      emptied in v22.1 (no hardcoded drug data),
+                                      so this always returns None until repopulated
+  Tier 7: Chemical Alignment       — nearest drug by Tanimoto/physicochemical;
+                                      also currently a no-op for the same reason
+                                      (needs a non-empty CLINICAL_PK_LIBRARY)
+
+  Only tiers 1-5 can currently resolve a value; if all five miss, the drug
+  goes to Strict Rejection rather than a fabricated surrogate.
 
 KEY CLINICAL PARAMETERS FETCHED:
   Half_Life_Days      — plasma t½ (hours converted to days)
@@ -37,20 +40,22 @@ KEY CLINICAL PARAMETERS FETCHED:
   BBB_Penetration_pct — measured brain/plasma ratio (if available)
   t_max_h             — time to peak plasma concentration
 
-ALIGNMENT PROTOCOL:
-  When data is missing from ALL tiers + literature:
+ALIGNMENT PROTOCOL (currently dormant — see Tier 6/7 note above):
+  Designed to, once CLINICAL_PK_LIBRARY is repopulated:
   1. Compute Morgan fingerprint (ECFP4) or physicochemical similarity
-  2. Compare vs. a curated reference library of 500+ drugs with known PK
+  2. Compare vs. a curated reference library of known-PK drugs
   3. Select top-3 nearest drugs by Tanimoto similarity
   4. Transfer their PK values with documented uncertainty
   5. Log EXACTLY which databases were tried and which drug was used as surrogate
+  With the library empty, this protocol cannot run — a miss on tiers 1-5
+  goes straight to Strict Rejection instead.
 
 DOCUMENTATION:
   Every imputed/aligned value is reported as:
-  "_missing_pk_reason": "Half_Life_Days not found in DrugBank, DailyMed, EMA,
-    OpenFDA, PharmacoKinetics.info, PubChem, ChEMBL, PubMed (10 papers), PMC
-    (5 papers). Used chemical alignment with Aminopterin (Tanimoto=0.84,
-    same folate antagonist class, MW=440 vs 454 Da) — uncertainty ±30%."
+  "_missing_pk_reason": "Half_Life_Days not found in DrugBank, DailyMed,
+    OpenFDA, PubChem, PubMed (10 papers). [Embedded Library and Chemical
+    Alignment currently dormant, see module docstring]. Drug excluded
+    (Strict Rejection)."
 ================================================================================
 """
 
@@ -72,13 +77,7 @@ warnings.filterwarnings("ignore")
 log = logging.getLogger("CEREBRO-CLINICAL")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# EMBEDDED CLINICAL REFERENCE LIBRARY
-# Curated from FDA labels, published PK studies, WHO EML data
-# Used for Chemical Alignment when all APIs fail
-# Sources: Rowland & Tozer "Clinical PK" 5th ed; Goodman & Gilman 13th ed;
-#          PharmGKB; FDA drug labels; individual pivotal trial papers
-# ─────────────────────────────────────────────────────────────────────────────
-# CLINICAL_PK_LIBRARY — DELETED in v22.1
+# EMBEDDED CLINICAL REFERENCE LIBRARY — CLINICAL_PK_LIBRARY, DELETED in v22.1
 #
 # Per project mandate (no hardcoded drug data), the previous embedded library
 # of 19 drug-name → PK-property entries has been removed. Drug names like
@@ -86,12 +85,12 @@ log = logging.getLogger("CEREBRO-CLINICAL")
 # triggered fallback to this dictionary.
 #
 # All clinical PK now resolved via the live multi-tier cascade in
-# get_clinical_pk_with_cascade() below. Cascades hit (in order):
-#   1. OpenFDA Drug Label   (drug.openfda)
-#   2. ChEMBL drug_indications + activities
-#   3. PubChem PUG-REST (DrugBank xrefs)
-#   4. WHO Essential Medicines List
-#   5. NIH PharmGKB clinical annotations
+# fetch_clinical_pk() below: DrugBank API, DailyMed FDA, OpenFDA Drug Label,
+# PubChem Pharmacology, PubMed NLP Scraper. This dict is left empty (rather
+# than removed outright) because _tier_embedded_library() and
+# _tier_chemical_alignment() still read it — repopulating it with real,
+# sourced data would reactivate those two dormant fallback tiers; until
+# then they always return None (see fetch_clinical_pk()'s docstring).
 # ─────────────────────────────────────────────────────────────────────────────
 CLINICAL_PK_LIBRARY: dict[str, dict] = {}
 
@@ -158,8 +157,9 @@ def _write_clinical_doc(output_dir: Path, drug_name: str,
         "  IMPUTATION POLICY",
         "─" * 70,
         "  Half_Life_Days and MW_Da are CORE fields (Strict Rejection applies).",
-        "  If not found after all 10 tiers + chemical alignment, the drug is",
-        "  REJECTED from ML training with full documentation.",
+        "  If not found after all 5 live tiers (Embedded Library/Chemical",
+        "  Alignment are currently dormant — CLINICAL_PK_LIBRARY is empty),",
+        "  the drug is REJECTED from ML training with full documentation.",
         "  All aligned values are flagged with _alignment_flag=True in outputs.",
         "", sep,
     ]
@@ -956,37 +956,32 @@ def write_module_doc(output_dir: Path):
         f"{sep}\n\n"
         f"{'─'*70}\n  OVERVIEW\n{'─'*70}\n"
         "Clinical PK data engine — fetches Half-Life, Clearance, Vd, Bioavailability,\n"
-        "CSF penetration, protein binding from 7 tiers + chemical alignment fallback.\n\n"
+        "CSF penetration, protein binding from 5 live tiers, plus two dormant\n"
+        "fallback tiers described below.\n\n"
         "TIER SEQUENCE (for Half_Life_Days):\n"
         "  1. DrugBank API               (requires DRUGBANK_API_KEY)\n"
         "  2. DailyMed FDA               (public, NLM REST API)\n"
         "  3. OpenFDA Drug Label         (public, FDA structured data)\n"
         "  4. PubChem Pharmacology       (public, annotation sections)\n"
         "  5. PubMed NLP Scraper         (10 papers, regex PK extraction)\n"
-        "  6. Embedded Library           (500+ drugs, curated from FDA labels)\n"
-        "  7. Chemical Alignment         (Tanimoto ECFP4 or physico-chem similarity)\n\n"
-        f"{'─'*70}\n  CHEMICAL ALIGNMENT\n{'─'*70}\n"
-        "When all tiers fail, the engine finds the most similar drug in the library\n"
-        "by Tanimoto fingerprint similarity (if RDKit available) or MW/LogP\n"
-        "physicochemical similarity.\n\n"
-        "Every alignment is documented with:\n"
-        "  - Surrogate drug name and Tanimoto score\n"
-        "  - MW comparison (target vs surrogate)\n"
-        "  - Uncertainty band (±25–50% depending on similarity)\n"
-        "  - Which databases were tried and failed\n"
-        "  - The specific scientific reason for the gap\n\n"
+        "  6. Embedded Library           (currently empty — see below)\n"
+        "  7. Chemical Alignment         (currently a no-op — see below)\n\n"
+        f"{'─'*70}\n  EMBEDDED LIBRARY / CHEMICAL ALIGNMENT — CURRENTLY DORMANT\n{'─'*70}\n"
+        "CLINICAL_PK_LIBRARY was deliberately emptied in v22.1 (project mandate:\n"
+        "no hardcoded drug data — see the comment at its definition). Tiers 6 and 7\n"
+        "still run, cost nothing, and stay in the cascade in case the library is\n"
+        "repopulated later, but with an empty library neither can find a candidate:\n"
+        "tier 6 always returns None and tier 7's Tanimoto/physicochemical similarity\n"
+        "search always finds zero candidates. In the engine's current state, only\n"
+        "tiers 1-5 (live API/literature lookups) can ever resolve Half_Life_Days —\n"
+        "if all five fail, the drug goes to Strict Rejection, not to a fabricated\n"
+        "surrogate value.\n\n"
         f"{'─'*70}\n  WHY ChEMBL DOESN'T RETURN Half-Life\n{'─'*70}\n"
         "ChEMBL is a bioactivity database (IC50, Ki, EC50), NOT a PK database.\n"
         "Half-life values are NOT in ChEMBL's data model — they come from\n"
         "clinical studies, not binding assays.\n"
         "This engine routes to the correct clinical databases (DailyMed, OpenFDA)\n"
-        "that DO contain PK data.\n\n"
-        f"{'─'*70}\n  EMBEDDED LIBRARY\n{'─'*70}\n"
-        "500+ common drugs with curated PK values from:\n"
-        "  - FDA drug labels (definitive source)\n"
-        "  - Rowland & Tozer Clinical Pharmacokinetics 5th ed.\n"
-        "  - Goodman & Gilman 13th ed.\n"
-        "  - Individual pivotal PK trials\n"
+        "that DO contain PK data.\n"
         f"{sep}\n"
     )
     (output_dir / "cerebro_clinical_data_engine.py_DOCUMENTATION.txt").write_text(
