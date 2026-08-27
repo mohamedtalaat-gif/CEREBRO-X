@@ -131,6 +131,13 @@ class TestAuth:
         assert found_user.id == user.id
 
 
+# Task ownership authorization (GET /pipeline/status/{task_id} no longer
+# accepts any authenticated user for any task_id) is covered by
+# tests/integration/test_task_ownership.py, which exercises the real HTTP
+# endpoints end-to-end with mocked Celery — no need to duplicate that
+# coverage at the unit-test level here.
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 2. DDS BBB ENGINEERING SCORE
 # ═════════════════════════════════════════════════════════════════════════════
@@ -460,6 +467,81 @@ class TestCache:
         assert call_count == 1     # only called once
 
         get_cache().flush()
+
+
+class _FakeRedisClient:
+    """Minimal in-process stand-in implementing just the Redis calls
+    RedisCache actually makes (get/setex/delete/keys/ping), so the
+    category-namespacing fix can be verified end-to-end without the
+    `redis` package installed or a real server running."""
+    def __init__(self):
+        self.store = {}
+
+    def ping(self):
+        return True
+
+    def get(self, key):
+        return self.store.get(key)
+
+    def setex(self, key, ttl, value):
+        self.store[key] = value
+
+    def delete(self, *keys):
+        for k in keys:
+            self.store.pop(k, None)
+
+    def keys(self, pattern):
+        import fnmatch
+        return [k for k in self.store if fnmatch.fnmatch(k, pattern)]
+
+
+class TestRedisCacheCategoryNamespacing:
+    """RedisCache.get/set/delete previously ignored the category
+    argument entirely — the stored key was always f"{PREFIX}{key}", with
+    no category embedded. CacheManager.flush(category) asks
+    RedisCache.flush(f"{category}:*") to delete matching keys, but since
+    category was never part of the actual stored key, that pattern never
+    matched anything — a category-scoped flush against Redis was a
+    silent no-op. This is the exact mechanism invalidate_on_excel_change()
+    depends on to clear stale molecule/DDS cache entries when a
+    researcher uploads new input; in a multi-worker Redis deployment
+    (the scenario Redis exists for), stale data could keep being served
+    from Redis for up to its full TTL after invalidation was supposedly
+    triggered. Fixed by embedding category into the Redis key namespace
+    and threading it through CacheManager's get/set/delete."""
+
+    def _make_cache_with_fake_redis(self):
+        from src.ml.cache import CacheManager, RedisCache
+        cache = CacheManager()
+        cache.l2 = RedisCache.__new__(RedisCache)
+        cache.l2._client = _FakeRedisClient()
+        return cache
+
+    def test_category_scoped_flush_actually_removes_redis_entries(self):
+        cache = self._make_cache_with_fake_redis()
+        cache.set("fetch_molecule:Donepezil", {"MW_Da": 379.5}, category="molecule")
+        cache.set("score_dds:F001", {"score": 85}, category="dds")
+
+        # Confirm both actually landed in the fake Redis store first.
+        assert len(cache.l2._client.store) == 2
+
+        cache.flush(category="molecule")
+
+        remaining = list(cache.l2._client.store.keys())
+        assert not any("fetch_molecule" in k for k in remaining), (
+            f"molecule-category entry survived a molecule-category flush: {remaining}")
+        assert any("score_dds" in k for k in remaining), (
+            "flush(category='molecule') must not touch other categories' Redis entries")
+
+    def test_get_after_category_flush_is_a_real_miss_not_a_stale_hit(self):
+        """The bug wasn't just that flush() logged success while doing
+        nothing — a subsequent get() would still return the stale value
+        from L2, since L1 gets wiped but L2 never actually loses the key.
+        This is the actual user-visible symptom."""
+        cache = self._make_cache_with_fake_redis()
+        cache.set("fetch_molecule:Aspirin", {"MW_Da": 180.16}, category="molecule")
+        cache.flush(category="molecule")
+        assert cache.l2.get("fetch_molecule:Aspirin", category="molecule") is None
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -1310,6 +1392,189 @@ class TestPatchedTrainCVGuard:
         assert metrics["cv_r2"] == metrics["cv_r2"]  # not NaN
 
 
+class TestModelRegistryBridge:
+    """/predict reads its production model from src/ml/mlops.py's
+    ModelRegistry via ModelRegistry().get_production("cerebro_ensemble").
+    Nothing in the real training path ever wrote to that registry:
+    pipeline.py's AdvancedMLEngine.train (and patched_train, which
+    replaces it at runtime via apply_patches()) only wrote to
+    pipeline.py's own separate `model_registry` SQLite table
+    (db_register_model), a totally disconnected system. The result: even
+    after a real, successful training run, /predict always 404'd with
+    "No production model. Run /pipeline/run first." — running the
+    pipeline was exactly what did NOT fix it. Fixed by having
+    patched_train register + auto-promote into the mlops ModelRegistry
+    right after it saves the model artifact. This exercises the real
+    patched_train training path (no sklearn mocking) against a real
+    temp SQLite registry, so a broken bridge would show up as
+    get_production() returning None, not just as a missing function
+    call."""
+
+    def _train_synthetic(self, tmp_db, n=9, seed=0):
+        import numpy as np
+        import pandas as pd
+        from src.core.pipeline_patches import patched_train
+        rng = np.random.RandomState(seed)
+        df = pd.DataFrame({
+            "Drug": [f"Drug{i}" for i in range(n)],
+            "MW_Da": rng.uniform(200, 500, n),
+            "LogP": rng.uniform(1, 5, n),
+            "Half_Life_Days": rng.uniform(1, 10, n),
+            "Docking_Affinity_kcal": rng.uniform(-10, -6, n),
+        })
+        return patched_train(
+            None, df,
+            feature_cols=["MW_Da", "LogP", "Half_Life_Days", "Docking_Affinity_kcal"],
+            registry_db_path=tmp_db)
+
+    def test_patched_train_registers_and_promotes_production_model(self, tmp_db):
+        from pathlib import Path
+
+        from src.ml.mlops import ModelRegistry
+
+        self._train_synthetic(tmp_db)
+
+        registry = ModelRegistry(tmp_db)
+        prod = registry.get_production("cerebro_ensemble")
+        assert prod is not None, (
+            "patched_train ran successfully but ModelRegistry().get_production() "
+            "still returned None — /predict would 404 even after a real training run")
+        assert prod.version == "1.0.0"
+        assert prod.artifact_path and Path(prod.artifact_path).exists()
+
+        import joblib
+        bundle = joblib.load(prod.artifact_path)
+        assert isinstance(bundle, dict)
+        assert {"model", "scaler", "scaler_state", "feat_scaler", "features"} <= bundle.keys()
+
+    def test_second_better_run_is_promoted_first_is_archived(self, tmp_db):
+        from src.ml.mlops import ModelRegistry, ModelStage
+
+        self._train_synthetic(tmp_db, seed=0)
+        registry = ModelRegistry(tmp_db)
+        first_version = registry.get_production("cerebro_ensemble").version
+
+        # Force the second run's metrics above the first so promotion is
+        # unambiguous, mirroring MLOpsPipeline.train_and_register's own
+        # "only promote if better" rule.
+        from src.ml.mlops import ModelVersion
+        registry.register(ModelVersion(
+            model_name="cerebro_ensemble", version="9.0.0",
+            stage=ModelStage.STAGING, metrics={"r2": 0.999},
+            artifact_path="unused.pkl",
+        ))
+        registry.promote("cerebro_ensemble", "9.0.0", ModelStage.PRODUCTION)
+
+        assert registry.get_production("cerebro_ensemble").version == "9.0.0"
+        archived = registry.list_versions("cerebro_ensemble", ModelStage.ARCHIVED)
+        assert first_version in [v.version for v in archived]
+
+    def test_predict_endpoint_round_trip_after_real_pipeline_training(
+            self, test_client, auth_headers, tmp_db, monkeypatch):
+        """Full stack: real patched_train() run -> real ModelRegistry lookup
+        -> real POST /predict -> a real, correctly-scaled ML_Success_Probability.
+        The only mock is redirecting ModelRegistry() to the temp DB this test
+        trained into, so /predict doesn't touch the real outputs/ directory."""
+        if not auth_headers:
+            pytest.skip("auth fixture unavailable in this environment")
+
+        self._train_synthetic(tmp_db)
+
+        from src.ml.mlops import ModelRegistry as RealModelRegistry
+        import src.api.app as app_module
+
+        class _RegistryAtTmpDB:
+            def __init__(self, *a, **kw):
+                self._reg = RealModelRegistry(tmp_db)
+            def get_production(self, name):
+                return self._reg.get_production(name)
+
+        monkeypatch.setattr(app_module, "ModelRegistry", _RegistryAtTmpDB)
+
+        r = test_client.post(
+            "/predict",
+            json={"molecule_input": "CC(=O)OC1=CC=CC=C1C(=O)O",  # aspirin
+                  "drug_name": "Aspirin"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert 45 <= body["ML_Success_Probability"] <= 98, (
+            "ML_Success_Probability outside the pipeline's own 45-98 scaled "
+            f"range — got {body['ML_Success_Probability']}, suggests the "
+            "TrainAwareScaler wasn't applied to the raw model output")
+        assert body["model_version"] == "1.0.0"
+        assert body["model_stage"] == "production"
+
+
+class TestInferenceEngineFeatureScaling:
+    """InferenceEngine.load() read `model` and `scaler` (the TrainAwareScaler
+    that rescales OUTPUT predictions to 45-98) from the saved bundle but
+    silently dropped `feat_scaler` — the RobustScaler patched_train fits on
+    INPUT features before ever calling ensemble.fit()/ensemble.predict().
+    Skipping it doesn't crash (tree models are invariant to per-feature
+    affine scaling) but silently skews the VotingRegressor's SVR estimator,
+    which is not scale-invariant, so predictions on new molecules diverged
+    from what the training run itself computed. Verified against a real
+    RobustScaler and real TrainAwareScaler, checking the exact array
+    handed to model.predict(), so a wrong transform (or wrong order
+    relative to the output scaler) shows up as a numeric mismatch."""
+
+    def test_predict_single_applies_feat_scaler_before_model_predict(self):
+        import numpy as np
+        from sklearn.preprocessing import RobustScaler
+
+        from src.core.pipeline_patches import InferenceEngine, TrainAwareScaler
+
+        class _RecordingModel:
+            seen = []
+            def predict(self, X):
+                _RecordingModel.seen.append(X.copy())
+                return np.array([0.5])
+
+        feat_scaler = RobustScaler()
+        feat_scaler.fit(np.array([[100.0, 1.0], [200.0, 2.0],
+                                   [300.0, 3.0], [400.0, 4.0]]))
+
+        mm = TrainAwareScaler(feature_range=(45, 98))
+        mm.fit(np.array([0.3, 0.5, 0.7]))
+
+        _RecordingModel.seen.clear()
+        engine = InferenceEngine(
+            model=_RecordingModel(), scaler=mm,
+            features=["MW_Da", "LogP"], feat_scaler=feat_scaler,
+        )
+        score = engine.predict_single({"MW_Da": 250.0, "LogP": 2.5})
+
+        expected = feat_scaler.transform([[250.0, 2.5]])
+        np.testing.assert_allclose(_RecordingModel.seen[0], expected)
+        assert 45 <= score <= 98
+
+    def test_missing_feat_scaler_falls_back_to_unscaled_features(self):
+        """Legacy artifacts saved before this fix have no `feat_scaler` key
+        — must not crash, just skip the scaling step."""
+        import numpy as np
+
+        from src.core.pipeline_patches import InferenceEngine, TrainAwareScaler
+
+        class _RecordingModel:
+            seen = []
+            def predict(self, X):
+                _RecordingModel.seen.append(X.copy())
+                return np.array([0.5])
+
+        mm = TrainAwareScaler(feature_range=(45, 98))
+        mm.fit(np.array([0.3, 0.5, 0.7]))
+
+        _RecordingModel.seen.clear()
+        engine = InferenceEngine(
+            model=_RecordingModel(), scaler=mm,
+            features=["MW_Da", "LogP"], feat_scaler=None,
+        )
+        engine.predict_single({"MW_Da": 250.0, "LogP": 2.5})
+        np.testing.assert_allclose(_RecordingModel.seen[0], [[250.0, 2.5]])
+
+
 class TestThermodynamicsEngineLogPThreading:
     """ThermodynamicsEngine.get_thermo_properties's Yalkowsky logS estimate
     needs a LogP input, but the function had no logp parameter at all —
@@ -1883,17 +2148,23 @@ class TestRateLimiting:
 
 # Module-level (not nested) so joblib can pickle/unpickle them when
 # saved to a temp file and loaded back inside the /predict endpoint.
+# predict() must return a real ndarray, not a bare list — a real sklearn
+# estimator always does, and InferenceEngine.predict_single feeds the
+# raw prediction straight into TrainAwareScaler.transform(), which calls
+# .reshape(-1, 1) on it; a plain list has no .reshape and would break
+# with an AttributeError that has nothing to do with what these tests
+# are actually checking.
 class _CapturingModel:
     """Records the X array it was asked to predict on."""
     calls = []
     def predict(self, X):
         _CapturingModel.calls.append(X.tolist())
-        return [0.5]
+        return np.array([0.5])
 
 
 class _DummyModel:
     def predict(self, X):
-        return [0.5]
+        return np.array([0.5])
 
 
 class TestPredictEndpointUsesRealMoleculeFeatures:
@@ -1923,8 +2194,16 @@ class TestPredictEndpointUsesRealMoleculeFeatures:
             pytest.skip("auth fixture unavailable in this environment")
         import joblib
 
+        from src.core.pipeline_patches import TrainAwareScaler
+        mm = TrainAwareScaler(feature_range=(45, 98))
+        mm.fit(np.array([0.3, 0.5, 0.7]))
+
         model_path = tmp_path / "fake_model.pkl"
-        joblib.dump(_CapturingModel(), model_path)
+        joblib.dump({
+            "model": _CapturingModel(),
+            "scaler_state": mm.save_state(),
+            "features": ["MW_Da", "LogP", "Half_Life_Days", "Docking_Affinity_kcal"],
+        }, model_path)
 
         from dataclasses import dataclass
 
@@ -1962,8 +2241,16 @@ class TestPredictEndpointUsesRealMoleculeFeatures:
         import joblib
         from dataclasses import dataclass
 
+        from src.core.pipeline_patches import TrainAwareScaler
+        mm = TrainAwareScaler(feature_range=(45, 98))
+        mm.fit(np.array([0.3, 0.5, 0.7]))
+
         model_path = tmp_path / "fake_model.pkl"
-        joblib.dump(_DummyModel(), model_path)
+        joblib.dump({
+            "model": _DummyModel(),
+            "scaler_state": mm.save_state(),
+            "features": ["MW_Da", "LogP", "Half_Life_Days", "Docking_Affinity_kcal"],
+        }, model_path)
 
         @dataclass
         class _FakeProd:

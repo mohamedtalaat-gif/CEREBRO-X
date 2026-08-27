@@ -59,6 +59,7 @@ from cerebro_auth import (
     AuthBase,
     AuthService,
     Role,
+    TaskOwnershipModel,
     TokenEngine,
     TokenResponse,
     UserCreate,
@@ -182,6 +183,24 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def _record_task_owner(db: Session, task_id: str, user_id: int) -> None:
+    """Record who submitted a Celery task, so status/result polling can be
+    restricted to the submitter (or an admin)."""
+    db.add(TaskOwnershipModel(task_id=task_id, user_id=user_id))
+    db.commit()
+
+
+def _require_task_access(db: Session, task_id: str, user: UserModel) -> None:
+    """Raise 403 unless `user` submitted `task_id` or is an admin."""
+    if user.role == Role.ADMIN:
+        return
+    owner = db.query(TaskOwnershipModel).filter(
+        TaskOwnershipModel.task_id == task_id
+    ).first()
+    if not owner or owner.user_id != user.id:
+        raise HTTPException(403, "You do not have access to this task")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -469,6 +488,7 @@ async def deep_health(user: UserModel = Depends(get_current_user)):
 async def run_pipeline(
     req:  PipelineRunRequest,
     user: UserModel = Depends(require_role(Role.ADMIN, Role.RESEARCHER)),
+    db:   Session   = Depends(get_db),
 ):
     """
     Submit a full pipeline run.
@@ -480,6 +500,7 @@ async def run_pipeline(
 
     if req.async_mode and _HAS_CELERY:
         task = pipeline_full_task.delay({"drugs": req.drugs})
+        _record_task_owner(db, str(task.id), user.id)
         return {
             "status":  "submitted",
             "task_id": str(task.id),
@@ -504,10 +525,13 @@ async def run_pipeline(
 async def pipeline_status(
     task_id: str,
     user: UserModel = Depends(get_current_user),
+    db:   Session   = Depends(get_db),
 ):
     """Poll Celery task status."""
     if not _HAS_CELERY:
         raise HTTPException(503, "Celery not available")
+
+    _require_task_access(db, task_id, user)
 
     from celery.result import AsyncResult
     result = AsyncResult(task_id, app=celery_app)
@@ -530,11 +554,13 @@ async def pipeline_status(
 async def run_dds(
     req:  DDSRunRequest,
     user: UserModel = Depends(require_role(Role.ADMIN, Role.RESEARCHER)),
+    db:   Session   = Depends(get_db),
 ):
     """Submit DDS formulation analysis (async)."""
     if _HAS_CELERY:
         from cerebro_orchestrator import celery_app
         task = celery_app.send_task("cerebro.run_dds")
+        _record_task_owner(db, str(task.id), user.id)
         return {"status": "submitted", "task_id": str(task.id)}
     return {"status": "started", "mode": "sync"}
 
@@ -580,8 +606,8 @@ async def predict_molecule(
         raise HTTPException(404, "No production model. Run /pipeline/run first.")
 
     try:
-        import joblib
-        model = joblib.load(prod.artifact_path)
+        from cerebro_pipeline_patches import InferenceEngine
+        engine = InferenceEngine.load(prod.artifact_path)
     except Exception as e:
         raise HTTPException(500, f"Model load failed: {e}")
 
@@ -605,17 +631,19 @@ async def predict_molecule(
     # uses in src/core/pipeline.py — no separate docking run here.
     docking_kcal = round(-8.5 + (logp * 0.3) - (mw_da / 180_000), 3)
 
-    import numpy as np
-    X = np.array([[mw_da, logp, hl_d, docking_kcal]])
-
     try:
-        score = float(model.predict(X)[0])
+        score = engine.predict_single({
+            "MW_Da":                 mw_da,
+            "LogP":                  logp,
+            "Half_Life_Days":        hl_d,
+            "Docking_Affinity_kcal": docking_kcal,
+        })
     except Exception as e:
         raise HTTPException(500, f"Prediction failed: {e}")
 
     return {
         "drug_name":              req.drug_name or req.molecule_input[:30],
-        "ML_Success_Probability": round(score, 4),
+        "ML_Success_Probability": score,
         "model_version":          prod.version,
         "model_stage":            prod.stage,
     }
@@ -936,6 +964,11 @@ def _sync_pipeline_run(drugs: list[str]):
     try:
         sys.path.insert(0, str(SCRIPT_DIR))
         import CEREBRO_Pipeline as cp
+        try:
+            from cerebro_pipeline_patches import apply_patches
+            apply_patches(cp)
+        except ImportError:
+            log.warning("[SYNC] cerebro_pipeline_patches.py not found — running unpatched")
         cp.setup_workspace()
         df_mab = cp.CascadeDataEngine.build_mab_dataset(drugs)
         if df_mab.empty:

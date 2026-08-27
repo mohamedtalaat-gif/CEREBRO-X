@@ -275,6 +275,17 @@ if _HAS_SQLALCHEMY:
         revoked     = Column(Boolean, default=False)
         created_at  = Column(DateTime, default=datetime.utcnow)
 
+    class TaskOwnershipModel(AuthBase):
+        """Records which user submitted a given Celery task_id, so status/result
+        polling endpoints can enforce that only the submitter (or an admin) may
+        read that task's output."""
+        __tablename__ = "task_ownership"
+
+        id         = Column(Integer, primary_key=True, index=True)
+        task_id    = Column(String(155), unique=True, nullable=False, index=True)
+        user_id    = Column(Integer, ForeignKey("users.id"), nullable=False)
+        created_at = Column(DateTime, default=datetime.utcnow)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. Pydantic Schemas

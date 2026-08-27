@@ -165,35 +165,50 @@ class RedisCache:
                 log.warning(f"[CACHE:REDIS] Unavailable: {e}")
                 self._client = None
 
-    def _key(self, key: str) -> str:
-        return f"{self.PREFIX}{key}"
+    def _key(self, key: str, category: str = "general") -> str:
+        # category is embedded in the key namespace so flush(pattern) can
+        # actually find these entries — get/set/delete previously ignored
+        # category entirely (key was just f"{PREFIX}{key}"), so
+        # flush(f"{category}:*") never matched any real stored key and
+        # was a silent no-op. Confirmed directly: a key built by the
+        # @cached decorator for category="molecule" on fetch_molecule()
+        # is stored as "cerebro:fetch_molecule:Donepezil", which doesn't
+        # start with "cerebro:molecule:" — the pattern CacheManager.flush
+        # searches for. That meant invalidate_on_excel_change() (whose
+        # entire job is invalidating stale molecule/DDS data after a new
+        # Excel upload) never actually cleared Redis in a multi-worker
+        # deployment, only the in-process L1 cache and the SQLite L3
+        # tier — stale cached data could keep being served from Redis
+        # for up to its full TTL (up to 24h for molecule data) after the
+        # researcher uploaded new input.
+        return f"{self.PREFIX}{category}:{key}"
 
-    def get(self, key: str) -> Any | None:
+    def get(self, key: str, category: str = "general") -> Any | None:
         if not self._client:
             return None
         try:
-            raw = self._client.get(self._key(key))
+            raw = self._client.get(self._key(key, category))
             if raw is None:
                 return None
             return json.loads(raw)
         except Exception:
             return None
 
-    def set(self, key: str, value: Any, ttl: int = 3600):
+    def set(self, key: str, value: Any, ttl: int = 3600, category: str = "general"):
         if not self._client:
             return
         try:
             self._client.setex(
-                self._key(key), ttl,
+                self._key(key, category), ttl,
                 json.dumps(value, default=str),
             )
         except Exception as e:
             log.warning(f"[CACHE:REDIS] Set failed: {e}")
 
-    def delete(self, key: str):
+    def delete(self, key: str, category: str = "general"):
         if self._client:
             try:
-                self._client.delete(self._key(key))
+                self._client.delete(self._key(key, category))
             except Exception as _exc_bare:
                 pass
 
@@ -306,7 +321,7 @@ class CacheManager:
             return val
 
         # L2
-        val = self.l2.get(key)
+        val = self.l2.get(key, category)
         if val is not None:
             self.l1.set(key, val)  # backfill L1
             return val
@@ -315,7 +330,7 @@ class CacheManager:
         val = self.l3.get(key)
         if val is not None:
             self.l1.set(key, val)
-            self.l2.set(key, val)
+            self.l2.set(key, val, category=category)
             return val
 
         return None
@@ -323,12 +338,12 @@ class CacheManager:
     def set(self, key: str, value: Any, ttl: int = 3600,
             category: str = "general"):
         self.l3.set(key, value, ttl, category)
-        self.l2.set(key, value, ttl)
+        self.l2.set(key, value, ttl, category)
         self.l1.set(key, value, ttl)
 
-    def delete(self, key: str):
+    def delete(self, key: str, category: str = "general"):
         self.l1.delete(key)
-        self.l2.delete(key)
+        self.l2.delete(key, category)
         self.l3.delete(key)
 
     def flush(self, category: str = None):

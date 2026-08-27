@@ -116,8 +116,50 @@ class TrainAwareScaler:
         return obj
 
 
+def _register_model_version(model_name: str, artifact_path: str, metrics: dict,
+                            run_id: str, registry_db_path=None) -> str:
+    """
+    Bridges a freshly trained artifact into the API-facing MLOps registry
+    (src/ml/mlops.py's ModelRegistry) and auto-promotes it to production.
+
+    Without this, ModelRegistry().get_production("cerebro_ensemble") never
+    finds anything — pipeline.py's own model_registry table (db_register_model)
+    and this registry are entirely separate SQLite databases, and nothing
+    else in the codebase ever calls ModelRegistry().register()/.promote()
+    from the real training path. /predict would 404 forever even after a
+    successful, correctly-scored training run.
+    """
+    from src.ml.mlops import ModelRegistry, ModelStage, ModelVersion
+
+    registry = ModelRegistry(registry_db_path) if registry_db_path else ModelRegistry()
+    latest = registry.get_latest(model_name)
+    if latest:
+        parts = latest.version.split(".")
+        next_v = f"{parts[0]}.{int(parts[1]) + 1}.0"
+    else:
+        next_v = "1.0.0"
+
+    registry.register(ModelVersion(
+        model_name=model_name,
+        version=next_v,
+        stage=ModelStage.STAGING,
+        metrics=metrics,
+        artifact_path=artifact_path,
+        run_id=run_id,
+        description="Auto-registered by patched_train",
+    ))
+
+    prod = registry.get_production(model_name)
+    if not prod or metrics.get("r2", 0) > prod.metrics.get("r2", 0):
+        registry.promote(model_name, next_v, ModelStage.PRODUCTION)
+        log.info(f"  [REGISTRY] Promoted {model_name} v{next_v} → production "
+                 f"(R²={metrics.get('r2', 0):.4f})")
+    return next_v
+
+
 def patched_train(cls, df: pd.DataFrame, feature_cols: list[str],
-                  target_formula=None, run_id: str = None):
+                  target_formula=None, run_id: str = None,
+                  registry_db_path=None):
     """
     Drop-in replacement for AdvancedMLEngine.train().
     Key fix: TrainAwareScaler replaces MinMaxScaler.fit_transform on all_X.
@@ -357,6 +399,17 @@ def patched_train(cls, df: pd.DataFrame, feature_cols: list[str],
                 "fitted_at":     datetime.utcnow().isoformat(),
             }, mpath)
             log.info(f"  Model + leakage-free scaler saved → {mpath}")
+
+            try:
+                _register_model_version(
+                    model_name="cerebro_ensemble",
+                    artifact_path=mpath,
+                    metrics={"r2": r2, "rmse": rmse, "mae": mae, "n_samples": len(X)},
+                    run_id=run_id,
+                    registry_db_path=registry_db_path,
+                )
+            except Exception as e:
+                log.warning(f"  MLOps registry update failed: {e}")
         except Exception as e:
             log.warning(f"  Model save failed: {e}")
 
@@ -388,11 +441,12 @@ class InferenceEngine:
     """
 
     def __init__(self, model, scaler: TrainAwareScaler,
-                 features: list[str], run_id: str = ""):
-        self.model    = model
-        self.scaler   = scaler
-        self.features = features
-        self.run_id   = run_id
+                 features: list[str], run_id: str = "", feat_scaler=None):
+        self.model       = model
+        self.scaler      = scaler
+        self.features    = features
+        self.run_id      = run_id
+        self.feat_scaler = feat_scaler  # RobustScaler fitted on train features (may be absent in legacy artifacts)
 
     @classmethod
     def load(cls, pkl_path: str) -> "InferenceEngine":
@@ -417,7 +471,16 @@ class InferenceEngine:
             scaler._train_max = 1.0
 
         return cls(model=bundle["model"], scaler=scaler,
-                   features=bundle["features"], run_id=bundle.get("run_id",""))
+                   features=bundle["features"], run_id=bundle.get("run_id",""),
+                   feat_scaler=bundle.get("feat_scaler"))
+
+    def _scale_features(self, X: np.ndarray) -> np.ndarray:
+        """Applies the same train-fitted feature RobustScaler patched_train
+        used before fitting the ensemble — omitting this step still lets
+        RF/GBR/XGB predict (tree splits are invariant to per-feature affine
+        scaling) but silently skews SVR's contribution to the ensemble,
+        since SVR is not scale-invariant."""
+        return self.feat_scaler.transform(X) if self.feat_scaler is not None else X
 
     def predict_single(self, profile: dict[str, float]) -> float:
         """
@@ -425,6 +488,7 @@ class InferenceEngine:
         Uses .transform() on the TRAINING scaler — NO re-fitting.
         """
         X = np.array([[profile.get(f, 0.0) for f in self.features]])
+        X = self._scale_features(X)
         raw_pred = self.model.predict(X)
         score    = self.scaler.transform(raw_pred)[0]
         return round(float(np.clip(score, 45, 98)), 2)
@@ -437,6 +501,7 @@ class InferenceEngine:
         df = df.copy()
         avail = [f for f in self.features if f in df.columns]
         X     = df[avail].fillna(0).values
+        X     = self._scale_features(X)
         raw   = self.model.predict(X)
         df["ML_Success_Probability"] = np.clip(
             self.scaler.transform(raw), 45, 98)

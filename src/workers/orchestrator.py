@@ -607,6 +607,11 @@ if _HAS_CELERY:
         try:
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
             import CEREBRO_Pipeline as cp
+            try:
+                from cerebro_pipeline_patches import apply_patches
+                apply_patches(cp)
+            except ImportError:
+                log.warning("[CELERY] cerebro_pipeline_patches.py not found — running unpatched")
             cp.setup_workspace()
 
             drugs = config.get("drugs", []) if config else []
@@ -648,6 +653,11 @@ if _HAS_CELERY:
         try:
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
             import CEREBRO_Pipeline as cp
+            try:
+                from cerebro_pipeline_patches import apply_patches
+                apply_patches(cp)
+            except ImportError:
+                log.warning("[CELERY:ML] cerebro_pipeline_patches.py not found — running unpatched")
 
             drugs = model_config.get("drugs", []) if model_config else []
             if not drugs:
