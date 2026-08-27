@@ -719,9 +719,33 @@ class TestRealDockingEngine:
         assert result["docking_method"] == "LIE approximation (fallback — Vina unavailable)"
         assert result["confidence"] == "LOW — LIE approximation only"
         assert result["reference"].startswith("Aqvist 1994")
-        # Kd back-calculated from the same delta_G via RT ln(Kd) — internally
-        # consistent, not a separately-hardcoded number.
-        assert result["Kd_nM"] > 0
+        # Kd back-calculated from the same delta_G via RT ln(Kd), R=1.987e-3
+        # kcal/(mol·K) — regression-pinned to the exact formula, not just
+        # "> 0": this used to divide by (8.314 * 310), mixing the SI
+        # (joule-based) gas constant against delta_G*1000 (kcal converted to
+        # cal) with no unit conversion between them, understating the
+        # exponent by the ~4.18x cal/joule ratio and making Kd wrong by 3-8
+        # orders of magnitude across the realistic ΔG range — every input
+        # landed in "Weak (>1µM)" regardless of the real computed binding
+        # strength. Fixed to match the same R and kcal-consistent units the
+        # real Vina path (a few dozen lines below) already used correctly.
+        import math
+        RT = 1.987e-3 * 310
+        expected_Kd_nM = round(math.exp(expected_dG / RT) * 1e9, 3)
+        assert result["Kd_nM"] == expected_Kd_nM
+
+    def test_lie_estimate_kd_classification_spans_the_full_range(self):
+        """Regression test for the same Kd bug from the other direction:
+        confirms the classification actually differentiates strong from
+        weak binders now, instead of every realistic input collapsing
+        into the same "Weak" bucket."""
+        from src.core.real_docking_engine import _lie_estimate
+
+        weak = _lie_estimate(ligand_mw=350, logp=0.5, tpsa=20, hbd=0, hba=0, is_peptide=False)
+        strong = _lie_estimate(ligand_mw=350, logp=8.0, tpsa=5, hbd=10, hba=15, is_peptide=False)
+        assert weak["Kd_class"] == "Weak (>1µM)"
+        assert strong["Kd_class"] == "Tight (<10nM)"
+        assert strong["Kd_nM"] < weak["Kd_nM"]
 
     def test_run_autodock_vina_falls_back_safely_without_pdb_id(self):
         """With no valid PDB ID, this must take the deterministic LIE path

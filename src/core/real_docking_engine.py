@@ -38,7 +38,17 @@ def _lie_estimate(ligand_mw: float, logp: float, tpsa: float,
     alpha = 0.181; beta = 0.137
     delta_G = -(alpha * logp + beta * (50 - tpsa/5) + 0.5 * (hbd + hba) * 0.3)
     delta_G = max(-20, min(-1, delta_G))
-    Kd_M = math.exp(delta_G * 1000 / (8.314 * 310))
+    # ΔG = RT·ln(Kd), R=1.987e-3 kcal/(mol·K) — same constant and units
+    # already used for this identical conversion in run_autodock_vina below.
+    # This used to divide by (8.314 * 310): 8.314 is the SI gas constant in
+    # J/(mol·K), mismatched against delta_G*1000 (kcal/mol converted to
+    # cal/mol) — mixing joules and calories without converting between them
+    # (1 cal = 4.184 J) understated the exponent by that same ~4.18x factor,
+    # which compounds inside exp() into a Kd wrong by 3-8 orders of
+    # magnitude across the realistic ΔG range, always landing in the
+    # "Weak (>1µM)" bucket regardless of how strong the real binding was.
+    RT = 1.987e-3 * 310  # kcal/mol
+    Kd_M = math.exp(delta_G / RT)
     Kd_nM = Kd_M * 1e9
     return {
         "docking_method":      "LIE approximation (fallback — Vina unavailable)",
