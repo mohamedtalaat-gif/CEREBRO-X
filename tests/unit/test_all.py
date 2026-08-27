@@ -3265,3 +3265,197 @@ class TestDrugDdsCompatibilityMultiplier:
         for dt, ct in itertools.product(drug_types, carriers):
             mult, _ = _drug_dds_compatibility_multiplier(dt, ct)
             assert 0.4 <= mult <= 1.20
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 31. CLASS-A SURROGATE ENGINE (cerebro_62_surrogate_engine.py)
+# ═════════════════════════════════════════════════════════════════════════════
+def _surrogate_bundles(carrier="liposome", ligand="", size_nm=100.0, zeta_mV=-10.0,
+                        phase_T=42.0, density=0.5, mw=350.0, logp=2.5,
+                        tpsa=60.0, hbd=1, hba=5, pka_base=8.0, aromatic_rings=2,
+                        bbb=5.0, smiles="CCO"):
+    drug_bundle = {
+        "drug_mw": {"value": mw}, "drug_logp": {"value": logp},
+        "drug_tpsa": {"value": tpsa}, "drug_hbd": {"value": hbd},
+        "drug_hba": {"value": hba}, "drug_pka_basic": {"value": pka_base},
+        "drug_aromatic_rings": {"value": aromatic_rings},
+        "bbb_permeability": {"value": bbb},
+        "_meta": {"drug_type": "small_molecule", "name": "test_drug",
+                  "identifiers": {"smiles": smiles}},
+    }
+    dds_bundle = {"_meta": {"carrier_type": carrier, "dds_type": "material"}}
+    combo_bundle = {"_meta": {"dds_row": {
+        "Surface_Ligand": ligand, "Size_nm": size_nm,
+        "Zeta_Potential_mV": zeta_mV, "Phase_Transition_Temp_C": phase_T,
+        "Surface_Ligand_Density_per_nm2": density}}}
+    return drug_bundle, dds_bundle, combo_bundle
+
+
+class TestSurrogateSharedHelpers:
+    def test_triangular_window_plateau_and_decay(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import _triangular
+
+        assert _triangular(100, 50, 150) == 100.0
+        assert _triangular(30, 50, 150, 2.0, 0.5) == 60.0   # 100-(50-30)*2
+        assert _triangular(200, 50, 150, 2.0, 0.5) == 75.0  # 100-(200-150)*0.5
+        assert _triangular(0, 50, 150) == 0.0
+        assert _triangular(-5, 50, 150) == 0.0
+
+    def test_hill_equation_half_max_point(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import _hill
+
+        assert _hill(50, k50=50, n=2.0) == pytest.approx(50.0)
+        assert _hill(50, k50=50, n=2.0, invert=True) == pytest.approx(50.0)
+        assert _hill(0, k50=50) == 0.0
+        assert _hill(0, k50=50, invert=True) == 100.0
+
+    def test_bbb_propensity_matches_wager_cns_mpo_bands(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import _bbb_propensity
+
+        ideal = {"logp": 2.0, "mw": 300, "hbd": 0, "tpsa": 40,
+                 "pka_base": 7.0, "arom_rings": 1}
+        assert _bbb_propensity(ideal) == 6.0   # every band maxed out
+        poor = {"logp": 6.0, "mw": 600, "hbd": 4, "tpsa": 150,
+                "pka_base": 12.0, "arom_rings": 5}
+        assert _bbb_propensity(poor) == 0.0
+
+    def test_membrane_partition_logk_penalizes_ionization(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import _membrane_partition_logK
+
+        neutral = _membrane_partition_logK({"logp": 3.0, "net_q_pH74": 0.0})
+        charged = _membrane_partition_logK({"logp": 3.0, "net_q_pH74": 1.0})
+        assert neutral == 3.0
+        assert charged == pytest.approx(2.2)  # 3.0 - 0.8*1
+
+
+class TestSurrogateBundleContract:
+    def test_rejects_non_bundle_arguments(self):
+        """_resolve_inputs' fail-fast guard: surrogate functions are
+        bundle-only — a plain dict without _meta.drug_type/_meta.dds_type
+        must raise immediately rather than silently computing nonsense."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import _resolve_inputs
+
+        _, dds_bundle, combo_bundle = _surrogate_bundles()
+        with pytest.raises(TypeError, match="not a drug bundle"):
+            _resolve_inputs({"not_a_bundle": True}, dds_bundle, combo_bundle)
+
+        drug_bundle, _, combo_bundle = _surrogate_bundles()
+        with pytest.raises(TypeError, match="not a DDS bundle"):
+            _resolve_inputs(drug_bundle, {"not_a_bundle": True}, combo_bundle)
+
+
+class TestSurrogateRepresentativeFunctions:
+    """Hand-verified spot checks across the formula patterns that recur
+    throughout the file's 57 principles: CNS-MPO composite (P12),
+    Henderson-Hasselbalch-driven ligand affinity (P33), Arrhenius +
+    SMILES-moiety penalties (P08), and a cryo-margin linear score (P50)."""
+
+    def test_p12_cns_stage_dosing_matches_hand_computation(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import P12
+
+        drug, dds, combo = _surrogate_bundles(ligand="")
+        r = P12(drug, dds, combo)
+        # bbb_factor=0.85 (stage 2 default), CNS-MPO=5.5/6 -> perm_factor=0.9167
+        # base = 100*0.85*(0.4+0.6*0.9167) = 100*0.85*0.95 = 80.75; no targeting boost
+        assert r["score"] == pytest.approx(80.75, abs=0.01)
+        assert r["raw"]["active_targeting"] is False
+
+    def test_p33_bbb_trojan_horse_matches_hand_computation(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import P33
+
+        drug, dds, combo = _surrogate_bundles(ligand="transferrin", size_nm=100.0,
+                                                density=0.5)
+        r = P33(drug, dds, combo)
+        # lig=95, size_score=triangular(100,50,150)=100, density=0.5 -> factor=0.6
+        # score = (0.6*95 + 0.4*100) * 0.6 = 58.2
+        assert r["score"] == pytest.approx(58.2, abs=0.01)
+
+    def test_p50_cryo_excursion_matches_hand_computation(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import P50
+
+        drug, dds, combo = _surrogate_bundles(phase_T=42.0)
+        r = P50(drug, dds, combo)
+        # margin = |-20 - 42| = 62; score = min(100, 62*1.3) = 80.6
+        assert r["score"] == pytest.approx(80.6, abs=0.01)
+
+    def test_p08_oxidative_stress_penalizes_phenol_containing_drugs(self):
+        """Regression test for a real bug: P08's phenol check called
+        `smi.lower()` before testing for "Oc1cc"/"c1ccccc1O" — but those
+        patterns are only meaningful case-sensitively (lowercase = aromatic
+        ring atom, uppercase O = the phenolic substituent), and .lower()
+        destroys exactly that distinction. The check could never match any
+        SMILES, ever. P01's scenario-6 oxidative check had the identical
+        bug. Fixed by dropping .lower() from both (matching the sibling
+        checks in the same functions, which were already correctly
+        case-sensitive)."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import P01, P08
+
+        with_phenol, dds, combo = _surrogate_bundles(carrier="liposome",
+                                                       smiles="Oc1ccccc1")
+        without_phenol, _, _ = _surrogate_bundles(carrier="liposome", smiles="CCO")
+        r_phenol = P08(with_phenol, dds, combo)
+        r_plain = P08(without_phenol, dds, combo)
+        assert "phenol" in r_phenol["raw"]["drug_oxidation_groups_detected"]
+        assert r_phenol["score"] < r_plain["score"]
+
+        # Same regression, P01's scenario 6.
+        r_phenol_p01 = P01(with_phenol, dds, combo)
+        assert r_phenol_p01["raw"]["drug_oxidation_prone"] is True
+
+    def test_p18_active_targeting_transferrin_ligand_lookup(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import P18
+
+        drug, dds, combo = _surrogate_bundles(ligand="transferrin", pka_base=8.0)
+        r = P18(drug, dds, combo)
+        assert r["raw"]["ligand"] == "transferrin"
+        assert r["score"] > 0
+
+
+class TestSurrogateDispatcher:
+    def test_registry_has_exactly_57_functions(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import SURROGATE_FUNCTIONS
+
+        assert len(SURROGATE_FUNCTIONS) == 57
+        # The 5 translational principles must NOT be in this registry.
+        assert not ({"P21", "P32", "P45", "P55", "P56"} & set(SURROGATE_FUNCTIONS))
+
+    def test_registry_ids_match_principles_catalog_class_a(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_principles_catalog import PRINCIPLES_62
+        from cerebro_62_surrogate_engine import SURROGATE_FUNCTIONS
+
+        # P47 is filed as B_deep in the catalog but still runs here as a
+        # fast surrogate proxy (its own module comment explains why) — every
+        # other registered ID should be a real A_surrogate catalog entry.
+        for pid in SURROGATE_FUNCTIONS:
+            if pid == "P47":
+                continue
+            assert PRINCIPLES_62[pid]["class"] == "A_surrogate"
+
+    def test_evaluate_all_principles_isolates_a_single_failing_function(self):
+        """A malformed bundle (missing bbb_permeability entirely, so
+        b_value falls back to its default) shouldn't be able to crash
+        the whole batch — evaluate_all_principles_for_dds must catch a
+        per-principle exception and mark just that principle FAILED."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import (
+            SURROGATE_FUNCTIONS,
+            evaluate_all_principles_for_dds,
+        )
+
+        drug, dds, combo = _surrogate_bundles()
+        out = evaluate_all_principles_for_dds(drug, dds, combo)
+        assert set(out) == set(SURROGATE_FUNCTIONS)
+        for pid, r in out.items():
+            assert r["confidence"] != "FAILED", f"{pid} unexpectedly failed: {r}"

@@ -329,19 +329,6 @@ def _membrane_partition_logK(d: dict) -> float:
     return d["logp"] - 0.8 * abs(d["net_q_pH74"])
 
 
-def _stokes_einstein_diff(mw_da: float, T_K: float = 310.15,
-                            visc_pa_s: float = 6.91e-4) -> float:
-    """Stokes-Einstein diffusion coefficient (m²/s).
-
-    D = kT / (6πηr); r = 0.066 · MW^(1/3) Å (Wilke-Chang correlation).
-    T = 37°C body temp; η = blood plasma viscosity at 37°C.
-    """
-    if mw_da <= 0: return 0.0
-    k_B = 1.380649e-23
-    r_m = 6.6e-12 * (mw_da ** (1/3))   # in metres
-    return (k_B * T_K) / (6 * math.pi * visc_pa_s * r_m)
-
-
 def _hill(value: float, k50: float, n: float = 2.0,
             invert: bool = False) -> float:
     """Hill-equation activation curve, returns 0..100.
@@ -413,7 +400,17 @@ def P01(drug_bundle, dds_bundle, combo_bundle=None):
     # ─── Scenario 6: Oxidative stress ───────────────────────────────
     # Drugs with phenols (-OH on aromatic), thioethers (-S-), or aldehyde
     # are oxidation-prone.
-    ox_prone = ("c1ccccc1O" in smi.lower() or "S" in smi or "C=O" in smi)
+    # NOTE: these SMILES substring checks are intentionally case-SENSITIVE —
+    # lowercase letters denote aromatic ring atoms, uppercase denotes the
+    # substituent (e.g. phenol's aromatic ring is "c1ccccc1", its -OH
+    # substituent is "O"). Calling .lower() on the whole string here used
+    # to erase that distinction and make the phenol pattern permanently
+    # unmatchable for any input. Also broadened to the same three phenol
+    # orderings P08 already checks — RDKit's own canonical phenol SMILES
+    # is "Oc1ccccc1" (O first), which the original single "c1ccccc1O"
+    # (O last) pattern never matched either.
+    phenol_present = ("c1ccccc1O" in smi or "Oc1cc" in smi or "Oc1ccc" in smi)
+    ox_prone = (phenol_present or "S" in smi or "C=O" in smi)
     ox_score = 75 if s["carrier"] in ("plga","polymer","metallic") else 45
     if ox_prone: ox_score *= 0.75
     scenarios.append(ox_score)
@@ -605,7 +602,8 @@ def P08(drug_bundle, dds_bundle, combo_bundle=None):
     # ── Drug oxidation-prone moieties (SMARTS surrogate via SMILES strings) ──
     drug_ox_penalty = 0
     ox_groups = []
-    if "c1ccccc1O" in smi.lower() or "Oc1cc" in smi.lower() or "Oc1ccc" in smi.lower():
+    # Case-sensitive by necessity — see the note in P01 above.
+    if "c1ccccc1O" in smi or "Oc1cc" in smi or "Oc1ccc" in smi:
         drug_ox_penalty += 15; ox_groups.append("phenol")
     if "S" in smi and "S(=O)" not in smi:    # thioether (not sulfoxide/sulfone)
         drug_ox_penalty += 10; ox_groups.append("thioether")
