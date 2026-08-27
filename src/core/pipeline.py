@@ -840,9 +840,18 @@ class AdvancedMLEngine:
 
     @staticmethod
     def lipinski_baseline(df: pd.DataFrame) -> pd.DataFrame:
+        """Simplified 2-criterion Lipinski Rule-of-5 gate (MW, LogP only —
+        HBD/HBA not tracked here). A molecule must satisfy BOTH criteria to
+        pass; using OR instead of AND (as this previously did) let a
+        biologic-sized 10,000 Da molecule "pass" whenever LogP was low, and
+        an extremely lipophilic LogP=15 molecule "pass" whenever MW was
+        reasonable — nearly every real molecule satisfies at least one of
+        two loose criteria, which made this baseline comparison
+        meaningless (it would report "pass" almost regardless of actual
+        drug-likeness)."""
         df = df.copy()
         df["Lipinski_Pass"] = (
-            (df.get("MW_Da", pd.Series([500]*len(df))) <= 500) |
+            (df.get("MW_Da", pd.Series([500]*len(df))) <= 500) &
             (df.get("LogP",  pd.Series([0]*len(df)))   <= 5)
         ).astype(int)
         log.info(f"  Lipinski: {df['Lipinski_Pass'].sum()}/{len(df)} pass")
@@ -1289,7 +1298,19 @@ class AnalyticsEngine:
             if hl<=0: continue
             k  = np.log(2)/hl
             mw = row.get("MW_Da",150_000)
-            c0 = 100*(150_000/mw)
+            # C0 tuned around a 150 kDa antibody-scale reference (matches
+            # the lecanemab citation below) so it lands at exactly 100% for
+            # that reference MW. Uncapped, this formula only makes sense
+            # near that reference — for the small molecules (MW ~200-600 Da)
+            # this project actually evaluates, 150_000/mw explodes to
+            # ~250-750x, so a real candidate like donepezil (MW 379.5)
+            # started at ~39,500% instead of the 0-100% "Effective Brain
+            # Concentration" scale the chart's "Threshold 50%" line and
+            # shaded band assume. Capped at 100%: smaller molecules still
+            # get credit for better initial distribution (the qualitative
+            # point of the MW term), capped at the physically sensible
+            # "100% of administered dose" ceiling.
+            c0 = min(100.0, 100*(150_000/mw))
             ct = c0*np.exp(-k*t)
             for ti,ci in zip(t,ct):
                 all_k.append({"Day":round(ti,2),"Drug":row["Drug"],
@@ -1307,7 +1328,13 @@ class AnalyticsEngine:
             "significance": "Shows how long each drug stays above 50% therapeutic threshold.",
             "strategic_decision": "Longest time above 50% = fewest re-doses = preferred.",
             "theoretical_science":
-                "C(t) = C₀·e^(−kt),  k=ln2/t½,  C₀=100·(150kDa/MW)",
+                "C(t) = C₀·e^(−kt),  k=ln2/t½,  "
+                "C₀=min(100, 100·(150kDa/MW))% — capped at 100% of "
+                "administered dose; the MW ratio is tuned around a 150 kDa "
+                "antibody-scale reference (see lecanemab citation below), "
+                "so it only reduces C₀ below 100% for MW > 150 kDa "
+                "candidates, and gives smaller molecules full credit "
+                "rather than an unphysical >100% starting concentration.",
             "practical_science":
                 "Aligned with lecanemab CSF PK (van Dyck et al., NEJM 2023).",
             "methodology": "500-point linspace 0–60d. MW-normalised C₀.",
@@ -1474,7 +1501,14 @@ class ReportingEngine:
                                "Estimated_Affinity_kcal"] if c in df_ml.columns),None)
         if not df_ml.empty and aff and "ML_Success_Probability" in df_ml.columns:
             best=df_ml.loc[df_ml[aff].idxmin()]
-            c0=100*(150_000/best.get("MW_Da",145_000))
+            # Same 150 kDa-referenced C0 as AnalyticsEngine.simulate_pkpd,
+            # capped at 100% for the same reason: uncapped, a real
+            # small-molecule candidate (e.g. donepezil, MW~380) inflates
+            # C0 to ~39,500%, which made "Days Above 50%" — this report's
+            # headline executive-summary number — come out ~10x too high
+            # (28.9 days instead of the physically correct 3.0 days, equal
+            # to the half-life, for a molecule that starts at 100%).
+            c0=min(100.0, 100*(150_000/best.get("MW_Da",145_000)))
             k=np.log(2)/best["Half_Life_Days"]
             days_eff=round(-np.log(50/c0)/k,1) if c0>50 else 0
             ml_score=round(best.get("ML_Success_Probability",0),2)

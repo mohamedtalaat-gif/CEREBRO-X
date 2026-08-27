@@ -1179,6 +1179,88 @@ class TestLineageTierLabeling:
         assert '_tier' in src.split("TIERS 1-5")[1].split("TIER 6")[0]
 
 
+class TestPipelineLipinskiAndPKPD:
+    """Two bugs found auditing src/core/pipeline.py's ML/reporting engines.
+
+    (1) AdvancedMLEngine.lipinski_baseline used OR instead of AND across
+    the MW<=500 / LogP<=5 criteria, so a 10,000 Da biologic-scale molecule
+    "passed" whenever LogP was low, and an extremely lipophilic LogP=15
+    molecule "passed" whenever MW was reasonable — nearly any real
+    molecule satisfies at least one of two loose criteria, making the
+    Rule-of-5 baseline comparison this project's own docstring describes
+    almost meaningless.
+
+    (2) AnalyticsEngine.simulate_pkpd and ReportingEngine's headline "Days
+    Above 50%" both computed C0 = 100*(150_000/MW) uncapped. That formula
+    is tuned around a 150 kDa antibody-scale reference (matches this
+    file's own lecanemab citation) — for this project's actual small-
+    molecule candidates (MW ~200-600 Da) it inflated C0 to tens of
+    thousands of percent, which broke the "Effective Brain Concentration
+    (%)" chart's 50/100% threshold semantics and inflated the master
+    report's headline days-above-threshold number by roughly 10x for a
+    real donepezil-like candidate. Fixed by capping C0 at 100%."""
+
+    def _patch_paths(self, monkeypatch, tmp_path):
+        from src.core import pipeline
+        for key in ("figures", "results", "deliverable", "reports"):
+            d = tmp_path / key
+            d.mkdir(parents=True, exist_ok=True)
+            monkeypatch.setitem(pipeline.PATHS, key, d)
+        return pipeline
+
+    def test_lipinski_requires_both_criteria_not_either(self):
+        import pandas as pd
+        from src.core.pipeline import AdvancedMLEngine
+        df = pd.DataFrame({
+            "MW_Da": [10000.0, 300.0, 350.0],
+            "LogP":  [2.0,     15.0,  3.0],
+        })
+        result = AdvancedMLEngine.lipinski_baseline(df)
+        assert list(result["Lipinski_Pass"]) == [0, 0, 1]
+
+    def test_pkpd_c0_capped_at_100_for_small_molecule(self, monkeypatch, tmp_path):
+        import pandas as pd
+        pipeline = self._patch_paths(monkeypatch, tmp_path)
+        df = pd.DataFrame({"Drug": ["Donepezil"], "Half_Life_Days": [3.0],
+                            "MW_Da": [379.5]})
+        result = pipeline.AnalyticsEngine.simulate_pkpd(df)
+        c0 = result[result["Day"] == 0]["Concentration_Pct"].iloc[0]
+        assert c0 == pytest.approx(100.0)
+
+    def test_pkpd_c0_still_scales_down_above_150kda_reference(self, monkeypatch, tmp_path):
+        """Guards against overcorrecting: a genuinely large biologic (above
+        the 150 kDa reference) should still get a reduced C0, not always 100."""
+        import pandas as pd
+        pipeline = self._patch_paths(monkeypatch, tmp_path)
+        df = pd.DataFrame({"Drug": ["BigBiologic"], "Half_Life_Days": [10.0],
+                            "MW_Da": [300000.0]})
+        result = pipeline.AnalyticsEngine.simulate_pkpd(df)
+        c0 = result[result["Day"] == 0]["Concentration_Pct"].iloc[0]
+        assert c0 == pytest.approx(50.0)
+
+    def test_master_report_days_above_50pct_matches_half_life_for_small_molecule(
+            self, monkeypatch, tmp_path):
+        """With C0 correctly capped at 100%, a molecule that decays purely
+        by its own half-life crosses the 50% threshold at exactly t=t½ —
+        this pins the master report's headline number against that
+        physically obvious case instead of the ~10x-inflated value the
+        uncapped formula produced."""
+        import json
+        import pandas as pd
+        pipeline = self._patch_paths(monkeypatch, tmp_path)
+        df_ml = pd.DataFrame({
+            "Drug": ["Donepezil"], "MW_Da": [379.5], "Half_Life_Days": [3.0],
+            "Docking_Affinity_kcal": [-8.5], "ML_Success_Probability": [72.0],
+        })
+        df_aav = pd.DataFrame({"Serotype": ["AAV9"], "CNS_Tropism": [0.9],
+                                "Capsid_Mass_Da": [82000]})
+        pipeline.ReportingEngine.generate_master_report(
+            df_mab=pd.DataFrame(), df_aav=df_aav, df_ml=df_ml,
+            metrics={"r2": 0.8, "cv_r2": 0.75})
+        cfg = json.loads((tmp_path / "deliverable" / "project_config.json").read_text())
+        assert cfg["Days_Above_50pct"] == pytest.approx(3.0, abs=0.05)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 11. FULL PIPELINE INTEGRATION (run.py -> pipeline_runner.py, end-to-end)
 # ═════════════════════════════════════════════════════════════════════════════
