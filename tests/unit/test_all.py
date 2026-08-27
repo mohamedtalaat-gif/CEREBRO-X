@@ -544,6 +544,50 @@ class TestRedisCacheCategoryNamespacing:
         assert cache.l2.get("fetch_molecule:Aspirin", category="molecule") is None
 
 
+class TestDDSMetricsStealthDerivation:
+    """_derive_stealth (src/viz/_dds_metrics.py, feeding every HTML5
+    dashboard's Stealth column) used the matched value's own magnitude to
+    guess whether it came from a real PEGylation mol% column or an
+    already-normalized Stealth_Index (0-1) column — _first_non_null only
+    returns the value, not which alias matched. A genuinely light
+    PEGylation degree like 0.5 mol% (a real, legitimate formulation
+    parameter) got misread as a pre-normalized Stealth_Index of 0.5 and
+    scored 50.0 — identical to a real Stealth_Index=0.5 input — even
+    though 0.5 mol% PEG is far from the documented 5% optimum and should
+    score low. Fixed to check explicitly which alias supplied the value.
+    Also fixed a discontinuity in the ascending branch: peg=0 returned
+    0.0 exactly, but peg=0.001 jumped straight to ~30 instead of ramping
+    smoothly, contradicting the function's own "triangular profile"
+    description."""
+
+    def test_low_mol_pct_peg_and_stealth_index_are_not_conflated(self):
+        from src.viz._dds_metrics import _derive_stealth
+        low_peg = _derive_stealth({"pegylation_degree_mol_pct": 0.5})
+        stealth_idx = _derive_stealth({"Stealth_Index": 0.5})
+        assert low_peg != stealth_idx
+        assert low_peg < 50.0, "0.5 mol% PEG (far from the 5% optimum) must score low"
+        assert stealth_idx == 50.0
+
+    def test_optimal_peg_scores_100(self):
+        from src.viz._dds_metrics import _derive_stealth
+        assert _derive_stealth({"pegylation_degree_mol_pct": 5.0}) == 100.0
+
+    def test_ascending_branch_is_continuous_at_zero(self):
+        from src.viz._dds_metrics import _derive_stealth
+        assert _derive_stealth({"pegylation_degree_mol_pct": 0.0}) == 0.0
+        near_zero = _derive_stealth({"pegylation_degree_mol_pct": 0.001})
+        assert near_zero < 1.0, (
+            f"expected a small value continuous with 0, got {near_zero} "
+            f"(the old formula jumped to ~30 here)")
+
+    def test_stealth_index_still_handled_when_no_mol_pct_present(self):
+        """Guards against overcorrecting: records that only have a
+        pre-computed Stealth_Index (no mol% column at all) must still work."""
+        from src.viz._dds_metrics import _derive_stealth
+        assert _derive_stealth({"Stealth_Index": 0.8}) == 80.0
+        assert _derive_stealth({"Stealth_Index": 0.0}) == 0.0
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 6. COMPLIANCE
 # ═════════════════════════════════════════════════════════════════════════════

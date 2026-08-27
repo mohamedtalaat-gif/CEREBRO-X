@@ -115,17 +115,43 @@ def _derive_cns_bioavail(rec: Record) -> float | None:
 def _derive_stealth(rec: Record) -> float | None:
     """Stealth quality from PEGylation degree.
     Optimal PEG % is 2-7 (mol%); follows a triangular profile centred at 5%.
-    Returns 0-100."""
-    peg = _first_non_null(rec, ("pegylation_degree_mol_pct", "PEGylation_Degree_mol_pct",
-                                  "PEG_Degree_pct", "Stealth_Index"))
-    if peg is None:
-        return None
-    if peg <= 1.0 and 0 < peg:    # treat as 0-1 stealth_index
-        return peg * 100.0
+    Returns 0-100.
+
+    _first_non_null only returns the matched VALUE, not which alias
+    supplied it — this used to guess the interpretation purely from the
+    value's magnitude ("<= 1.0 => must be a 0-1 Stealth_Index fraction"),
+    which silently misread any genuinely low-but-real PEGylation mol%
+    (e.g. a formulation with 0.5 mol% PEG, a legitimate light-PEGylation
+    value) as if it were a pre-normalised Stealth_Index of 0.5 (i.e.
+    "50% stealth") — verified directly: {"pegylation_degree_mol_pct": 0.5}
+    and {"Stealth_Index": 0.5} both scored exactly 50.0, even though
+    0.5 mol% PEG is far from the 5% optimum and should score low under
+    the function's own documented triangular profile. Fixed to check
+    each alias explicitly so the interpretation depends on which column
+    actually supplied the value, not on the value's magnitude.
+
+    Also fixed the ascending branch's discontinuity: peg=0 returned 0.0
+    exactly, but peg=0.001 jumped straight to ~30 (30.0 + 14.0*peg) —
+    not the smooth triangular ramp the docstring describes. Replaced
+    with a straight line from (0, 0) to (5, 100).
+    """
+    mol_pct = _first_non_null(rec, ("pegylation_degree_mol_pct",
+                                     "PEGylation_Degree_mol_pct",
+                                     "PEG_Degree_pct"))
+    if mol_pct is not None:
+        peg = mol_pct
+    else:
+        stealth_idx = _first_non_null(rec, ("Stealth_Index",))
+        if stealth_idx is None:
+            return None
+        if 0 <= stealth_idx <= 1.0:
+            return stealth_idx * 100.0
+        peg = stealth_idx  # already on a percent-like scale
+
     # Triangular: peak at 5%, zero outside [0, 12]
     if peg <= 0:           return 0.0
     if peg >= 12:          return 20.0
-    if peg <= 5:           return min(100.0, 30.0 + 14.0 * peg)         # 30 → 100
+    if peg <= 5:           return min(100.0, 20.0 * peg)                 # 0 → 100
     return max(0.0, 100.0 - (peg - 5.0) * 11.4)                          # 100 → ~20
 
 
