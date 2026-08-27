@@ -390,6 +390,18 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
                     "phase_transition_temp_c": _top_dds_dict.get("Phase_Transition_Temp_C", 42),
                     "ligand_density_per_nm2": _top_dds_dict.get("Surface_Ligand_Density_per_nm2", 0.8),
                 })
+                # Backfill legacy key names (BBB_Enhanced_Pct, BBB_Native_Pct,
+                # Endosomal_Escape_Eff, Stealth_Index) that dozens of downstream
+                # functions across the viz/report modules still read directly
+                # via top_dds.get(<name>, <default>) -- see
+                # _dds_metrics.backfill_legacy_aliases for why those names were
+                # otherwise always absent and silently falling back to a
+                # hardcoded constant for every drug.
+                try:
+                    from _dds_metrics import backfill_legacy_aliases as _bfla
+                except ImportError:
+                    from src.viz._dds_metrics import backfill_legacy_aliases as _bfla
+                _top_dds_dict = _bfla(_top_dds_dict, mol_profile if isinstance(mol_profile, dict) else None)
 
             from cerebro_science_modules import run_all_science_modules
             _disease = mol_profile.get("disease_state") or mol_profile.get("indication","").lower()
@@ -959,6 +971,14 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
             for _sp in [str(Path(__file__).parent/"src"/"core"),
                          str(Path(__file__).parent/"src"/"viz")]:
                 if _sp not in _sys_sci.path: _sys_sci.path.insert(0, _sp)
+            # Same legacy-key backfill as the primary drug's _top_dds_dict
+            # (see _dds_metrics.backfill_legacy_aliases) — this dict feeds
+            # the same downstream consumers for Drug 2..N.
+            try:
+                from _dds_metrics import backfill_legacy_aliases as _bfla2
+            except ImportError:
+                from src.viz._dds_metrics import backfill_legacy_aliases as _bfla2
+            _extra_top = _bfla2(_extra_top, _extra_mol if isinstance(_extra_mol, dict) else None)
             from cerebro_advanced_modules_2 import run_all_advanced_modules
             from cerebro_science_modules import run_all_science_modules
             _extra_sci = run_all_science_modules(

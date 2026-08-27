@@ -272,6 +272,44 @@ def get_bbb(rec: Record) -> float:
     return extract_metric(rec, "BBB%", 0.0)
 
 
+def backfill_legacy_aliases(rec: Record, mol_profile: Record | None = None) -> Record:
+    """Return a copy of `rec` with the legacy DDS key names populated from
+    real, derived values instead of being absent entirely.
+
+    Several visualization/report modules across the codebase
+    (cerebro_advanced_modules_2.py, cerebro_science_modules.py,
+    cerebro_video_engine_v2.py, cerebro_canvas_engine.py,
+    cerebro_html5_engine.py, final_report_unified.py) read a DDS record
+    directly via `top_dds.get("BBB_Enhanced_Pct", 30)`,
+    `top_dds.get("Endosomal_Escape_Eff", 0.5)`, `top_dds.get("Stealth_Index",
+    0.5)` -- names that `_run_dds_from_yaml`/`evaluate_all_dds_62` never
+    produce, so every one of those lookups was silently returning the same
+    hardcoded constant for every drug on every run, regardless of the
+    formulation actually scored. This backfills the real values under
+    those legacy names so any caller that still uses the old `.get()`
+    pattern gets correct, per-drug data instead of a shared default.
+
+    `Endosomal_Escape_Eff` and `Stealth_Index` are consumed everywhere as
+    0-1 fractions (e.g. `escape*100` for display, `.2f`-formatted values
+    like "0.65"), unlike `BBB%`/`Escape`/`Stealth` in METRIC_DEFS which are
+    all on the 0-100 scale -- divide by 100 here to match the legacy
+    callers' expectation.
+
+    `BBB_Native_Pct` (BBB crossing WITHOUT any delivery system) is not a
+    DDS-formulation property at all -- it comes from the molecule's own
+    LogBB-based permeability estimate (`BBB_permeability_pct`, computed in
+    molecule_engine.py from TPSA/LogP via the Young 1988 regression), so it
+    is read from `mol_profile` rather than derived from `rec`.
+    """
+    out = dict(rec)
+    out["BBB_Enhanced_Pct"] = extract_metric(rec, "BBB%")
+    out["Endosomal_Escape_Eff"] = extract_metric(rec, "Escape") / 100.0
+    out["Stealth_Index"] = extract_metric(rec, "Stealth") / 100.0
+    native = mol_profile.get("BBB_permeability_pct") if mol_profile else None
+    out["BBB_Native_Pct"] = float(native) if native is not None else 3.0
+    return out
+
+
 def coverage(rec: Record, threshold: float = 0.0) -> int:
     """How many of the 6 standard metrics have a real (>threshold) value?"""
     return sum(1 for k in METRIC_DEFS
@@ -301,6 +339,7 @@ def diagnose(records: DDSRows) -> dict[str, Any]:
 
 __all__ = [
     "METRIC_DEFS",
+    "backfill_legacy_aliases",
     "coverage",
     "diagnose",
     "extract_metric",

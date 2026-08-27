@@ -588,6 +588,132 @@ class TestDDSMetricsStealthDerivation:
         assert _derive_stealth({"Stealth_Index": 0.0}) == 0.0
 
 
+class TestDDSMetricsLegacyAliasBackfill:
+    """backfill_legacy_aliases (src/viz/_dds_metrics.py) fixes a codebase-wide
+    instance of the "real value never threaded through, silently replaced by
+    a hardcoded generic constant" bug class.
+
+    Only a handful of cerebro_html5_engine.py functions (H05, H10, H11, H13,
+    H20/H25) were ever migrated to read DDS metrics through the centralized
+    extractor. Every other consumer — cerebro_advanced_modules_2.py,
+    cerebro_science_modules.py, cerebro_video_engine_v2.py,
+    cerebro_canvas_engine.py, most of cerebro_html5_engine.py, and
+    final_report_unified.py — still reads the DDS record directly via
+    top_dds.get("BBB_Enhanced_Pct", 30), top_dds.get("Endosomal_Escape_Eff",
+    0.5), top_dds.get("Stealth_Index", 0.5). Verified directly (see
+    pipeline_runner.py's _run_dds_from_yaml / evaluate_all_dds_62 output
+    columns) that none of those three key names is ever produced by the
+    real pipeline — every one of those dozens of .get() calls was silently
+    returning the same hardcoded default for every drug, on every run,
+    regardless of the formulation actually scored. pipeline_runner.py now
+    calls backfill_legacy_aliases exactly once, at the single point each
+    top-DDS dict is assembled (for both the primary drug and any
+    Drug 2..N multi-drug comparison), so every downstream consumer gets
+    real per-drug values without needing dozens of separate call-site edits.
+    """
+
+    def test_bbb_enhanced_pct_uses_real_score_not_hardcoded_30(self):
+        from src.viz._dds_metrics import backfill_legacy_aliases
+        rec = {"BBB_Engineering_Score": 91.4}
+        out = backfill_legacy_aliases(rec)
+        assert out["BBB_Enhanced_Pct"] == 91.4
+        assert out["BBB_Enhanced_Pct"] != 30  # the old silent-fallback default
+
+    def test_escape_and_stealth_are_0_1_fractions_not_0_100_scale(self):
+        """Legacy callers format these as top_dds.get('Endosomal_Escape_Eff',
+        0.5)*100 for a percentage, or with '.2f' directly (e.g. "0.65") —
+        both assume a 0-1 fraction, unlike METRIC_DEFS's 0-100 scale."""
+        from src.viz._dds_metrics import backfill_legacy_aliases
+        rec = {"PgP_Escape_Coeff": 0.6, "pegylation_degree_mol_pct": 5.0}
+        out = backfill_legacy_aliases(rec)
+        assert out["Endosomal_Escape_Eff"] == pytest.approx(0.6)
+        assert out["Stealth_Index"] == pytest.approx(1.0)  # 5.0 mol% = optimum = 100%
+
+    def test_native_bbb_pct_reads_from_mol_profile_logbb_estimate(self):
+        """BBB_Native_Pct is a molecule property (native, without-DDS
+        crossing), not a DDS-formulation property — it must come from
+        mol_profile's LogBB-derived BBB_permeability_pct, not from the
+        DDS record itself."""
+        from src.viz._dds_metrics import backfill_legacy_aliases
+        rec = {"BBB_Engineering_Score": 80.0}
+        out = backfill_legacy_aliases(rec, mol_profile={"BBB_permeability_pct": 2.35})
+        assert out["BBB_Native_Pct"] == 2.35
+
+    def test_native_bbb_pct_falls_back_honestly_when_mol_profile_missing(self):
+        from src.viz._dds_metrics import backfill_legacy_aliases
+        out = backfill_legacy_aliases({"BBB_Engineering_Score": 80.0}, mol_profile=None)
+        assert out["BBB_Native_Pct"] == 3.0
+
+    def test_backfill_does_not_mutate_or_drop_original_keys(self):
+        from src.viz._dds_metrics import backfill_legacy_aliases
+        rec = {"BBB_Engineering_Score": 55.0, "Formulation_Name": "LNP-7"}
+        out = backfill_legacy_aliases(rec)
+        assert rec == {"BBB_Engineering_Score": 55.0, "Formulation_Name": "LNP-7"}
+        assert out["Formulation_Name"] == "LNP-7"
+
+    def test_different_formulations_get_different_backfilled_values(self):
+        """The whole point of the fix: two different DDS records must not
+        collapse onto the same hardcoded constant."""
+        from src.viz._dds_metrics import backfill_legacy_aliases
+        weak = backfill_legacy_aliases({"BBB_Engineering_Score": 20.0})
+        strong = backfill_legacy_aliases({"BBB_Engineering_Score": 95.0})
+        assert weak["BBB_Enhanced_Pct"] != strong["BBB_Enhanced_Pct"]
+
+
+class TestPbbmDiagnosticPlotsHonestLabeling:
+    """fig13_pbbm_diagnostic_plots (src/viz/advanced_viz.py) used to label
+    itself a "Visual Predictive Check" (VPC) and "Goodness-of-Fit" (GOF)
+    plot — real pharmacometric diagnostics that require independently
+    measured clinical/experimental concentrations to compare a model's
+    predictions against. df_pk here holds one deterministic
+    single-compartment decay curve from AnalyticsEngine.simulate_pkpd, not
+    observed data. The old "VPC" band was 100 replicates of that same
+    curve with synthetic +/-20% noise sprinkled on, and the old "GOF" plot
+    compared the noise-perturbed curve against itself — circular by
+    construction, so it could never fail while presenting itself as a
+    model validation. Also fixed: the column lookup only matched
+    "Concentration_pct"/"Concentration_ugL" (lowercase p), while
+    simulate_pkpd's real output column is "Concentration_Pct" (capital
+    P) — the case mismatch meant this figure silently produced nothing
+    on every real pipeline run.
+    """
+
+    def _df_pk(self):
+        import pandas as pd
+        return pd.DataFrame({
+            "Day": list(range(10)),
+            "Drug": ["TEST_DRUG_X"] * 10,
+            "Concentration_Pct": [100 * (0.9 ** i) for i in range(10)],
+        })
+
+    def test_matches_real_pipeline_column_name_concentration_Pct(self, tmp_path):
+        """simulate_pkpd emits 'Concentration_Pct' (capital P) — before the
+        fix, only lowercase variants were matched and the function silently
+        returned None for every real drug."""
+        from src.viz.advanced_viz import fig13_pbbm_diagnostic_plots
+        out = fig13_pbbm_diagnostic_plots(self._df_pk(), "TEST_DRUG_X", tmp_path)
+        assert out is not None
+        assert out.exists()
+
+    def test_documentation_no_longer_claims_model_validation(self, tmp_path):
+        """The regenerated figure must not claim to be a validated
+        prediction-vs-observation check when no observed dataset exists."""
+        from pathlib import Path
+        from src.viz.advanced_viz import fig13_pbbm_diagnostic_plots
+        out = fig13_pbbm_diagnostic_plots(self._df_pk(), "TEST_DRUG_X", tmp_path)
+        doc_text = Path(str(out) + "_DOCUMENTATION.txt").read_text()
+        assert "Visual Predictive Check" not in doc_text
+        assert "Goodness-of-Fit" not in doc_text
+        assert "Observed" not in doc_text
+        assert "illustrative" in doc_text.lower() or "assumed" in doc_text.lower()
+
+    def test_missing_concentration_column_still_returns_none(self, tmp_path):
+        import pandas as pd
+        from src.viz.advanced_viz import fig13_pbbm_diagnostic_plots
+        df_no_conc = pd.DataFrame({"Day": [0, 1, 2]})
+        assert fig13_pbbm_diagnostic_plots(df_no_conc, "TEST_DRUG_X", tmp_path) is None
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 6. COMPLIANCE
 # ═════════════════════════════════════════════════════════════════════════════

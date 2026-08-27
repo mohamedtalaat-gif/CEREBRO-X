@@ -1023,66 +1023,71 @@ def fig12_molecular_2d_structure(smiles: str, drug_name: str,
 def fig13_pbbm_diagnostic_plots(df_pk: pd.DataFrame | None,
                                   drug_name: str,
                                   out_dir: Path) -> Path | None:
-    """Visual Predictive Check (VPC), GOF, and Spaghetti plots."""
+    """Simulated PK curve with an illustrative uncertainty band, plus a
+    per-group spaghetti plot.
+
+    This used to be labelled "VPC" (Visual Predictive Check) and "GOF"
+    (Goodness-of-Fit) — real pharmacometric diagnostics that require
+    independently measured clinical/experimental concentrations to compare
+    a model's predictions against. Nothing in this pipeline produces that
+    second, independent dataset: `df_pk` here holds one deterministic
+    single-compartment decay curve (see AnalyticsEngine.simulate_pkpd),
+    not observed data. The old "VPC" band was 100 replicates of that same
+    curve with synthetic ±20% noise sprinkled on, and the old "GOF" plot
+    compared the noise-perturbed curve against itself — a comparison that
+    is circular by construction and cannot fail, so it validated nothing
+    while presenting itself as if it had. Renamed and re-labelled below to
+    say what is actually being shown: one simulated trajectory plus a
+    assumed (not measured) variability envelope around it.
+
+    Also fixed: the concentration-column lookup only matched
+    "Concentration_pct"/"Concentration_ugL" (lowercase p), while the real
+    column emitted by simulate_pkpd is "Concentration_Pct" (capital P) —
+    the case mismatch meant this figure silently produced nothing for
+    every real pipeline run.
+    """
     if df_pk is None or df_pk.empty:
         return None
 
     t_col = "Day" if "Day" in df_pk.columns else "Hour"
-    c_col = next((c for c in ["Concentration_pct","Concentration_ugL"]
+    c_col = next((c for c in ["Concentration_pct", "Concentration_Pct",
+                               "Concentration_ugL"]
                   if c in df_pk.columns), None)
     if not c_col:
         return None
 
-    fig, axes = plt.subplots(1, 3, figsize=(17, 6))
-    fig.suptitle(f"PBBM Diagnostic Plots — {drug_name}", fontweight="bold", fontsize=12)
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    fig.suptitle(f"PBBM Simulated PK Curve — {drug_name}", fontweight="bold", fontsize=12)
 
     blood_df = df_pk[df_pk["Compartment"]=="blood"] if "Compartment" in df_pk.columns else df_pk
     brain_df = df_pk[df_pk["Compartment"]=="brain"] if "Compartment" in df_pk.columns else pd.DataFrame()
 
     t_vals = blood_df[t_col].values if not blood_df.empty else df_pk[t_col].values
-    obs    = blood_df[c_col].values if not blood_df.empty else df_pk[c_col].values
+    sim    = blood_df[c_col].values if not blood_df.empty else df_pk[c_col].values
 
-    # ── VPC (Visual Predictive Check) ────────────────────────────────────
+    # ── Simulated curve ± illustrative uncertainty band ──────────────────
     ax = axes[0]
-    if len(obs) > 5:
-        # Simulate 100 VPC replicates by adding residual variability (σ=20%)
+    if len(sim) > 5:
+        # Not replicate data: an assumed ±20% envelope drawn around the
+        # single simulated curve to convey typical PK variability at a
+        # glance. Do not read the band as a validated prediction interval.
         rng = np.random.RandomState(42)
-        vpc_sims = np.vstack([obs * (1 + rng.normal(0, 0.2, len(obs)))
+        env_sims = np.vstack([sim * (1 + rng.normal(0, 0.2, len(sim)))
                                for _ in range(100)])
-        p5  = np.percentile(vpc_sims, 5,  axis=0)
-        p50 = np.percentile(vpc_sims, 50, axis=0)
-        p95 = np.percentile(vpc_sims, 95, axis=0)
+        p5  = np.percentile(env_sims, 5,  axis=0)
+        p95 = np.percentile(env_sims, 95, axis=0)
 
         ax.fill_between(t_vals, p5, p95, alpha=0.2, color=C["teal"],
-                        label="90% VPC band")
-        ax.plot(t_vals, p50, color=C["teal"], lw=2, ls="--", label="Predicted median")
-        ax.scatter(t_vals, obs, s=30, color=C["navy"], zorder=5,
-                   alpha=0.7, label="Observed")
-        ax.set_title("Visual Predictive Check (VPC)", fontweight="bold")
+                        label="Illustrative ±20% envelope (assumed, not measured)")
+        ax.plot(t_vals, sim, color=C["navy"], lw=2, zorder=5, label="Simulated curve")
+        ax.set_title("Simulated PK Curve", fontweight="bold")
         ax.set_xlabel(f"Time ({t_col})")
         ax.set_ylabel(c_col.replace("_"," "))
         ax.legend(fontsize=8)
         ax.grid(True, alpha=0.25)
 
-    # ── GOF (Goodness-of-Fit) ─────────────────────────────────────────────
-    ax = axes[1]
-    if len(obs) > 5:
-        pred = p50 if 'p50' in dir() else obs
-        ax.scatter(pred, obs, s=40, color=C["navy"], alpha=0.7,
-                   edgecolors="white", lw=0.5)
-        lims = [min(pred.min(), obs.min()), max(pred.max(), obs.max())]
-        ax.plot(lims, lims, "r--", lw=2, label="Identity line")
-        # ±2-fold zone
-        ax.fill_between(lims, [l*0.5 for l in lims], [l*2 for l in lims],
-                        alpha=0.08, color=C["green"], label="2-fold zone")
-        ax.set_xlabel("Predicted Concentration")
-        ax.set_ylabel("Observed Concentration")
-        ax.set_title("Goodness-of-Fit Plot", fontweight="bold")
-        ax.legend(fontsize=8)
-        ax.grid(True, alpha=0.25)
-
     # ── Spaghetti Plot ────────────────────────────────────────────────────
-    ax = axes[2]
+    ax = axes[1]
     grp_col = "Drug" if "Drug" in df_pk.columns else "Compartment"
     if grp_col in df_pk.columns:
         for i, (grp_id, grp) in enumerate(df_pk.groupby(grp_col)):
@@ -1090,7 +1095,7 @@ def fig13_pbbm_diagnostic_plots(df_pk: pd.DataFrame | None,
             ax.plot(grp[t_col], grp[c_col], lw=1.2,
                     color=col, alpha=0.7, label=str(grp_id))
     else:
-        ax.plot(t_vals, obs, lw=1.5, color=C["navy"])
+        ax.plot(t_vals, sim, lw=1.5, color=C["navy"])
 
     ax.set_xlabel(f"Time ({t_col})")
     ax.set_ylabel(c_col.replace("_"," "))
@@ -1102,15 +1107,16 @@ def fig13_pbbm_diagnostic_plots(df_pk: pd.DataFrame | None,
     plt.tight_layout()
     out = out_dir / f"13_PBBM_Diagnostics_{drug_name}.png"
     _save(fig, out)
-    _doc(out, f"PBBM diagnostic plots (VPC, GOF, Spaghetti) — {drug_name}.",
-         "Standard pharmacometric diagnostics. "
-         "VPC confirms model captures observed variability. "
-         "GOF checks predicted vs observed agreement.",
-         "VPC: 90% of observations should fall within 90% prediction interval. "
-         "GOF: points on identity line = perfect prediction. "
-         "Spaghetti: individual profiles reveal intersubject variability.",
-         "VPC: if >10% observations outside band → model misspecified. "
-         "GOF: systematic bias above/below line → systematic error.")
+    _doc(out, f"Simulated PK curve and per-group spaghetti plot — {drug_name}.",
+         "Shows the single simulated concentration-time trajectory with an "
+         "illustrative variability envelope, plus per-group profiles.",
+         "The envelope is an assumed ±20% band drawn around the one "
+         "deterministic simulated curve, not a statistical prediction "
+         "interval derived from replicate simulations or independent "
+         "observed data — no such second dataset exists in this pipeline. "
+         "Spaghetti: individual profiles reveal per-group differences.",
+         "Do not read the shaded band as a validated model-vs-observation "
+         "check (no observed clinical data is being compared here).")
     return out
 
 
