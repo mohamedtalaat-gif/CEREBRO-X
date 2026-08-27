@@ -90,7 +90,8 @@ class NovelDrugExplainer:
         "OpenFDA_Label":         "OpenFDA (FDA structured label API)",
         "PubChem_Pharmacology":  "PubChem (NIH compound database)",
         "PubMed_NLP_10papers":   "PubMed NLP (10 pharmacokinetics papers scanned)",
-        "EmbeddedLibrary":       "CEREBRO-X Embedded Library (500+ curated drugs)",
+        "EmbeddedLibrary":       "CEREBRO-X Embedded Library (currently empty — "
+                                 "see clinical_data_engine.CLINICAL_PK_LIBRARY)",
         "ChemicalAlignment":     "Chemical Alignment (surrogate-based prediction)",
     }
 

@@ -1270,6 +1270,50 @@ class TestPipelineLipinskiAndPKPD:
 # statements) only checked that modules import — this actually asserts on
 # real computed output.
 
+class TestNovelDrugExplainer:
+    """final_report.NovelDrugExplainer is the logic-bearing part of the
+    final report engine — decides whether a drug counts as "novel" and
+    builds the researcher-facing alignment-explanation text. Also covers
+    the "500+ curated drugs" claim found stale here too (same
+    CLINICAL_PK_LIBRARY-emptied-in-v22.1 issue already fixed in
+    clinical_data_engine.py) — this copy feeds directly into the
+    per-trial NOVEL DRUG ALERT report text a researcher reads."""
+
+    def test_alignment_flag_marks_drug_as_novel(self):
+        from src.core.final_report import NovelDrugExplainer
+        expl = NovelDrugExplainer.build_explanation(
+            {"_alignment_flag": True, "_surrogate_drug": "Aminopterin",
+             "_tanimoto_sim": 0.84, "_source": "ChemicalAlignment_Aminopterin"},
+            "NovelCompoundX")
+        assert expl["is_novel"] is True
+        assert expl["surrogate_drug"] == "Aminopterin"
+
+    def test_normal_drug_with_real_source_is_not_novel(self):
+        from src.core.final_report import NovelDrugExplainer
+        expl = NovelDrugExplainer.build_explanation(
+            {"_alignment_flag": False, "_source": "DrugBank_API"},
+            "Donepezil")
+        assert expl["is_novel"] is False
+
+    def test_format_text_for_novel_drug_includes_disclaimer(self):
+        from src.core.final_report import NovelDrugExplainer
+        expl = NovelDrugExplainer.build_explanation(
+            {"_alignment_flag": True, "_surrogate_drug": "Aminopterin",
+             "_tanimoto_sim": 0.84, "_tiers_tried": ["DrugBank_API", "DailyMed_FDA"]},
+            "NovelCompoundX")
+        text = NovelDrugExplainer.format_text(expl, "NovelCompoundX")
+        assert "PREDICTED" in text and "not measured" in text
+        assert "Aminopterin" in text
+
+    def test_embedded_library_description_does_not_claim_500_drugs(self):
+        """The library was deliberately emptied in v22.1 (no hardcoded
+        drug data) — this description must not still claim curated
+        coverage that no longer exists."""
+        from src.core.final_report import NovelDrugExplainer
+        desc = NovelDrugExplainer.TIER_DESCRIPTIONS["EmbeddedLibrary"]
+        assert "500+" not in desc
+
+
 class TestPipelineIntegration:
     """Runs the real pipeline end-to-end against a real input Excel and
     checks real output artifacts were produced with sane values — not a
