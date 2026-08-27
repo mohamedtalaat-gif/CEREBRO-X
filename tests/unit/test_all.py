@@ -3622,3 +3622,35 @@ class TestDdsInverseDesignRealSearch:
         for cand in result["candidates"]:
             assert "novel_vs_input" in cand
             assert "Principle_Composite_Score" in cand
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 34. LEGACY PRINCIPLE-METADATA TABLES (cerebro_dds_principle_evaluator.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestLegacyPrincipleMetadataTables:
+    """This file used to run its own v21-era 24-principle scoring engine
+    (_evaluate_dds/evaluate_all_dds) — fully superseded by
+    cerebro_62_orchestrator.py and confirmed unreferenced anywhere else in
+    the codebase, so it was removed rather than left as dead code. What's
+    left is two lookup tables that cerebro_multi_drug_comparison.py and
+    cerebro_completed_excel_writer.py still genuinely import."""
+
+    def test_weights_and_docs_tables_cover_the_same_principle_ids(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_dds_principle_evaluator import PRINCIPLE_DOCS, PRINCIPLE_WEIGHTS
+
+        assert set(PRINCIPLE_WEIGHTS) == set(PRINCIPLE_DOCS)
+        assert len(PRINCIPLE_WEIGHTS) == 25
+
+    def test_weights_sum_to_one(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_dds_principle_evaluator import PRINCIPLE_WEIGHTS
+
+        assert sum(PRINCIPLE_WEIGHTS.values()) == pytest.approx(1.0, abs=1e-3)
+
+    def test_real_callers_still_import_the_tables_cleanly(self):
+        """The two files that actually depend on this module — confirms
+        the dead-code removal didn't touch what's genuinely load-bearing."""
+        import src.path_resolver  # noqa: F401
+        import cerebro_completed_excel_writer  # noqa: F401
+        import cerebro_multi_drug_comparison  # noqa: F401
