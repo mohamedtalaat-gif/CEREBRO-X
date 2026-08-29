@@ -5923,35 +5923,34 @@ class TestDdsInverseDesignRealSearch:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 34. LEGACY PRINCIPLE-METADATA TABLES (cerebro_dds_principle_evaluator.py)
+# 34. LEGACY PRINCIPLE-METADATA TABLES — removed (cerebro_dds_principle_evaluator.py)
 # ═════════════════════════════════════════════════════════════════════════════
-class TestLegacyPrincipleMetadataTables:
-    """This file used to run its own v21-era 24-principle scoring engine
-    (_evaluate_dds/evaluate_all_dds) — fully superseded by
-    cerebro_62_orchestrator.py and confirmed unreferenced anywhere else in
-    the codebase, so it was removed rather than left as dead code. What's
-    left is two lookup tables that cerebro_multi_drug_comparison.py and
-    cerebro_completed_excel_writer.py still genuinely import."""
+class TestLegacyPrincipleMetadataTableRemoved:
+    """cerebro_dds_principle_evaluator.py used to run its own v21-era
+    24-principle scoring engine (_evaluate_dds/evaluate_all_dds), fully
+    superseded by cerebro_62_orchestrator.py -- that scoring code was
+    already removed, leaving just two lookup tables (PRINCIPLE_WEIGHTS,
+    PRINCIPLE_DOCS) whose own docstring claimed cerebro_multi_drug_
+    comparison.py and cerebro_completed_excel_writer.py "still genuinely
+    import" them. That claim was false: grepping the whole repo for
+    actual imports of this module turned up nothing outside this test
+    file itself -- cerebro_multi_drug_comparison.py has its own,
+    differently-keyed PRINCIPLE_WEIGHTS dict, and cerebro_completed_
+    excel_writer.py's only reference was a comment explaining why it
+    stopped using this module. The old test_real_callers_still_import_
+    the_tables_cleanly here compounded this: it only imported those two
+    modules and checked they didn't error, which is true regardless of
+    whether either one ever touches cerebro_dds_principle_evaluator --
+    it never actually verified the claimed dependency. Deleted the file
+    entirely rather than leave confirmed dead code with a false docstring
+    lying around, consistent with this project's own stated practice for
+    the scoring engine it already removed from the same file."""
 
-    def test_weights_and_docs_tables_cover_the_same_principle_ids(self):
+    def test_module_no_longer_exists(self):
         import src.path_resolver  # noqa: F401
-        from cerebro_dds_principle_evaluator import PRINCIPLE_DOCS, PRINCIPLE_WEIGHTS
 
-        assert set(PRINCIPLE_WEIGHTS) == set(PRINCIPLE_DOCS)
-        assert len(PRINCIPLE_WEIGHTS) == 25
-
-    def test_weights_sum_to_one(self):
-        import src.path_resolver  # noqa: F401
-        from cerebro_dds_principle_evaluator import PRINCIPLE_WEIGHTS
-
-        assert sum(PRINCIPLE_WEIGHTS.values()) == pytest.approx(1.0, abs=1e-3)
-
-    def test_real_callers_still_import_the_tables_cleanly(self):
-        """The two files that actually depend on this module — confirms
-        the dead-code removal didn't touch what's genuinely load-bearing."""
-        import src.path_resolver  # noqa: F401
-        import cerebro_completed_excel_writer  # noqa: F401
-        import cerebro_multi_drug_comparison  # noqa: F401
+        with pytest.raises(ImportError):
+            import cerebro_dds_principle_evaluator  # noqa: F401
 
 
 # ═════════════════════════════════════════════════════════════════════════════
