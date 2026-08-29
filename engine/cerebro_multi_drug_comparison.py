@@ -706,16 +706,18 @@ def _write_scientific_rationale_sheet(wb, summary: dict) -> None:
             "Drug N+1 (caches invalidated, mol_profile reset, separate Trial "
             "directories). Reference: see CHANGELOG_v19.md for the per-drug "
             "isolation fix."),
-        ("2. Per-DDS principle evaluation (NEW in v21)",
-            "For EACH DDS in the input Excel, the pipeline runs 25 CNS-"
+        ("2. Per-DDS principle evaluation",
+            "For EACH DDS in the input Excel, the pipeline runs 62 CNS-"
             "weighted principles (BBB transcytosis, receptor targeting, "
             "Pgp evasion, brain AUC, release kinetics, stability, safety, "
             "glymphatic clearance, manufacturability, drug-DDS fit). "
             "Each principle returns a 0-100 score with a documented method "
-            "and literature reference. The composite weighted score (CNS "
-            "delivery 37%, glymphatic 11%) ranks all DDS. The principle-"
-            "ranked top-1 DDS is the 'champion' for that drug — see the "
-            "DDSxP matrix sheet in each drug's Completed Excel."),
+            "and literature reference, individually weighted toward CNS-"
+            "relevant criteria (see cerebro_62_principles_catalog.py's "
+            "weight_cns field for the exact per-principle weight). The "
+            "resulting composite weighted score ranks all DDS. The "
+            "principle-ranked top-1 DDS is the 'champion' for that drug — "
+            "see the DDSxP matrix sheet in each drug's Completed Excel."),
         ("3. Drug × Best-DDS champion comparison",
             "After every drug is processed, the pipeline pairs each drug "
             "with its principle-ranked best DDS. The 'Champion_DDS_Compare' "

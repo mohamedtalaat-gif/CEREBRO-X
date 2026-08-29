@@ -6202,6 +6202,25 @@ class TestMultiDrugComparisonHelpers:
         assert _direction_for("physchem.Docking_Affinity_kcal") == "lower"
         assert _direction_for("physchem.Docking_Affinity_kcal_abs") == "higher"
 
+    def test_scientific_rationale_no_longer_cites_the_stale_25_principle_count(self):
+        """The Scientific_Rationale sheet's methodology text used to say
+        the pipeline runs "25 CNS-weighted principles" with a hardcoded
+        "(CNS delivery 37%, glymphatic 11%)" weight breakdown -- both
+        leftover prose from the old v21 rubric, describing neither the
+        current 62-principle system nor its real weight_cns figures."""
+        import openpyxl
+        import src.path_resolver  # noqa: F401
+        import cerebro_multi_drug_comparison as mod
+
+        wb = openpyxl.Workbook()
+        mod._write_scientific_rationale_sheet(wb, {})
+        ws = wb["Scientific_Rationale"]
+        all_text = "\n".join(str(c.value) for row in ws.iter_rows() for c in row
+                              if c.value is not None)
+        assert "25 CNS" not in all_text
+        assert "37%" not in all_text
+        assert "62 CNS-weighted principles" in all_text
+
 
 class TestMultiDrugComparisonTieHandling:
     def test_a_genuine_tie_is_reported_honestly_not_credited_to_whoever_is_first(self):
