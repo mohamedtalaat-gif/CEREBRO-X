@@ -88,7 +88,9 @@ from cerebro_monitoring import (
     start_metrics_server,
 )
 from cerebro_orchestrator import (
+    REAL_TASK_NAMES,
     create_cerebro_pipeline_dag,
+    get_task_registry,
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -788,52 +790,52 @@ async def suggest_combinations(
 async def orchestrator_status(
     user: UserModel = Depends(require_role(Role.ADMIN)),
 ):
-    """Get pipeline DAG structure and a freshly-initialized circuit-breaker
-    snapshot for it.
+    """Get pipeline DAG structure plus live circuit-breaker state for the
+    real Celery tasks (pipeline_full_task, train_model_task,
+    fetch_data_task, generate_report_task).
 
-    The real pipeline runs as plain Celery tasks (pipeline_full_task,
-    train_model_task, ...) that call CEREBRO_Pipeline directly and never
-    go through PipelineOrchestrator.execute() -- so dag_levels/n_tasks
-    below are real, accurate DAG topology, but circuit_breakers is built
-    from a brand-new PipelineOrchestrator() constructed on every request,
-    not any orchestrator that has actually run tasks. Every breaker will
-    always show CLOSED/0-failures here regardless of real task health.
+    dag_levels/n_tasks come from create_cerebro_pipeline_dag(), which is
+    real DAG topology even though its own tasks are placeholder lambdas.
+    circuit_breakers comes from TaskHealthRegistry instead of that DAG's
+    breakers -- it's a Redis-backed store that the real Celery tasks
+    update via success/retry/failure signal handlers (see
+    cerebro_orchestrator.py), so it reflects actual task outcomes rather
+    than a throwaway, never-executed orchestrator.
     """
     orch = create_cerebro_pipeline_dag()
     topo = orch._topological_sort()
-    return {
+    registry = get_task_registry()
+    response = {
         "dag_levels": topo,
         "n_tasks":    len(orch.tasks),
-        "circuit_breakers": {
-            name: cb.status for name, cb in orch.breakers.items()
-        },
-        "note": ("circuit_breakers reflects a freshly-constructed DAG, not "
-                 "live production task state -- the real Celery task path "
-                 "does not route through PipelineOrchestrator."),
+        "circuit_breakers": registry.breaker_status(REAL_TASK_NAMES),
     }
+    if not registry.available:
+        response["note"] = (
+            "Redis is unreachable right now, so circuit_breakers below is "
+            "default fresh-breaker state, not live task history.")
+    return response
 
 @app.get("/orchestrator/dead-letter", tags=["Orchestration"])
 async def dead_letter_queue(
     user: UserModel = Depends(require_role(Role.ADMIN)),
 ):
-    """View the dead letter queue (permanently failed tasks).
+    """View real permanently-failed Celery tasks.
 
-    PipelineOrchestrator is disconnected from the real Celery task
-    execution path (see orchestrator_status docstring above), and this
-    endpoint constructs a brand-new, never-executed orchestrator on every
-    call -- its dead_letter_queue is therefore always [] by construction,
-    not because no tasks have actually failed. Returning that silently
-    would let an admin read "no dead-lettered tasks" as a real health
-    signal when it is structurally incapable of ever being anything else.
+    Backed by TaskHealthRegistry's Redis list, which the task_failure
+    signal handler in cerebro_orchestrator.py appends to whenever
+    pipeline_full_task, train_model_task, fetch_data_task, or
+    generate_report_task exhausts its retries -- an empty list here means
+    no real task has actually dead-lettered, not that the orchestrator
+    backing it was never run.
     """
-    orch = create_cerebro_pipeline_dag()
-    return {
-        "dead_letter_queue": orch.dead_letter_queue,
-        "note": ("this endpoint's orchestrator is freshly constructed per "
-                 "request and never executes real tasks, so this list is "
-                 "always empty by construction -- it does not reflect "
-                 "whether any real Celery task has actually failed."),
-    }
+    registry = get_task_registry()
+    response = {"dead_letter_queue": registry.dead_letter_queue()}
+    if not registry.available:
+        response["note"] = (
+            "Redis is unreachable right now, so this list cannot be read "
+            "-- it is not necessarily empty.")
+    return response
 
 
 # ═════════════════════════════════════════════════════════════════════════════

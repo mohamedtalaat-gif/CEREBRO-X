@@ -45,8 +45,10 @@ References:
 import json
 import logging
 import os
+import threading
 import time
 import uuid
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -291,6 +293,7 @@ if _HAS_FASTAPI:
                 raise
             finally:
                 duration = time.time() - start
+                API_LATENCY_TRACKER.record(duration)
 
                 if _HAS_PROMETHEUS:
                     REQUEST_COUNT.labels(method, endpoint, status).inc()
@@ -526,6 +529,55 @@ class AlertEngine:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 5b. Sliding-Window Trackers (real data backing the default alert rules)
+# ─────────────────────────────────────────────────────────────────────────────
+class SlidingWindowTracker:
+    """Bounded, thread-safe (timestamp, value) recorder with windowed
+    rate/percentile queries.
+
+    Prometheus Counters/Histograms are cumulative since process start --
+    there is no PromQL query engine here to compute "in the last hour"
+    from them, so `high_pipeline_failure_rate` and `high_api_latency`
+    need their own real windowed data, not another read of the same
+    all-time totals. `maxlen` is a hard memory cap independent of the
+    time window (a burst of traffic can't grow this unbounded).
+    """
+
+    def __init__(self, maxlen: int = 10_000):
+        self._entries: deque[tuple[float, float]] = deque(maxlen=maxlen)
+        self._lock = threading.Lock()
+
+    def record(self, value: float):
+        with self._lock:
+            self._entries.append((time.time(), value))
+
+    def _window_values(self, window_sec: float) -> list[float]:
+        cutoff = time.time() - window_sec
+        with self._lock:
+            return [v for ts, v in self._entries if ts >= cutoff]
+
+    def count(self, window_sec: float) -> int:
+        return len(self._window_values(window_sec))
+
+    def mean(self, window_sec: float) -> float:
+        vals = self._window_values(window_sec)
+        return sum(vals) / len(vals) if vals else 0.0
+
+    def percentile(self, pct: float, window_sec: float) -> float:
+        vals = sorted(self._window_values(window_sec))
+        if not vals:
+            return 0.0
+        idx = min(len(vals) - 1, int(len(vals) * pct / 100.0))
+        return vals[idx]
+
+
+# Module-level trackers fed by track_pipeline_execution and
+# RequestTrackingMiddleware below.
+PIPELINE_OUTCOME_TRACKER = SlidingWindowTracker()   # records 1.0=failed, 0.0=success
+API_LATENCY_TRACKER      = SlidingWindowTracker()   # records request duration (s)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 6. Pipeline Performance Tracker
 # ─────────────────────────────────────────────────────────────────────────────
 class PipelineTimer:
@@ -568,10 +620,12 @@ def track_pipeline_execution(func):
             result = func(*args, **kwargs)
             if _HAS_PROMETHEUS:
                 PIPELINE_RUNS.labels("success").inc()
+            PIPELINE_OUTCOME_TRACKER.record(0.0)
             return result
         except Exception:
             if _HAS_PROMETHEUS:
                 PIPELINE_RUNS.labels("failed").inc()
+            PIPELINE_OUTCOME_TRACKER.record(1.0)
             raise
         finally:
             duration = time.time() - start
@@ -584,12 +638,26 @@ def track_pipeline_execution(func):
 # 7. Default Alert Rules (CEREBRO-specific)
 # ─────────────────────────────────────────────────────────────────────────────
 def setup_default_alerts(alert_engine: AlertEngine):
-    """Register standard monitoring alerts for CEREBRO-X."""
+    """Register standard monitoring alerts for CEREBRO-X.
+
+    All four conditions used to be either `lambda: False` (never fires,
+    no matter how bad things actually get -- pipeline failure rate,
+    drift, and latency could not have raised an alert regardless of real
+    system state) or the one genuinely real check (disk space). Wired the
+    other three to real data: PIPELINE_OUTCOME_TRACKER/API_LATENCY_TRACKER
+    (module-level sliding-window trackers fed by track_pipeline_execution
+    and RequestTrackingMiddleware respectively -- Prometheus Counters/
+    Histograms are cumulative since process start with no query engine
+    here to compute "in the last hour", so they needed their own windowed
+    data) and DriftEventLogger (src/ml/mlops.py), which already persists
+    real drift events to SQLite but nothing was reading it back for
+    alerting.
+    """
 
     # Pipeline failure rate
     alert_engine.register_rule(AlertRule(
         name="high_pipeline_failure_rate",
-        condition=lambda: False,  # will be wired to actual metrics
+        condition=_check_pipeline_failure_rate,
         severity=AlertSeverity.CRITICAL,
         cooldown_sec=600,
         message="Pipeline failure rate exceeded 20% in the last hour",
@@ -599,7 +667,7 @@ def setup_default_alerts(alert_engine: AlertEngine):
     # Model drift
     alert_engine.register_rule(AlertRule(
         name="model_drift_detected",
-        condition=lambda: False,
+        condition=_check_model_drift,
         severity=AlertSeverity.WARNING,
         cooldown_sec=3600,
         message="Prediction distribution shift detected (PSI > 0.25)",
@@ -609,7 +677,7 @@ def setup_default_alerts(alert_engine: AlertEngine):
     # High latency
     alert_engine.register_rule(AlertRule(
         name="high_api_latency",
-        condition=lambda: False,
+        condition=_check_api_latency,
         severity=AlertSeverity.WARNING,
         cooldown_sec=300,
         message="API p99 latency exceeded 10s",
@@ -632,4 +700,35 @@ def _check_disk_space() -> bool:
         import psutil
         return psutil.disk_usage("/").percent > 90
     except ImportError:
+        return False
+
+
+def _check_pipeline_failure_rate(window_sec: float = 3600) -> bool:
+    """True when >20% of pipeline runs in the last hour failed.
+
+    Requires at least one real run in the window -- an idle process with
+    zero pipeline executions is not a "100% failure rate", it's no data.
+    """
+    if PIPELINE_OUTCOME_TRACKER.count(window_sec) == 0:
+        return False
+    return PIPELINE_OUTCOME_TRACKER.mean(window_sec) > 0.20
+
+
+def _check_api_latency(window_sec: float = 3600, threshold_sec: float = 10.0) -> bool:
+    """True when the real p99 request latency over the last hour exceeds
+    the threshold. Requires real recent request samples."""
+    if API_LATENCY_TRACKER.count(window_sec) == 0:
+        return False
+    return API_LATENCY_TRACKER.percentile(99, window_sec) > threshold_sec
+
+
+def _check_model_drift(hours: int = 1) -> bool:
+    """True when a real drift event was logged (via DriftEventLogger,
+    src/ml/mlops.py) in the given window with warning/critical severity."""
+    try:
+        from src.ml.mlops import DriftEventLogger
+        events = DriftEventLogger().get_recent(hours=hours)
+        return any(e.get("severity") in ("warning", "critical") for e in events)
+    except Exception as e:
+        log.debug(f"[ALERT] drift check unavailable: {e}")
         return False

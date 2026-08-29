@@ -447,27 +447,286 @@ class TestOrchestrator:
         assert execs["bad"].state == TaskState.DEAD
         assert execs["after"].state == TaskState.CANCELLED
 
-    def test_orchestrator_endpoints_disclose_they_are_not_live_state(self, test_client, auth_headers):
-        """/orchestrator/status and /orchestrator/dead-letter each build a
-        brand-new PipelineOrchestrator() per request via
-        create_cerebro_pipeline_dag() -- one that only ever holds
-        placeholder lambda tasks and has never executed anything. The real
-        pipeline runs as plain Celery tasks that never touch
-        PipelineOrchestrator at all, so dead_letter_queue is always []
-        and every circuit breaker is always CLOSED here, regardless of
-        whether real tasks are failing in production. Both responses must
-        say so explicitly rather than silently reading as a live health
-        signal to an admin."""
+class _FakeOrchRedisClient:
+    """Minimal in-process Redis stand-in covering just the hash/list calls
+    TaskHealthRegistry makes (hgetall/hset/lpush/ltrim/lrange/ping), so its
+    Redis-transition logic and the endpoints reading it can be verified
+    without a real Redis server."""
+
+    def __init__(self):
+        self.store = {}
+
+    def ping(self):
+        return True
+
+    def hgetall(self, key):
+        return dict(self.store.get(key, {}))
+
+    def hset(self, key, mapping):
+        self.store.setdefault(key, {})
+        self.store[key].update({k: str(v) for k, v in mapping.items()})
+
+    def lpush(self, key, value):
+        self.store.setdefault(key, [])
+        self.store[key].insert(0, value)
+
+    def ltrim(self, key, start, end):
+        lst = self.store.get(key, [])
+        self.store[key] = lst[start:end + 1] if end != -1 else lst[start:]
+
+    def lrange(self, key, start, end):
+        lst = self.store.get(key, [])
+        return lst[start:] if end == -1 else lst[start:end + 1]
+
+
+class _FakeCeleryTask:
+    """Stands in for the Celery Task instance Celery passes as `sender`
+    to task_success/task_retry/task_failure -- just the two attributes
+    the signal handlers in cerebro_orchestrator.py actually read."""
+
+    def __init__(self, name, retries=0):
+        self.name = name
+        self.request = type("Req", (), {"retries": retries})()
+
+
+class TestTaskHealthRegistry:
+    """/orchestrator/status and /orchestrator/dead-letter used to build a
+    brand-new PipelineOrchestrator() per request via
+    create_cerebro_pipeline_dag() -- one that only ever holds placeholder
+    lambda tasks and has never executed anything. The real pipeline runs
+    as plain Celery tasks (pipeline_full_task, train_model_task,
+    fetch_data_task, generate_report_task) that never touch
+    PipelineOrchestrator at all, so dead_letter_queue was always [] and
+    every circuit breaker was always CLOSED, regardless of whether real
+    tasks were failing in production. Fixed by having those real tasks'
+    Celery success/retry/failure signals update TaskHealthRegistry, a
+    Redis-backed store the two endpoints now read instead."""
+
+    def _make_registry_with_fake_redis(self):
+        from src.workers.orchestrator import TaskHealthRegistry
+        registry = TaskHealthRegistry.__new__(TaskHealthRegistry)
+        registry._client = _FakeOrchRedisClient()
+        return registry
+
+    def test_record_failure_trips_breaker_to_open(self):
+        from src.workers.orchestrator import CircuitState
+
+        registry = self._make_registry_with_fake_redis()
+        # cerebro.train_model has failure_threshold=2 in REAL_TASK_CONFIGS.
+        registry.record_failure("cerebro.train_model")
+        assert registry.breaker_status(["cerebro.train_model"])[
+            "cerebro.train_model"]["state"] == CircuitState.CLOSED.value
+        registry.record_failure("cerebro.train_model")
+        status = registry.breaker_status(["cerebro.train_model"])["cerebro.train_model"]
+        assert status["state"] == CircuitState.OPEN.value
+        assert status["failures"] == 2
+
+    def test_record_success_after_recovery_closes_breaker(self):
+        from src.workers.orchestrator import CircuitState
+
+        registry = self._make_registry_with_fake_redis()
+        registry.record_failure("cerebro.train_model")
+        registry.record_failure("cerebro.train_model")
+        assert registry.breaker_status(["cerebro.train_model"])[
+            "cerebro.train_model"]["state"] == CircuitState.OPEN.value
+
+        # Simulate the recovery window having elapsed.
+        key = registry._breaker_key("cerebro.train_model")
+        registry._client.store[key]["last_failure"] = "0"
+
+        # default success_threshold=3 -- REAL_TASK_CONFIGS only overrides
+        # failure_threshold, so closing HALF_OPEN still needs 3 successes,
+        # same as CircuitBreaker's in-process semantics.
+        for _ in range(3):
+            registry.record_success("cerebro.train_model")
+        status = registry.breaker_status(["cerebro.train_model"])["cerebro.train_model"]
+        assert status["state"] == CircuitState.CLOSED.value
+        assert status["failures"] == 0
+
+    def test_dead_letter_add_and_read_round_trips_through_redis(self):
+        registry = self._make_registry_with_fake_redis()
+        assert registry.dead_letter_queue() == []
+
+        registry.add_dead_letter(
+            task_name="cerebro.fetch_data", task_id="abc-123",
+            error="ConnectionError: upstream unreachable", attempts=5,
+        )
+        dlq = registry.dead_letter_queue()
+        assert len(dlq) == 1
+        assert dlq[0]["task_name"] == "cerebro.fetch_data"
+        assert dlq[0]["task_id"] == "abc-123"
+        assert dlq[0]["attempts"] == 5
+
+    def test_celery_task_failure_signal_populates_dead_letter(self):
+        """Dispatches the real celery.signals.task_failure signal (not a
+        mock of our own handler) and verifies the handler wired in
+        cerebro_orchestrator.py actually reacts to it."""
+        import src.workers.orchestrator as orch_mod
+        from celery.signals import task_failure
+
+        registry = self._make_registry_with_fake_redis()
+        orig_registry = orch_mod._task_registry
+        orch_mod._task_registry = registry
+        try:
+            task_failure.send(
+                sender=_FakeCeleryTask("cerebro.fetch_data", retries=4),
+                task_id="task-999",
+                exception=RuntimeError("connection reset"),
+                args=(), kwargs={}, traceback=None, einfo=None,
+            )
+        finally:
+            orch_mod._task_registry = orig_registry
+
+        dlq = registry.dead_letter_queue()
+        assert len(dlq) == 1
+        assert dlq[0]["task_id"] == "task-999"
+        assert dlq[0]["attempts"] == 5
+        assert "connection reset" in dlq[0]["error"]
+
+    def test_orchestrator_endpoints_reflect_a_real_celery_task_failure(
+            self, test_client, auth_headers):
+        """End-to-end: fire the real task_failure signal for a real task
+        name, then hit the actual HTTP endpoints and confirm they surface
+        it -- not a freshly-constructed, never-executed orchestrator."""
         if not auth_headers:
             pytest.skip("auth fixture unavailable in this environment")
-        r_status = test_client.get("/orchestrator/status", headers=auth_headers)
-        assert r_status.status_code == 200
-        assert "not live production task state" in r_status.json()["note"]
 
-        r_dead = test_client.get("/orchestrator/dead-letter", headers=auth_headers)
-        assert r_dead.status_code == 200
-        assert r_dead.json()["dead_letter_queue"] == []
-        assert "always empty by construction" in r_dead.json()["note"]
+        import src.workers.orchestrator as orch_mod
+        from celery.signals import task_failure
+
+        registry = self._make_registry_with_fake_redis()
+        orig_registry = orch_mod._task_registry
+        orch_mod._task_registry = registry
+        try:
+            task_failure.send(
+                sender=_FakeCeleryTask("cerebro.report_generate", retries=0),
+                task_id="e2e-task-1",
+                exception=ValueError("template render failed"),
+                args=(), kwargs={}, traceback=None, einfo=None,
+            )
+
+            r_dead = test_client.get("/orchestrator/dead-letter", headers=auth_headers)
+            assert r_dead.status_code == 200
+            body = r_dead.json()
+            assert "note" not in body, "a fake-but-available registry must not claim degraded state"
+            task_ids = [e["task_id"] for e in body["dead_letter_queue"]]
+            assert "e2e-task-1" in task_ids
+
+            r_status = test_client.get("/orchestrator/status", headers=auth_headers)
+            assert r_status.status_code == 200
+            breakers = r_status.json()["circuit_breakers"]
+            assert breakers["cerebro.report_generate"]["failures"] >= 1
+        finally:
+            orch_mod._task_registry = orig_registry
+
+    def test_registry_unavailable_reports_degraded_note_instead_of_fake_health(self):
+        """When Redis genuinely can't be reached, the endpoints must say
+        so rather than silently reporting default CLOSED/empty state as
+        if it were real."""
+        from src.workers.orchestrator import TaskHealthRegistry
+        registry = TaskHealthRegistry.__new__(TaskHealthRegistry)
+        registry._client = None
+
+        assert registry.available is False
+        assert registry.dead_letter_queue() == []
+        from src.workers.orchestrator import CircuitState
+        status = registry.breaker_status(["cerebro.fetch_data"])["cerebro.fetch_data"]
+        assert status["state"] == CircuitState.CLOSED.value
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 4b. MONITORING & ALERTING (src/monitoring/monitoring.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestDefaultAlertRulesUseRealData:
+    """setup_default_alerts registered three of its four rules as
+    `condition=lambda: False` -- a hardcoded stub that could never fire no
+    matter how bad the real pipeline failure rate, model drift, or API
+    latency actually got, while a fourth rule (disk space) was genuinely
+    wired to real data. An admin relying on /monitoring/alerts to catch
+    any of those three conditions would never see anything, regardless of
+    a real incident. Wired all three to real, windowed data: a
+    SlidingWindowTracker fed by track_pipeline_execution and
+    RequestTrackingMiddleware (Prometheus Counters/Histograms are
+    cumulative since process start with no query engine here to compute
+    "in the last hour" from them), and DriftEventLogger
+    (src/ml/mlops.py), which already persisted real drift events to
+    SQLite but nothing was reading them back for alerting."""
+
+    def test_pipeline_failure_rate_fires_on_real_failures_not_hardcoded_false(self):
+        from src.monitoring.monitoring import (
+            AlertEngine,
+            setup_default_alerts,
+            track_pipeline_execution,
+        )
+
+        @track_pipeline_execution
+        def good():
+            return "ok"
+
+        @track_pipeline_execution
+        def bad():
+            raise RuntimeError("boom")
+
+        good()
+        for _ in range(3):
+            with pytest.raises(RuntimeError):
+                bad()
+
+        engine = AlertEngine()
+        setup_default_alerts(engine)
+        fired = [a.rule_name for a in engine.evaluate()]
+        assert "high_pipeline_failure_rate" in fired
+
+    def test_pipeline_failure_rate_does_not_fire_with_no_real_data(self):
+        """A process that hasn't run any pipelines yet is "no data", not
+        a false 100% failure rate — verifies the count()==0 guard."""
+        from src.monitoring.monitoring import PIPELINE_OUTCOME_TRACKER, _check_pipeline_failure_rate
+        # Use a window far enough in the past that any prior test's
+        # recordings in this shared module-level tracker don't leak in.
+        assert _check_pipeline_failure_rate(window_sec=1e-9) is False
+
+    def test_api_latency_fires_on_real_slow_requests(self):
+        from src.monitoring.monitoring import API_LATENCY_TRACKER, _check_api_latency
+        for _ in range(10):
+            API_LATENCY_TRACKER.record(15.0)  # seconds, over the 10s threshold
+        assert _check_api_latency(window_sec=3600, threshold_sec=10.0) is True
+
+    def test_model_drift_reads_real_drift_event_logger(self, tmp_path):
+        from src.ml.mlops import DriftEventLogger
+        from src.monitoring.monitoring import _check_model_drift
+
+        db = tmp_path / "mlops_test.db"
+        logger = DriftEventLogger(db_path=db)
+        import sqlite3
+        conn = sqlite3.connect(db)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS drift_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                model_name TEXT, drift_type TEXT, metric_name TEXT,
+                metric_value REAL, threshold REAL, severity TEXT,
+                details TEXT, detected_at TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+        logger.log_event("test_model", "psi", "prediction_dist", 0.4, 0.25,
+                          severity="critical")
+
+        orig = DriftEventLogger.get_recent
+
+        def _fake_get_recent(self, model_name=None, hours=24):
+            # Route through the real, un-patched method bound to a fresh
+            # instance pointed at the tmp db -- calling self.get_recent()
+            # here would recurse into this same monkeypatch forever.
+            fresh = DriftEventLogger.__new__(DriftEventLogger)
+            fresh.db_path = db
+            return orig(fresh, model_name, hours)
+
+        DriftEventLogger.get_recent = _fake_get_recent
+        try:
+            assert _check_model_drift(hours=1) is True
+        finally:
+            DriftEventLogger.get_recent = orig
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -561,6 +820,26 @@ class _FakeRedisClient:
     def keys(self, pattern):
         import fnmatch
         return [k for k in self.store if fnmatch.fnmatch(k, pattern)]
+
+    # ── hash + list ops (TaskHealthRegistry) ────────────────────────────
+    def hgetall(self, key):
+        return dict(self.store.get(key, {}))
+
+    def hset(self, key, mapping):
+        self.store.setdefault(key, {})
+        self.store[key].update({k: str(v) for k, v in mapping.items()})
+
+    def lpush(self, key, value):
+        self.store.setdefault(key, [])
+        self.store[key].insert(0, value)
+
+    def ltrim(self, key, start, end):
+        lst = self.store.get(key, [])
+        self.store[key] = lst[start:end + 1] if end != -1 else lst[start:]
+
+    def lrange(self, key, start, end):
+        lst = self.store.get(key, [])
+        return lst[start:] if end == -1 else lst[start:end + 1]
 
 
 class TestRedisCacheCategoryNamespacing:

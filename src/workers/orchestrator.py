@@ -40,6 +40,7 @@ References:
 ================================================================================
 """
 
+import json
 import logging
 import os
 import random
@@ -548,6 +549,173 @@ REDIS_URL     = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CELERY_BROKER = os.environ.get("CELERY_BROKER", "redis://localhost:6379/0")
 CELERY_BACK   = os.environ.get("CELERY_BACKEND", "redis://localhost:6379/1")
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5b. Redis-backed task health registry (cross-process circuit breakers + DLQ)
+# ─────────────────────────────────────────────────────────────────────────────
+# The real pipeline runs as plain Celery task functions below
+# (pipeline_full_task, train_model_task, fetch_data_task,
+# generate_report_task) that call CEREBRO_Pipeline directly — they never
+# touch PipelineOrchestrator, whose DAG here only ever holds placeholder
+# lambda tasks. Celery workers run in separate processes from the FastAPI
+# process that serves /orchestrator/status and /orchestrator/dead-letter
+# (separate containers, per docker-compose.prod.yml), so an in-memory
+# PipelineOrchestrator built in one process is invisible to the other.
+# Redis is already shared infrastructure here — Celery broker/backend,
+# cache.py's L2 tier — so it's the store for real task health too: the
+# signal handlers wired below update it from inside the worker process,
+# and the API endpoints just read it back.
+REAL_TASK_CONFIGS: dict[str, CircuitBreakerConfig] = {
+    "cerebro.pipeline_full":   CircuitBreakerConfig(failure_threshold=3),
+    "cerebro.train_model":     CircuitBreakerConfig(failure_threshold=2),
+    "cerebro.fetch_data":      CircuitBreakerConfig(failure_threshold=5),
+    "cerebro.report_generate": CircuitBreakerConfig(failure_threshold=3),
+}
+REAL_TASK_NAMES = list(REAL_TASK_CONFIGS)
+
+
+class TaskHealthRegistry:
+    """
+    Circuit-breaker state + dead-letter queue for the real Celery tasks,
+    persisted in Redis so it's readable from any process that shares
+    REDIS_URL (API replicas and Celery workers alike).
+
+    Mirrors CircuitBreaker's CLOSED/OPEN/HALF_OPEN transition rules, but
+    reads/writes the counters from a Redis hash per task instead of
+    process-local fields. This is a monitoring surface, not a live
+    execution gate, so a lost update under concurrent workers (two
+    processes racing a read-modify-write) is an acceptable trade for
+    staying consistent with the rest of the codebase, which also treats
+    Redis as best-effort rather than transactional (see RedisCache).
+    """
+
+    PREFIX = "cerebro:orch:"
+    DEAD_LETTER_KEY = f"{PREFIX}dead_letter"
+    DEAD_LETTER_MAX = 500
+
+    def __init__(self, redis_url: str = None):
+        self._client = None
+        if _HAS_REDIS:
+            try:
+                self._client = redis.from_url(
+                    redis_url or REDIS_URL, socket_timeout=2,
+                    decode_responses=True,
+                )
+                self._client.ping()
+            except Exception as e:
+                log.warning(f"[ORCH:REGISTRY] Redis unavailable: {e}")
+                self._client = None
+
+    @property
+    def available(self) -> bool:
+        return self._client is not None
+
+    def _breaker_key(self, task_name: str) -> str:
+        return f"{self.PREFIX}breaker:{task_name}"
+
+    def _record(self, task_name: str, success: bool):
+        if not self._client:
+            return
+        config = REAL_TASK_CONFIGS.get(task_name, CircuitBreakerConfig())
+        key = self._breaker_key(task_name)
+        raw = self._client.hgetall(key)
+
+        state        = raw.get("state", CircuitState.CLOSED.value)
+        failures     = int(raw.get("failures", 0))
+        successes    = int(raw.get("successes", 0))
+        last_failure = float(raw.get("last_failure", 0.0))
+        now = time.time()
+
+        if (state == CircuitState.OPEN.value
+                and now - last_failure >= config.recovery_timeout):
+            state, successes = CircuitState.HALF_OPEN.value, 0
+
+        if success:
+            if state == CircuitState.HALF_OPEN.value:
+                successes += 1
+                if successes >= config.success_threshold:
+                    state, failures = CircuitState.CLOSED.value, 0
+            elif state == CircuitState.CLOSED.value:
+                failures = max(0, failures - 1)
+        else:
+            failures += 1
+            last_failure = now
+            if state == CircuitState.HALF_OPEN.value:
+                state = CircuitState.OPEN.value
+            elif (state == CircuitState.CLOSED.value
+                    and failures >= config.failure_threshold):
+                state = CircuitState.OPEN.value
+
+        self._client.hset(key, mapping={
+            "state":        state,
+            "failures":     failures,
+            "successes":    successes,
+            "last_failure": last_failure,
+            "threshold":    config.failure_threshold,
+            "recovery_sec": config.recovery_timeout,
+        })
+
+    def record_success(self, task_name: str):
+        self._record(task_name, True)
+
+    def record_failure(self, task_name: str):
+        self._record(task_name, False)
+
+    def add_dead_letter(self, task_name: str, task_id: str, error: str,
+                         attempts: int):
+        if not self._client:
+            return
+        entry = json.dumps({
+            "task_id":   task_id,
+            "task_name": task_name,
+            "error":     error,
+            "attempts":  attempts,
+            "failed_at": datetime.utcnow().isoformat(),
+        })
+        self._client.lpush(self.DEAD_LETTER_KEY, entry)
+        self._client.ltrim(self.DEAD_LETTER_KEY, 0, self.DEAD_LETTER_MAX - 1)
+
+    def dead_letter_queue(self) -> list[dict]:
+        if not self._client:
+            return []
+        out = []
+        for raw in self._client.lrange(self.DEAD_LETTER_KEY, 0, -1):
+            try:
+                out.append(json.loads(raw))
+            except Exception:
+                continue
+        return out
+
+    def breaker_status(self, task_names: list[str] = None) -> dict:
+        names = task_names or REAL_TASK_NAMES
+        out = {}
+        for name in names:
+            config = REAL_TASK_CONFIGS.get(name, CircuitBreakerConfig())
+            raw = self._client.hgetall(self._breaker_key(name)) if self._client else None
+            if not raw:
+                out[name] = CircuitBreaker(name, config).status
+            else:
+                out[name] = {
+                    "name":         name,
+                    "state":        raw.get("state", CircuitState.CLOSED.value),
+                    "failures":     int(raw.get("failures", 0)),
+                    "threshold":    int(float(raw.get("threshold", config.failure_threshold))),
+                    "last_failure": float(raw.get("last_failure", 0.0)),
+                    "recovery_sec": float(raw.get("recovery_sec", config.recovery_timeout)),
+                }
+        return out
+
+
+_task_registry: "TaskHealthRegistry | None" = None
+
+
+def get_task_registry() -> TaskHealthRegistry:
+    global _task_registry
+    if _task_registry is None:
+        _task_registry = TaskHealthRegistry()
+    return _task_registry
+
+
 if _HAS_CELERY:
     celery_app = Celery(
         "cerebro_orchestrator",
@@ -727,6 +895,48 @@ if _HAS_CELERY:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         # Report generation logic here
         return {"status": "success", "task": "report"}
+
+    # ── Task health signal handlers ──────────────────────────────────────
+    # Update TaskHealthRegistry from actual task outcomes instead of
+    # requiring every task body above to remember to call into it. These
+    # fire inside the worker process right after Celery's trace step
+    # records success/retry/failure, so the registry (backed by Redis)
+    # reflects real production behavior for any process reading it back.
+    from celery.signals import task_failure, task_retry, task_success
+
+    @task_success.connect
+    def _on_real_task_success(sender=None, **kwargs):
+        name = getattr(sender, "name", None)
+        if name in REAL_TASK_CONFIGS:
+            get_task_registry().record_success(name)
+
+    @task_retry.connect
+    def _on_real_task_retry(sender=None, **kwargs):
+        # A retry is still a failed attempt from the breaker's point of
+        # view -- it just isn't dead-lettered yet.
+        name = getattr(sender, "name", None)
+        if name in REAL_TASK_CONFIGS:
+            get_task_registry().record_failure(name)
+
+    @task_failure.connect
+    def _on_real_task_failure(sender=None, task_id=None, exception=None,
+                               **kwargs):
+        # task_failure only fires once a task has exhausted its retries
+        # (or raised without autoretry/self.retry() at all) -- that's
+        # exactly the dead-letter condition.
+        name = getattr(sender, "name", None)
+        if name not in REAL_TASK_CONFIGS:
+            return
+        registry = get_task_registry()
+        registry.record_failure(name)
+        request = getattr(sender, "request", None)
+        attempts = (request.retries + 1) if request is not None else 1
+        registry.add_dead_letter(
+            task_name=name,
+            task_id=task_id,
+            error=f"{type(exception).__name__}: {exception}" if exception else "unknown error",
+            attempts=attempts,
+        )
 
     # ── Pipeline chains ──────────────────────────────────────────────────
     def build_pipeline_chain(drugs: list[str]):
