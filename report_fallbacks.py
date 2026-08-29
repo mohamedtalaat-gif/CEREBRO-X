@@ -157,8 +157,8 @@ def _write_fig_doc(path: Path, overview: str,
            f"{'─'*70}\n  STRATEGIC DECISION\n{'─'*70}\n{decision}\n\n"
            f"{'─'*70}\n  THEORETICAL & PRACTICAL SCIENCE\n{'─'*70}\n{science}\n\n"
            f"{sep}\n")
-    (str(path) + "_DOCUMENTATION.txt").replace("//", "/")
-    with open(str(path) + "_DOCUMENTATION.txt", "w", encoding="utf-8") as f:
+    doc_path = (str(path) + "_DOCUMENTATION.txt").replace("//", "/")
+    with open(doc_path, "w", encoding="utf-8") as f:
         f.write(txt)
 
 
@@ -323,13 +323,19 @@ def _generate_merged_pdf(df_ml, df_dds, df_pk, metrics: dict,
     # ── All 100 formulations ──────────────────────────────────────────────
     story.append(Paragraph("Complete Formulation Rankings (all 100)", h1_s))
     if df_dds is not None and not df_dds.empty:
-        COLS2 = ["Rank","Formulation_ID","Carrier_Type","BBB_Engineering_Score",
-                 "ADMET_Overall_Flag","surface_ligand" if "surface_ligand" in df_dds.columns
-                 else "Surface_Ligand"]
+        # The ligand column's real casing ("surface_ligand" vs
+        # "Surface_Ligand") was worked out into COLS2 but COLS2 itself was
+        # never actually used -- avail2 below was a separate, hardcoded
+        # list that didn't include the ligand column at all, so this
+        # table silently dropped it despite the code clearly intending to
+        # show it.
+        ligand_col = ("surface_ligand" if "surface_ligand" in df_dds.columns
+                      else "Surface_Ligand")
         avail2 = [c for c in ["Rank","Formulation_ID","Formulation_Name",
                                "Carrier_Type","BBB_Engineering_Score",
-                               "ADMET_Overall_Flag"] if c in df_dds.columns]
-        cw2 = [1.0*cm, 2.0*cm, 4.5*cm, 3.0*cm, 2.2*cm, 2.0*cm][:len(avail2)]
+                               "ADMET_Overall_Flag", ligand_col]
+                  if c in df_dds.columns]
+        cw2 = [1.0*cm, 2.0*cm, 4.5*cm, 3.0*cm, 2.2*cm, 2.0*cm, 2.5*cm][:len(avail2)]
         t2_data = [avail2]
         for _, row in df_dds[avail2].iterrows():
             t2_data.append([str(round(v,2) if isinstance(v,float) else v)
