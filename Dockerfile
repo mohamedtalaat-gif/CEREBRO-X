@@ -155,9 +155,20 @@ ENV PYTHONUNBUFFERED=1 \
     MPLBACKEND=Agg \
     PYTHONPATH=/app:/app/engine
 
+# src/api/app.py only defines /healthz, /readyz, /health/deep -- there is no
+# plain /health route, so this always 404'd. docker-compose.prod.yml's own
+# healthcheck already uses the real /healthz path; this image-level default
+# was the only place still pointing at the wrong one.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
-    CMD curl -fsS http://localhost:8000/health || exit 1
+    CMD curl -fsS http://localhost:8000/healthz || exit 1
 
 EXPOSE 8000 8001
 
-CMD ["python", "run.py", "--headless"]
+# Not --headless: run.py's start_infra(headless=True) never starts uvicorn
+# at all, so a plain `docker run` of this image with the default CMD would
+# EXPOSE/advertise port 8000 and run the HEALTHCHECK above against it while
+# nothing actually listened there. docker-compose.prod.yml already overrides
+# this command with real uvicorn args, so this only changes the image's own
+# standalone default (`docker run <image>` with no compose file) to match
+# what its own EXPOSE/HEALTHCHECK directives promise.
+CMD ["python", "run.py"]

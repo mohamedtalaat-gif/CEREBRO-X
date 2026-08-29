@@ -86,7 +86,15 @@ services:
         condition: service_healthy
       redis_cache:
         condition: service_healthy
-    command: ["python", "run.py", "--headless"]
+    # --headless was here before: run.py's start_infra(headless=True) never
+    # starts uvicorn at all (see run.py), so this container would map/expose
+    # port 8000 (labeled above, and in FASTAPI_HOST/FASTAPI_PORT below, as
+    # the FastAPI REST API) while nothing ever listened on it, and the
+    # Dockerfile's own HEALTHCHECK (curl localhost:8000/health) would fail
+    # forever since nothing serves it in headless mode. Dropped --headless
+    # so this service actually serves what its own port mapping and
+    # environment promise.
+    command: ["python", "run.py"]
 
   # ── Celery worker (optional — enable with: docker compose --profile celery up)
   celery_worker:
