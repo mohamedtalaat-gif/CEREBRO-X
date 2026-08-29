@@ -365,11 +365,12 @@ def write_run_doc() -> None:
 # VisualisationOrchestrator wrapper). Removed: confirmed via repo-wide grep
 # to have zero callers anywhere — the real, live science/visualization path
 # is cerebro_science_modules.run_all_science_modules(), called directly
-# inside run_pipeline_from_excel (pipeline_runner.py). This also means
-# science_engines.ScienceOrchestrator/PBPKEngine/MultiCompartmentPKEngine
-# (which _run_science_and_viz was their only caller) need re-checking —
-# leaving that for the next audit pass rather than fixing it here, since
-# it changes an earlier finding of mine about them being "live."
+# inside run_pipeline_from_excel (pipeline_runner.py). Re-checked:
+# science_engines.ScienceOrchestrator has its own separate live caller —
+# pipeline_runner.py's ScienceOrchestrator.run_full() call (distinct from
+# the removed _run_science_and_viz) — which itself calls PBPKEngine.run_all
+# and MultiCompartmentPKEngine.simulate_all_drugs/simulate_2cmt_cns
+# internally, so all three remain genuinely live.
 
 if __name__ == "__main__":
     args = sys.argv[1:]

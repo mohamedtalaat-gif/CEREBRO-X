@@ -6851,3 +6851,46 @@ class TestRealQsarEngine:
         assert result["n_receptors_screened"] == 50
         assert len(result["receptor_panel"]) == 50
         assert result["overall_off_target"] in ("LOW RISK", "CAUTION", "HIGH CONCERN", "CRITICAL")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 40. TRIAL MANAGER — CACHE INVALIDATION MUST HIT THE REAL DB FILE
+# ═════════════════════════════════════════════════════════════════════════════
+class TestInvalidateMoleculeCacheHitsRealDbFile:
+    """invalidate_molecule_cache's own docstring promises: "After this
+    call, analyze_molecule() will fetch fresh from APIs" -- backed by
+    deleting stale drug_records rows so a subsequent INSERT OR REPLACE
+    upsert can't be shadowed by leftover data. It checked db_candidates =
+    [RESULTS_ROOT/"cerebro.db", SCRIPT_DIR/"cerebro.db"] -- a filename
+    that has never existed anywhere in this project. The real file,
+    written by src/core/pipeline.py's DB_PATH, is "cerebro_knowledge.db".
+    Since db_path.exists() was always False for "cerebro.db", the entire
+    SQLite-deletion step was a silent no-op on every single trial run,
+    contradicting run.py's own documented guarantee ("This guarantees
+    fresh API fetch every time — no stale data")."""
+
+    def test_stale_drug_record_row_is_actually_deleted(self, tmp_path, monkeypatch):
+        import sqlite3
+
+        import trial_manager
+
+        monkeypatch.setattr(trial_manager, "RESULTS_ROOT", tmp_path)
+        monkeypatch.setattr(trial_manager, "SCRIPT_DIR", tmp_path)
+
+        db_path = tmp_path / "cerebro_knowledge.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE drug_records (drug_name TEXT, mw_da REAL)")
+        conn.execute("INSERT INTO drug_records VALUES ('TestDrugXYZ', 300.0)")
+        conn.commit()
+        conn.close()
+
+        trial_manager.invalidate_molecule_cache(["TestDrugXYZ"], tmp_path)
+
+        conn = sqlite3.connect(db_path)
+        remaining = conn.execute(
+            "SELECT COUNT(*) FROM drug_records WHERE drug_name='TestDrugXYZ'"
+        ).fetchone()[0]
+        conn.close()
+        assert remaining == 0, (
+            "invalidate_molecule_cache must delete stale rows from the "
+            "real cerebro_knowledge.db, not a 'cerebro.db' that never exists")

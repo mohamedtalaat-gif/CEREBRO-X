@@ -538,10 +538,18 @@ def invalidate_molecule_cache(drug_names: list, trial_dir: Path) -> None:
                     f.unlink()
                     log.info(f"  [CACHE] Deleted: {f.name}")
 
-    # 2. SQLite drug_records — delete old rows for these drugs so Upsert is fresh
+    # 2. SQLite drug_records — delete old rows for these drugs so Upsert is fresh.
+    # The real DB file is "cerebro_knowledge.db" (src/core/pipeline.py's
+    # DB_PATH = OUTPUT_ROOT / "cerebro_knowledge.db") -- this used to check
+    # for a "cerebro.db" that has never existed anywhere in this project, so
+    # db_path.exists() was always False and this whole deletion step was a
+    # silent no-op on every trial, contradicting run.py's own documented
+    # guarantee ("This guarantees fresh API fetch every time — no stale
+    # data"). Verified directly: outputs/cerebro_knowledge.db exists;
+    # outputs/cerebro.db does not.
     db_candidates = [
-        RESULTS_ROOT / "cerebro.db",
-        SCRIPT_DIR / "cerebro.db",
+        RESULTS_ROOT / "cerebro_knowledge.db",
+        SCRIPT_DIR / "cerebro_knowledge.db",
     ]
     for db_path in db_candidates:
         if db_path.exists():
