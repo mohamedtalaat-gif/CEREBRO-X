@@ -164,12 +164,37 @@ def _group_score(per_principle: dict[str, dict], pids: list[str]) -> float:
     return sum(vals)/len(vals) if vals else 0.0
 
 
-# CNS-focused principle groups for rollup display
+# CNS-focused principle groups for rollup display.
+#
+# P02, P06, P07, P26, P47, P54 used to appear in none of these groups at
+# all -- a real gap, not a deliberate exclusion: their per-DDS scores are
+# still computed and still count toward the actual weighted composite
+# (that path uses weight_cns directly per principle, independent of this
+# grouping), but every group-rollup number shown to a researcher (this
+# sheet's "GROUP ROLLUPS" section, the DDS×Principle matrix's group
+# columns) silently dropped them, including P47 (Free Energy Perturbation
+# -- the highest-weighted deep-physics principle outside the named
+# CNS-direct set) and P02 (the allometric-scaling deep counterpart to
+# P13/P31/P44, which were already grouped here).
+#
+# P02 (allometric PK scaling) and P47 (FEP+ receptor binding) are the
+# deep-physics counterparts of P13/P31/P44 (PBPK) and P18 (targeting &
+# receptor binding), which already lived in G1 -- added alongside them.
+# P54 (pharmacogenomic-guided targeting) and P06 (lysosomal trafficking,
+# the intracellular-fate step of the same delivery mechanism) join the
+# same group. P26 (microbiome-excipient interactions) is a tolerability
+# concern, added to G4_Safety.
+#
+# P07 (Real-Time Literature Mining) is deliberately left out of every
+# group: it's a supporting/informational principle, not a scored
+# scientific dimension of the drug or DDS, so it has no natural home
+# among these seven rubric buckets.
 PRINCIPLE_GROUPS = {
-    "G1_CNS_Delivery":      ["P12","P13","P18","P31","P33","P38","P42","P44"],
+    "G1_CNS_Delivery":      ["P02","P06","P12","P13","P18","P31","P33","P38",
+                              "P42","P44","P47","P54"],
     "G2_Release_Kinetics":  ["P10","P14","P30","P59"],
     "G3_Stability":         ["P01","P08","P11","P15","P50","P51"],
-    "G4_Safety":            ["P09","P17","P22","P39","P46","P48","P53"],
+    "G4_Safety":            ["P09","P17","P22","P26","P39","P46","P48","P53"],
     "G5_Glymphatic_BBB":    ["P38","P40","P43"],
     "G6_Manufacturability": ["P16","P19","P20","P24","P25","P27","P28",
                               "P52","P57"],

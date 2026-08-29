@@ -284,7 +284,7 @@ def compare_drugs(drug_results: list[dict],
 
     # ─── Step 4b [v21]: extract Drug × Best-DDS Champion data ──────────
     # For each drug, capture the principle-ranked top-1 DDS and its full
-    # 25-principle score breakdown. This is the "drug + best DDS pair"
+    # 62-principle score breakdown. This is the "drug + best DDS pair"
     # head-to-head comparison the researcher cares about most.
     champions: list[dict] = []
     for d in drug_results:
@@ -491,7 +491,7 @@ def _write_comparison_excel(summary: dict, output_path: Path) -> None:
 
     # ─── Sheet 4 [v21]: DRUG × BEST-DDS CHAMPION HEAD-TO-HEAD ────────
     # The "drug + its best DDS pair" comparison the researcher cares about most.
-    # Each column = one (drug, best-DDS) champion. Rows = the 25 principles.
+    # Each column = one (drug, best-DDS) champion. Rows = the 62 principles.
     _write_champion_comparison_sheet(wb, summary)
 
     # ─── Sheet 5 [v21]: SCIENTIFIC RATIONALE NARRATIVE ────────────────
@@ -514,11 +514,11 @@ def _write_champion_comparison_sheet(wb, summary: dict) -> None:
     Drug × Best-DDS Champion comparison sheet.
 
     Each column = one drug's principle-ranked best DDS.
-    Each row    = one of the 25 principles.
+    Each row    = one of the 62 principles.
     Cell        = the principle score for that (drug, best-DDS) pair.
 
     Winner per row is highlighted green. Group sub-headers separate the
-    25 principles into the 7 thematic groups (CNS Delivery, Release, …).
+    62 principles into the 7 thematic groups (CNS Delivery, Release, …).
     """
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
@@ -538,7 +538,7 @@ def _write_champion_comparison_sheet(wb, summary: dict) -> None:
     ws["A1"] = "Drug × Best-DDS Champion Head-to-Head Comparison"
     ws["A1"].font = Font(bold=True, size=15, color="0f2040")
     ws["A2"] = ("Each column below = ONE drug paired with its principle-ranked "
-                "best DDS. Each row = one of the 25 CNS-weighted principles. "
+                "best DDS. Each row = one of the 62 CNS-weighted principles. "
                 "Cells show the per-principle score (0-100) the (drug,DDS) pair "
                 "achieved. Green = winner per principle. Read the bottom rows "
                 "for composite, verdict, and group-rollup scores.")

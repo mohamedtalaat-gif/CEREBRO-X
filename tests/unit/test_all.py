@@ -5359,6 +5359,38 @@ class TestOrchestratorCompositeScore:
         assert _compute_composite_score({"P01": {"score": 80.0}}, {}) == 0.0
 
 
+class TestOrchestratorPrincipleGroupCoverage:
+    """PRINCIPLE_GROUPS is the thematic-rollup grouping shown in the
+    Champion_DDS_Compare sheet and the DDS×Principle matrix's group
+    columns. P02, P06, P26, P47, and P54 used to appear in zero of the 8
+    groups -- their scores still counted toward the real weighted
+    composite (a separate code path keyed on weight_cns directly), but
+    every researcher-facing group-rollup number silently dropped them,
+    including P47 (Free Energy Perturbation, one of only 7 principles
+    with genuine independent deep-physics computation) and P02 (the
+    allometric-scaling counterpart to P13/P31/P44, which were already
+    grouped). Only P07 (Real-Time Literature Mining) is deliberately left
+    ungrouped -- it's a supporting/informational principle, not a scored
+    dimension of the drug or DDS."""
+
+    def test_every_principle_except_the_literature_miner_is_in_some_group(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_orchestrator import PRINCIPLE_GROUPS
+        from cerebro_62_principles_catalog import PRINCIPLES_62
+
+        grouped = {pid for pids in PRINCIPLE_GROUPS.values() for pid in pids}
+        missing = set(PRINCIPLES_62) - grouped
+        assert missing == {"P07"}
+
+    def test_previously_orphaned_cns_relevant_principles_are_now_grouped(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_orchestrator import PRINCIPLE_GROUPS
+
+        grouped = {pid for pids in PRINCIPLE_GROUPS.values() for pid in pids}
+        for pid in ("P02", "P06", "P26", "P47", "P54"):
+            assert pid in grouped
+
+
 class TestOrchestratorVerdictThresholds:
     def test_verdict_bands_match_documented_thresholds(self):
         import src.path_resolver  # noqa: F401
