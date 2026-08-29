@@ -59,6 +59,27 @@ Everything below is real: a real Excel filled in the way a researcher would fill
 
 *(BBB crossing 30.0% vs. native 3.0%, 10× enhancement, 50% endosomal escape — every number on this screen is a live computation from this run's own DLVO/transcytosis model, not a fixture.)*
 
+That screenshot is one panel of a larger dashboard — click through and explore the full thing yourself, live, no download or setup required:
+
+**[→ Open the full interactive dashboard (Donepezil)](https://mohamedtalaat-gif.github.io/CEREBRO-X/assets/reports/CEREBRO_X_Interactive_Donepezil.html)**
+
+(27 linked charts: BBB crossing animation, PBPK-CNS 6-compartment time course, molecular docking, release kinetics, shelf-life, and more — all computed from this one Excel input, all in one page.)
+
+| Drug | Class | Interactive dashboard | PDF report |
+|---|---|---|---|
+| Donepezil | small_molecule | [Open →](https://mohamedtalaat-gif.github.io/CEREBRO-X/assets/reports/CEREBRO_X_Interactive_Donepezil.html) | [Download](assets/reports/CEREBRO_X_Final_Report_Donepezil.pdf) |
+| Lecanemab | monoclonal_antibody | [Open →](https://mohamedtalaat-gif.github.io/CEREBRO-X/assets/reports/CEREBRO_X_Interactive_Lecanemab.html) | [Download](assets/reports/CEREBRO_X_Final_Report_Lecanemab.pdf) |
+| Temozolomide | small_molecule | [Open →](https://mohamedtalaat-gif.github.io/CEREBRO-X/assets/reports/CEREBRO_X_Interactive_Temozolomide.html) | [Download](assets/reports/CEREBRO_X_Final_Report_Temozolomide.pdf) |
+| Nusinersen | oligonucleotide | [Open →](https://mohamedtalaat-gif.github.io/CEREBRO-X/assets/reports/CEREBRO_X_Interactive_Nusinersen.html) | [Download](assets/reports/CEREBRO_X_Final_Report_Nusinersen.pdf) |
+| Rivastigmine | small_molecule | [Open →](https://mohamedtalaat-gif.github.io/CEREBRO-X/assets/reports/CEREBRO_X_Interactive_Rivastigmine.html) | [Download](assets/reports/CEREBRO_X_Final_Report_Rivastigmine.pdf) |
+| Galantamine | small_molecule | [Open →](https://mohamedtalaat-gif.github.io/CEREBRO-X/assets/reports/CEREBRO_X_Interactive_Galantamine.html) | [Download](assets/reports/CEREBRO_X_Final_Report_Galantamine.pdf) |
+
+These are real, unedited pipeline outputs from actual runs — the same three
+drugs (Lecanemab, Temozolomide, Nusinersen) referenced in the
+[Validation snapshot](#validation-snapshot-3-drug-benchmark-phase-5) below,
+plus three more covering the small-molecule/biologic/oligonucleotide split
+this pipeline is built to handle.
+
 ## ✨ Key Features
 
 - 🎯 **62-criterion scoring rubric** spanning BBB physics, PK/PD, colloidal stability, safety, and manufacturability — one composite score, full per-criterion breakdown

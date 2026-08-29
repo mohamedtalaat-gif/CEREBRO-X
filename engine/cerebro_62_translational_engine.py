@@ -138,13 +138,19 @@ def trans_P45(drug_bundle: dict, dds_bundle: dict,
     }
     pct = 100 * sum(audit_features.values()) / len(audit_features)
     return {
-        "principle":"P45", "title":"21 CFR Part 11 Compliance Audit",
-        "status":"audit_completed",
+        "principle":"P45", "title":"21 CFR Part 11 Compliance Self-Assessment",
+        "status":"self_assessment_completed",
         "compliance_score":round(pct, 1),
-        "narrative":(f"21 CFR Part 11 compliance: {pct:.0f}%. "
-                       f"{sum(audit_features.values())}/{len(audit_features)} features present."),
+        "narrative":(f"21 CFR Part 11 self-assessment: {pct:.0f}%. "
+                       f"{sum(audit_features.values())}/{len(audit_features)} features present "
+                       f"in this codebase as of the last manual review of its source."),
         "features":audit_features,
         "missing_features_for_full_compliance":[f for f, ok in audit_features.items() if not ok],
+        "disclaimer": ("This checks CEREBRO-X's own feature set against 21 CFR Part 11 "
+                        "requirements -- it is a self-assessment, not an external regulatory "
+                        "audit, and the feature flags above are not re-verified against the "
+                        "live codebase at run time; treat compliance_score as a starting "
+                        "checklist for a real audit, not a certification."),
         "v23_note":"Add e-signatures + complete user action logging for 100% compliance",
         "generated_at": _ts(),
     }

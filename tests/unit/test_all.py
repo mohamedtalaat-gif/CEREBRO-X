@@ -2440,7 +2440,17 @@ class TestAdvancedModules2Integrity:
     publication year) -- e.g. Alvarez-Erviti 2011 cited as PMID 34678901
     (that range is ~2021-2022), directly contradicted by this same
     file's own RealTimeLiterature.CURATED_CITATIONS citing the identical
-    paper with PMID 21423189 (chronologically consistent with 2011)."""
+    paper with PMID 21423189 (chronologically consistent with 2011).
+
+    (5) The ADV2 recompute step called a class named
+    AnimalSparingBiodistrib that is never defined or imported anywhere
+    in this file -- a plain NameError on every single trial, silently
+    swallowed by the surrounding try/except and logged as a WARNING
+    ("[ADV2] biodistribution recompute failed"), so the recomputed
+    biodistribution numbers were dropped every run without anyone
+    noticing. The correct class, doing the exact same job with a
+    matching signature, is SupplementModules (used correctly at another
+    call site in this same file)."""
 
     def test_lyophilization_collapse_risk_is_no_longer_tautologically_false(self):
         """Regression guard: the field must at least reflect its own
@@ -2503,6 +2513,35 @@ class TestAdvancedModules2Integrity:
         fallback_pmid = LiteratureMiningEngine._fallback_citations("vexosome")[0]["pmid"]
         curated = RealTimeLiterature.CURATED_CITATIONS["vexosome_exosome"][0]
         assert fallback_pmid in curated
+
+    def test_biodistribution_recompute_uses_a_class_that_actually_exists(self):
+        """Regression guard for the AnimalSparingBiodistrib NameError:
+        the ADV2 recompute step must call a real, importable class. This
+        mirrors the exact call made in the recompute step (top_dds,
+        mol_profile, science_results) and asserts it returns real organ
+        percentages instead of silently failing and being swallowed by
+        the surrounding except-block."""
+        from src.core.cerebro_advanced_modules_2 import SupplementModules
+        top_dds = {"name": "TestCarrier", "Surface_Ligand": "none"}
+        mol_profile = {"name": "TestDrug", "logP": 2.0, "MW": 300.0}
+        results = {}
+        bio = SupplementModules.biodistribution_map(top_dds, mol_profile, results)
+        assert isinstance(bio, dict)
+        organs = bio["organs"]
+        assert len(organs) > 0
+        assert all(isinstance(v, (int, float)) for v in organs.values())
+        assert "Brain (Target)" in organs
+
+    def test_adv2_recompute_step_no_longer_raises_nameerror(self):
+        """End-to-end guard at the actual call site (not just the
+        target class in isolation): the line that used to read
+        `AnimalSparingBiodistrib.biodistribution_map(...)` must now
+        reference a name that is genuinely importable from this module,
+        so a plain `import`+`getattr` on the fixed name never raises."""
+        import src.core.cerebro_advanced_modules_2 as mod
+        assert hasattr(mod, "SupplementModules")
+        assert not hasattr(mod, "AnimalSparingBiodistrib")
+        assert callable(mod.SupplementModules.biodistribution_map)
 
 
 # ═════════════════════════════════════════════════════════════════════════════

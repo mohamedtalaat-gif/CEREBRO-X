@@ -1020,7 +1020,7 @@ def _write_drug_translational_sheet(wb, idx: int, dr: dict) -> None:
         status = t.get("status","")
         STATUS_COLOR = {"structured_outline_ready":"C6EFCE",
                           "search_queries_prepared":"DDEBCB",
-                          "audit_completed":"DDEBCB",
+                          "self_assessment_completed":"DDEBCB",
                           "scored":"C6EFCE",
                           "skipped_deep_validation_insufficient":"FFC7CE",
                           "failed":"F2A1A1"}

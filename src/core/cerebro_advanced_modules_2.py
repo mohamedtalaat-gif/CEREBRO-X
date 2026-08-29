@@ -1653,7 +1653,7 @@ def run_all_advanced_modules(mol_profile: dict, top_dds: dict,
     if "biodistribution_map" not in results or not results.get("biodistribution_map",{}).get("organs"):
         log.info("[ADV2] Recomputing biodistribution with accumulated PBPK context")
         try:
-            bio = AnimalSparingBiodistrib.biodistribution_map(top_dds, mol_profile, results)
+            bio = SupplementModules.biodistribution_map(top_dds, mol_profile, results)
             results["biodistribution_map"] = bio
         except Exception as _be:
             log.warning(f"[ADV2] biodistribution recompute failed: {_be}")
