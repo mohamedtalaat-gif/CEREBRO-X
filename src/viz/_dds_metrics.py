@@ -282,18 +282,21 @@ def backfill_legacy_aliases(rec: Record, mol_profile: Record | None = None) -> R
     cerebro_html5_engine.py, final_report_unified.py) read a DDS record
     directly via `top_dds.get("BBB_Enhanced_Pct", 30)`,
     `top_dds.get("Endosomal_Escape_Eff", 0.5)`, `top_dds.get("Stealth_Index",
-    0.5)` -- names that `_run_dds_from_yaml`/`evaluate_all_dds_62` never
-    produce, so every one of those lookups was silently returning the same
-    hardcoded constant for every drug on every run, regardless of the
-    formulation actually scored. This backfills the real values under
-    those legacy names so any caller that still uses the old `.get()`
-    pattern gets correct, per-drug data instead of a shared default.
+    0.5)`, `top_dds.get("CNS_Bioavailability_Pct", 10)` -- names that
+    `_run_dds_from_yaml`/`evaluate_all_dds_62` never produce, so every one
+    of those lookups was silently returning the same hardcoded constant for
+    every drug on every run, regardless of the formulation actually scored.
+    This backfills the real values under those legacy names so any caller
+    that still uses the old `.get()` pattern gets correct, per-drug data
+    instead of a shared default.
 
     `Endosomal_Escape_Eff` and `Stealth_Index` are consumed everywhere as
     0-1 fractions (e.g. `escape*100` for display, `.2f`-formatted values
     like "0.65"), unlike `BBB%`/`Escape`/`Stealth` in METRIC_DEFS which are
     all on the 0-100 scale -- divide by 100 here to match the legacy
-    callers' expectation.
+    callers' expectation. `CNS_Bioavailability_Pct` is consumed as a 0-100
+    percentage everywhere (`.1f` + "%", or explicitly `/100` at call sites
+    that need the fraction), matching `get_pct(rec, "CNS BA%")` directly.
 
     `BBB_Native_Pct` (BBB crossing WITHOUT any delivery system) is not a
     DDS-formulation property at all -- it comes from the molecule's own
@@ -305,6 +308,7 @@ def backfill_legacy_aliases(rec: Record, mol_profile: Record | None = None) -> R
     out["BBB_Enhanced_Pct"] = extract_metric(rec, "BBB%")
     out["Endosomal_Escape_Eff"] = extract_metric(rec, "Escape") / 100.0
     out["Stealth_Index"] = extract_metric(rec, "Stealth") / 100.0
+    out["CNS_Bioavailability_Pct"] = extract_metric(rec, "CNS BA%")
     native = mol_profile.get("BBB_permeability_pct") if mol_profile else None
     out["BBB_Native_Pct"] = float(native) if native is not None else 3.0
     return out

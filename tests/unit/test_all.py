@@ -644,6 +644,19 @@ class TestDDSMetricsLegacyAliasBackfill:
         out = backfill_legacy_aliases({"BBB_Engineering_Score": 80.0}, mol_profile=None)
         assert out["BBB_Native_Pct"] == 3.0
 
+    def test_cns_bioavailability_pct_uses_real_derivation_not_hardcoded_10(self):
+        """CNS_Bioavailability_Pct is read the same ghost-key way in
+        cerebro_advanced_modules_2.py, cerebro_science_modules.py,
+        final_report_unified.py and h23 in cerebro_html5_engine.py (default
+        10 everywhere) — must resolve via the real BBB%/liver-loss
+        derivation, not collapse to that shared constant."""
+        from src.viz._dds_metrics import backfill_legacy_aliases
+        weak = backfill_legacy_aliases({"BBB_Engineering_Score": 15.0, "Off_Target_Liver_pct": 60.0})
+        strong = backfill_legacy_aliases({"BBB_Engineering_Score": 90.0, "Off_Target_Liver_pct": 5.0})
+        assert weak["CNS_Bioavailability_Pct"] != 10
+        assert strong["CNS_Bioavailability_Pct"] != 10
+        assert strong["CNS_Bioavailability_Pct"] > weak["CNS_Bioavailability_Pct"]
+
     def test_backfill_does_not_mutate_or_drop_original_keys(self):
         from src.viz._dds_metrics import backfill_legacy_aliases
         rec = {"BBB_Engineering_Score": 55.0, "Formulation_Name": "LNP-7"}
