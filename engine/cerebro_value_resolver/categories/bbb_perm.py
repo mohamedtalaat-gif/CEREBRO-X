@@ -307,9 +307,15 @@ def resolve_bbb_permeability(name: str = "", smiles: str = "",
     if logp is not None and tpsa is not None:
         logbb = 0.152 * logp - 0.0148 * tpsa + 0.139
         # Convert logBB to approximate brain/plasma %: B/P ratio = 10^logBB,
-        # capped at 100%
+        # capped at 100%. (A prior version of this line also divided by
+        # (1 + bp_ratio) -- a second, unrelated saturating-percentage
+        # mapping stacked on top of the "B/P_ratio × 5" this docstring
+        # describes -- which pushed the 100% cap into range for almost
+        # any logBB >= -0.6, i.e. essentially every CNS-penetrant small
+        # molecule, when real BBB% for even excellent CNS drugs runs
+        # 3-60% elsewhere in this same codebase.)
         bp_ratio = 10 ** logbb
-        bbb_pct = min(100, bp_ratio * 100 / (1 + bp_ratio) * 5)
+        bbb_pct = min(100, bp_ratio * 5)
         return _resolved(value=round(bbb_pct, 2), tier=6,
                           source="cerebro_value_resolver:clark_logbb_to_pct",
                           method="logBB = 0.152·LogP − 0.0148·TPSA + 0.139; "

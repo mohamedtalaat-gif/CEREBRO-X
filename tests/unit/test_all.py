@@ -1354,6 +1354,32 @@ class TestBBBDNN:
         assert biologic["source"] != "cerebro_bbb_dnn"
         assert biologic["value"] < 1.0  # biologics get a low class-default %
 
+    def test_clark_logbb_fallback_gives_realistic_not_saturated_percentages(self):
+        """Regression test: the Tier-6 Clark-regression fallback (no SMILES,
+        or DNN unavailable) used to compute
+        bbb_pct = min(100, bp_ratio*100/(1+bp_ratio)*5) -- an extra
+        saturating-percentage term stacked on top of the "B/P_ratio x 5"
+        this function's own docstring/method string describes. That pushed
+        the 100% cap into range for almost any logBB >= -0.6 (i.e. nearly
+        every CNS-penetrant compound), when real BBB% for even excellent
+        CNS drugs runs 3-60% throughout this codebase. Donepezil-like
+        descriptors (logP=4.3, TPSA=39, logBB~0.215) must NOT come back as
+        100%."""
+        from cerebro_value_resolver.categories.bbb_perm import resolve_bbb_permeability
+
+        result = resolve_bbb_permeability(
+            name="NoSmilesTestDrug", smiles="", logp=4.3, tpsa=39.0)
+        assert result["tier"] == 6
+        assert result["source"] == "cerebro_value_resolver:clark_logbb_to_pct"
+        assert 5.0 < result["value"] < 20.0
+
+    def test_clark_logbb_fallback_never_exceeds_100_pct(self):
+        from cerebro_value_resolver.categories.bbb_perm import resolve_bbb_permeability
+
+        result = resolve_bbb_permeability(
+            name="ExtremeLogP", smiles="", logp=15.0, tpsa=0.0)
+        assert result["value"] <= 100.0
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # 8. DDS INVERSE-DESIGN (engine/cerebro_dds_inverse_design.py)
