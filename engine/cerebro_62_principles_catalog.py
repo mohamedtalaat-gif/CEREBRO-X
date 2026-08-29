@@ -68,7 +68,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P01": {
         "title_en": "Adversarial Stress-Testing Engine",
         "title_ar": "اختبار الإجهاد العدائي",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": False,
         "dds_dependent": True,
         "method_surrogate":
@@ -84,7 +84,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P02": {
         "title_en": "Cross-Species PK Scaling (Allometric)",
         "title_ar": "قياس الفارما العابر للأنواع",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": False,
         "method_surrogate":
@@ -114,7 +114,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P04": {
         "title_en": "Quantum Coherence Transport Model",
         "title_ar": "نموذج نقل الكم",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": False,
         "method_surrogate":
@@ -186,7 +186,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P08": {
         "title_en": "Degradation Kinetics Under Oxidative Stress",
         "title_ar": "حركية التحلل تحت ROS",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -216,7 +216,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P10": {
         "title_en": "LNP Ionization State Predictor",
         "title_ar": "حالة تأين الـ LNP",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -231,7 +231,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P11": {
         "title_en": "Formulation Instability Fingerprint",
         "title_ar": "بصمة عدم الاستقرار",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": False,
         "dds_dependent": True,
         "method_surrogate":
@@ -246,7 +246,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P12": {
         "title_en": "CNS Disease-Stage-Aware Dosing",
         "title_ar": "جرعات حسب مرحلة المرض",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -266,7 +266,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P13": {
         "title_en": "PBPK Digital Twin",
         "title_ar": "التوأم الرقمي للمريض",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -309,7 +309,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P16": {
         "title_en": "Scale-up & Manufacturability",
         "title_ar": "قابلية التصنيع",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": False,
         "dds_dependent": True,
         "method_surrogate":
@@ -338,7 +338,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P18": {
         "title_en": "Active Targeting & Receptor Binding",
         "title_ar": "الاستهداف النشط",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -412,7 +412,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P23": {
         "title_en": "Dynamic Crystal Polymorphism",
         "title_ar": "التغير البلوري",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": False,
         "dds_dependent": False,
         "method_surrogate":
@@ -427,7 +427,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P24": {
         "title_en": "Shear-Stress & Scale-Up Collapse",
         "title_ar": "إجهاد القص",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": False,
         "dds_dependent": True,
         "method_surrogate":
@@ -497,7 +497,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P29": {
         "title_en": "Biomimetic & Exosome Engineering",
         "title_ar": "هندسة الإكسوزومات",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -511,7 +511,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P30": {
         "title_en": "QM/MM Stimuli-Responsive Cleavage",
         "title_ar": "تنشيط كمي للأدوية",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": False,
         "dds_dependent": True,
         "method_surrogate":
@@ -525,7 +525,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P31": {
         "title_en": "In-Silico Biodistribution",
         "title_ar": "التوزيع الحيوي",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -559,7 +559,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P33": {
         "title_en": "BBB Quantum Breaker (Trojan-Horse Design)",
         "title_ar": "قاهر BBB",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -629,7 +629,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P38": {
         "title_en": "Glymphatic Clearance Trap",
         "title_ar": "النظام الجليمفاوي",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -658,7 +658,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P40": {
         "title_en": "Intranasal-to-Brain Delivery",
         "title_ar": "التوصيل عبر الأنف",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -672,7 +672,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P41": {
         "title_en": "Exosome Cargo Loading Thermodynamics",
         "title_ar": "تحميل الإكسوزومات",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -701,7 +701,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P43": {
         "title_en": "FUS-Responsive Nanocarriers",
         "title_ar": "نواقل تستجيب للموجات الصوتية",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -715,7 +715,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P44": {
         "title_en": "CNS-Specific PBPK Time-Machine",
         "title_ar": "آلة الزمن للمخ",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":
@@ -803,7 +803,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P50": {
         "title_en": "Cryo-Chain Thermal Excursion Predictor",
         "title_ar": "صدمات السلسلة الباردة",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": False,
         "dds_dependent": True,
         "method_surrogate":
@@ -823,7 +823,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P51": {
         "title_en": "Terminal Sterilization Survivability",
         "title_ar": "النجاة من التعقيم",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": False,
         "dds_dependent": True,
         "method_surrogate":
@@ -904,7 +904,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P57": {
         "title_en": "Microfluidics & LNP Synthesis Digital Twin",
         "title_ar": "التوأم الرقمي للموائع الدقيقة",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": False,
         "dds_dependent": True,
         "method_surrogate":
@@ -918,7 +918,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P58": {
         "title_en": "Impurity Cascade Predictor",
         "title_ar": "تأثير الفراشة للشوائب",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": False,
         "dds_dependent": True,
         "method_surrogate":
@@ -932,7 +932,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P59": {
         "title_en": "4D Shape-Shifting Carriers",
         "title_ar": "نواقل متغيرة الشكل",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": False,
         "dds_dependent": True,
         "method_surrogate":
@@ -960,7 +960,7 @@ PRINCIPLES_62: dict[str, dict] = {
     "P61": {
         "title_en": "Synthetic Clinical Trials & Virtual Humans",
         "title_ar": "التجارب السريرية الاصطناعية",
-        "class": "A_surrogate",
+        "class": "B_deep",
         "cns_relevant": True,
         "dds_dependent": True,
         "method_surrogate":

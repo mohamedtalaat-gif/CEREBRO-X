@@ -5296,12 +5296,10 @@ class TestPrinciplesCatalogIntegrity:
         assert s["class_A_surrogate"] + s["class_B_deep"] + s["class_C_admin"] == 62
 
     def test_every_principles_deep_computation_is_wired_into_the_deep_engine(self):
-        """Every principle that carries a real method_deep entry here (not
-        just an HPC-deferred one) should correspond to a callable in
-        cerebro_62_deep_engine.py's dispatch — a principle can be filed as
-        'A_surrogate' here (its primary fast-screen role) while still
-        having a deep follow-up computation for the Top-1 winner; those
-        two files need to stay in sync on which principles that applies to."""
+        """Every principle that carries a real method_deep entry here should
+        correspond to a callable in cerebro_62_deep_engine.py's dispatch —
+        those two files need to stay in sync on which principles that
+        applies to."""
         import src.path_resolver  # noqa: F401
         from cerebro_62_deep_engine import DEEP_FUNCTIONS, HPC_ONLY_PRINCIPLES
         from cerebro_62_principles_catalog import PRINCIPLES_62
@@ -5309,6 +5307,28 @@ class TestPrinciplesCatalogIntegrity:
         deep_engine_ids = set(DEEP_FUNCTIONS) | set(HPC_ONLY_PRINCIPLES)
         catalog_has_method_deep = {pid for pid, p in PRINCIPLES_62.items() if p.get("method_deep")}
         assert deep_engine_ids <= catalog_has_method_deep
+
+    def test_class_b_catalog_membership_matches_the_real_deep_engine_set(self):
+        """The module docstring states Class B has 28 principles (7 with
+        genuine independent computation + 21 HPC-deferred pass-through, per
+        cerebro_62_deep_engine.py's DEEP_FUNCTIONS + HPC_ONLY_PRINCIPLES).
+        The catalog's "class" field used to tag only P47 as "B_deep" and
+        mislabel the other 27 as "A_surrogate" -- an internal inconsistency
+        between this file's own stated policy and its own data, which fed
+        straight into the Excel writer's Principle_Explanations glossary
+        sheet (the one sheet a researcher is told to treat as source-of-
+        truth for what each principle actually does), understating to a
+        reader that 27 of the 28 principles with genuine or HPC-deferred
+        deep-physics validation were mere fast surrogates."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_deep_engine import DEEP_FUNCTIONS, HPC_ONLY_PRINCIPLES
+        from cerebro_62_principles_catalog import CLASS_B_DEEP, PRINCIPLES_62
+
+        deep_engine_ids = set(DEEP_FUNCTIONS) | set(HPC_ONLY_PRINCIPLES)
+        assert len(deep_engine_ids) == 28
+        assert set(CLASS_B_DEEP) == deep_engine_ids
+        for pid in deep_engine_ids:
+            assert PRINCIPLES_62[pid]["class"] == "B_deep"
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -5587,18 +5607,24 @@ class TestSurrogateDispatcher:
         # The 5 translational principles must NOT be in this registry.
         assert not ({"P21", "P32", "P45", "P55", "P56"} & set(SURROGATE_FUNCTIONS))
 
-    def test_registry_ids_match_principles_catalog_class_a(self):
+    def test_registry_ids_match_principles_catalog_non_translational(self):
+        """Every principle that isn't Class C (translational/admin) needs a
+        fast surrogate score, because that's what ranks all 100 DDS before
+        the Top-1 winner goes to Class B deep validation -- Class B
+        principles run through this same surrogate registry too, they just
+        also get a second, independent deep-physics pass afterward. The
+        catalog's own "class" field used to mislabel 27 of the 28 real
+        Class-B principles (cerebro_62_deep_engine.DEEP_FUNCTIONS +
+        HPC_ONLY_PRINCIPLES) as "A_surrogate" -- this asserted the stale,
+        buggy invariant (every registered ID except P47 must be
+        "A_surrogate") instead of the real one (every registered ID must
+        be A_surrogate OR B_deep, never C_translational)."""
         import src.path_resolver  # noqa: F401
         from cerebro_62_principles_catalog import PRINCIPLES_62
         from cerebro_62_surrogate_engine import SURROGATE_FUNCTIONS
 
-        # P47 is filed as B_deep in the catalog but still runs here as a
-        # fast surrogate proxy (its own module comment explains why) — every
-        # other registered ID should be a real A_surrogate catalog entry.
         for pid in SURROGATE_FUNCTIONS:
-            if pid == "P47":
-                continue
-            assert PRINCIPLES_62[pid]["class"] == "A_surrogate"
+            assert PRINCIPLES_62[pid]["class"] in ("A_surrogate", "B_deep")
 
     def test_evaluate_all_principles_isolates_a_single_failing_function(self):
         """A malformed bundle (missing bbb_permeability entirely, so
