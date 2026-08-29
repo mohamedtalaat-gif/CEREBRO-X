@@ -190,15 +190,32 @@ class CircuitBreaker:
                     f"Circuit breaker '{self.name}' is OPEN — "
                     f"failing fast until recovery"
                 )
+            with self._lock:
+                self._half_open_calls += 1
             try:
-                with self._lock:
-                    self._half_open_calls += 1
                 result = func(*args, **kwargs)
                 self.record_success()
                 return result
             except Exception:
                 self.record_failure()
                 raise
+            finally:
+                # Free the HALF_OPEN test slot this call occupied. Without
+                # this, with the default config (half_open_max=1 <
+                # success_threshold=3) the breaker permanently deadlocked:
+                # can_execute() only lets a call through in HALF_OPEN while
+                # _half_open_calls < half_open_max, and nothing ever
+                # decremented it, so the first recovery test call --
+                # succeed or fail -- consumed the only slot forever. A
+                # fully recovered service would then be stuck rejecting
+                # every request with CircuitBreakerOpenError permanently,
+                # even though the breaker's own log line claimed it was
+                # testing for recovery. Verified directly: a breaker
+                # tripped once, given a fully healthy function afterward,
+                # let exactly one call through and then blocked all
+                # subsequent calls indefinitely.
+                with self._lock:
+                    self._half_open_calls = max(0, self._half_open_calls - 1)
         return wrapper
 
     @property

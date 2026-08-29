@@ -788,7 +788,17 @@ async def suggest_combinations(
 async def orchestrator_status(
     user: UserModel = Depends(require_role(Role.ADMIN)),
 ):
-    """Get pipeline DAG orchestration status."""
+    """Get pipeline DAG structure and a freshly-initialized circuit-breaker
+    snapshot for it.
+
+    The real pipeline runs as plain Celery tasks (pipeline_full_task,
+    train_model_task, ...) that call CEREBRO_Pipeline directly and never
+    go through PipelineOrchestrator.execute() -- so dag_levels/n_tasks
+    below are real, accurate DAG topology, but circuit_breakers is built
+    from a brand-new PipelineOrchestrator() constructed on every request,
+    not any orchestrator that has actually run tasks. Every breaker will
+    always show CLOSED/0-failures here regardless of real task health.
+    """
     orch = create_cerebro_pipeline_dag()
     topo = orch._topological_sort()
     return {
@@ -797,15 +807,33 @@ async def orchestrator_status(
         "circuit_breakers": {
             name: cb.status for name, cb in orch.breakers.items()
         },
+        "note": ("circuit_breakers reflects a freshly-constructed DAG, not "
+                 "live production task state -- the real Celery task path "
+                 "does not route through PipelineOrchestrator."),
     }
 
 @app.get("/orchestrator/dead-letter", tags=["Orchestration"])
 async def dead_letter_queue(
     user: UserModel = Depends(require_role(Role.ADMIN)),
 ):
-    """View the dead letter queue (permanently failed tasks)."""
+    """View the dead letter queue (permanently failed tasks).
+
+    PipelineOrchestrator is disconnected from the real Celery task
+    execution path (see orchestrator_status docstring above), and this
+    endpoint constructs a brand-new, never-executed orchestrator on every
+    call -- its dead_letter_queue is therefore always [] by construction,
+    not because no tasks have actually failed. Returning that silently
+    would let an admin read "no dead-lettered tasks" as a real health
+    signal when it is structurally incapable of ever being anything else.
+    """
     orch = create_cerebro_pipeline_dag()
-    return {"dead_letter_queue": orch.dead_letter_queue}
+    return {
+        "dead_letter_queue": orch.dead_letter_queue,
+        "note": ("this endpoint's orchestrator is freshly constructed per "
+                 "request and never executes real tasks, so this list is "
+                 "always empty by construction -- it does not reflect "
+                 "whether any real Celery task has actually failed."),
+    }
 
 
 # ═════════════════════════════════════════════════════════════════════════════

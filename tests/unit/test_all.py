@@ -339,6 +339,52 @@ class TestOrchestrator:
         cb.record_success()
         assert cb.state == CircuitState.CLOSED
 
+    def test_circuit_breaker_decorator_recovers_with_default_config(self):
+        """Regression test for a permanent-lockout bug: __call__'s wrapper
+        incremented _half_open_calls on every call but never decremented
+        it. With the DEFAULT config (half_open_max=1 < success_threshold=3
+        -- exactly what PipelineOrchestrator.register() constructs, since
+        it never overrides either), can_execute() in HALF_OPEN only allows
+        a call through while _half_open_calls < half_open_max. The very
+        first post-recovery call consumed that one slot forever, so the
+        breaker could never accumulate the 3 successes needed to close --
+        it got stuck rejecting every call with CircuitBreakerOpenError
+        permanently, even once the wrapped function was fully healthy
+        again. Verified directly before the fix: a breaker tripped once,
+        then given an always-succeeding function, let exactly one call
+        through and blocked every call after that, forever."""
+        from src.workers.orchestrator import (
+            CircuitBreaker,
+            CircuitBreakerConfig,
+            CircuitBreakerOpenError,
+            CircuitState,
+        )
+        cb = CircuitBreaker("test", CircuitBreakerConfig(
+            failure_threshold=1, recovery_timeout=0.01,
+        ))  # success_threshold=3, half_open_max=1 -- the real defaults
+
+        @cb
+        def flaky(should_fail):
+            if should_fail:
+                raise ValueError("boom")
+            return "ok"
+
+        with pytest.raises(ValueError):
+            flaky(True)
+        assert cb.state == CircuitState.OPEN
+        time.sleep(0.02)
+
+        results = []
+        for _ in range(5):
+            try:
+                results.append(flaky(False))
+            except CircuitBreakerOpenError:
+                results.append("BLOCKED")
+
+        assert results == ["ok", "ok", "ok", "ok", "ok"], (
+            f"breaker got stuck rejecting calls after recovery: {results}")
+        assert cb.state == CircuitState.CLOSED
+
     def test_retry_decorator(self):
         from src.workers.orchestrator import RetryPolicy, retry_with_backoff
         call_count = 0
@@ -400,6 +446,28 @@ class TestOrchestrator:
         execs = orch.execute()
         assert execs["bad"].state == TaskState.DEAD
         assert execs["after"].state == TaskState.CANCELLED
+
+    def test_orchestrator_endpoints_disclose_they_are_not_live_state(self, test_client, auth_headers):
+        """/orchestrator/status and /orchestrator/dead-letter each build a
+        brand-new PipelineOrchestrator() per request via
+        create_cerebro_pipeline_dag() -- one that only ever holds
+        placeholder lambda tasks and has never executed anything. The real
+        pipeline runs as plain Celery tasks that never touch
+        PipelineOrchestrator at all, so dead_letter_queue is always []
+        and every circuit breaker is always CLOSED here, regardless of
+        whether real tasks are failing in production. Both responses must
+        say so explicitly rather than silently reading as a live health
+        signal to an admin."""
+        if not auth_headers:
+            pytest.skip("auth fixture unavailable in this environment")
+        r_status = test_client.get("/orchestrator/status", headers=auth_headers)
+        assert r_status.status_code == 200
+        assert "not live production task state" in r_status.json()["note"]
+
+        r_dead = test_client.get("/orchestrator/dead-letter", headers=auth_headers)
+        assert r_dead.status_code == 200
+        assert r_dead.json()["dead_letter_queue"] == []
+        assert "always empty by construction" in r_dead.json()["note"]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
