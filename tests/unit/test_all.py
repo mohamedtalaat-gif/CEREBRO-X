@@ -5442,6 +5442,56 @@ class TestModulePathShims:
         assert "src" not in CEREBRO_Pipeline.PATHS["data"].parts
         assert "core" not in CEREBRO_Pipeline.PATHS["data"].parts
 
+    def test_enterprise_infra_resolves_its_own_project_root_not_src_dds(self):
+        """enterprise_infra.py used to compute SCRIPT_DIR as its own file's
+        directory (.../src/dds), then derive CONFIG_DIR/OUTPUT_ROOT/
+        DDS_CONFIG/DDS_RESULTS/DATABASE_URL from it at that same
+        module-import time. path_resolver.py's post-import SCRIPT_DIR
+        patch runs too late to fix any of those already-derived globals --
+        and never even attempted to for DDS_CONFIG/DDS_RESULTS/
+        DATABASE_URL, which it has no per-module knowledge of (unlike
+        pipeline.py's PATHS/DB_PATH, which it does patch). Verified
+        directly before this fix: importing enterprise_infra.py fresh with
+        no live Postgres server baked DATABASE_URL in as
+        "sqlite:////.../src/dds/outputs/cerebro_postgres_fallback.db" and
+        DDS_CONFIG as ".../src/dds/config/dds_config.yaml" (which does not
+        exist), instead of the real project-root locations -- silently
+        breaking config lookups and scattering a stray fallback DB in the
+        wrong directory. Fixed at the root: enterprise_infra.py now walks
+        up from its own directory to find run.py (the same way it already
+        does to find .env) and resolves SCRIPT_DIR to that project root
+        BEFORE anything derives a path from it, so every current and
+        future SCRIPT_DIR-derived global in the file is correct on first
+        import -- with or without path_resolver's later patch.
+
+        Run in a fresh subprocess: enterprise_infra.py is very likely
+        already imported (and cached in sys.modules) by earlier tests in
+        this same file, so re-importing it here would just return the
+        cached module rather than re-exercising the module-level
+        SCRIPT_DIR resolution this test is actually about."""
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        project_root = Path(__file__).resolve().parents[2]
+        script = (
+            "import sys; sys.path.insert(0, '.'); "
+            "import importlib; "
+            "mod = importlib.import_module('src.dds.enterprise_infra'); "
+            "print('DDS_CONFIG_EXISTS=' + str(mod.DDS_CONFIG.exists())); "
+            "print('DATABASE_URL=' + mod.DATABASE_URL); "
+            "print('SCRIPT_DIR=' + mod.SCRIPT_DIR)"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=project_root, capture_output=True, text=True, timeout=60)
+        assert result.returncode == 0, (
+            f"import failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}")
+        assert "DDS_CONFIG_EXISTS=True" in result.stdout, result.stdout
+        assert f"SCRIPT_DIR={project_root}" in result.stdout, result.stdout
+        assert "src/dds" not in result.stdout, (
+            f"a SCRIPT_DIR-derived global still points inside src/dds:\n{result.stdout}")
+
     @pytest.mark.slow
     def test_phase5_smoke_test_script_passes_end_to_end(self):
         """engine/phase5_smoke_test.py is a standalone script (real ChEMBL

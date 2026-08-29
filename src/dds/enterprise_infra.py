@@ -99,6 +99,33 @@ try:
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 except NameError:
     SCRIPT_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
+
+# When this file is imported as src.dds.enterprise_infra (the normal path,
+# via src/path_resolver.py), SCRIPT_DIR above resolves to this file's own
+# directory (.../src/dds), not the project root. path_resolver.py patches
+# SCRIPT_DIR on the already-imported module afterward, but everything
+# below in THIS module that derives a path from SCRIPT_DIR during this
+# same import (CONFIG_DIR, OUTPUT_ROOT, DDS_CONFIG, DDS_RESULTS, and --
+# whenever PostgreSQL is unavailable -- DATABASE_URL/engine/SessionLocal)
+# already computed its value from the stale one by the time that patch
+# runs, so patching the SCRIPT_DIR name afterward doesn't fix any of them.
+# Verified directly: importing this module fresh with no live Postgres
+# server baked DATABASE_URL in as
+# "sqlite:////.../src/dds/outputs/cerebro_postgres_fallback.db" instead of
+# the real ".../outputs/...", and DDS_CONFIG pointed at
+# ".../src/dds/config/dds_config.yaml" -- which does not exist -- instead
+# of the real "./config/dds_config.yaml" at the project root, silently
+# breaking config lookups and creating a stray, wrong-location fallback
+# DB. Resolving SCRIPT_DIR to the real project root right here, before
+# anything downstream derives a path from it, fixes the root cause for
+# every current and future SCRIPT_DIR-derived global in this file at
+# once, instead of requiring path_resolver.py to know each one by name.
+if not (Path(SCRIPT_DIR) / "run.py").exists():
+    for _candidate in [Path(SCRIPT_DIR).parent, Path(SCRIPT_DIR).parent.parent,
+                        Path(SCRIPT_DIR).parent.parent.parent]:
+        if (_candidate / "run.py").exists():
+            SCRIPT_DIR = str(_candidate)
+            break
 # # os.chdir(  # REMOVED: SCRIPT_DIR)  # REMOVED: use absolute pathlib paths for cloud/Docker
 
 # ─────────────────────────────────────────────────────────────────────────────
