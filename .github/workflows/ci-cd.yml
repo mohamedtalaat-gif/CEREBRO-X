@@ -236,11 +236,23 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   # Stage 5: Deploy
   # ═══════════════════════════════════════════════════════════════════════════
+  # NOT WIRED UP YET: no staging/production server exists to deploy to.
+  # These two jobs used to `echo "... deployment complete"` /
+  # `echo "All checks passed"` with every real command commented out --
+  # meaning a run always showed a green checkmark for "Production
+  # deployment complete" and "All checks passed" whether or not anything
+  # actually happened, because nothing did.
   deploy-staging:
-    name: "Deploy to Staging"
+    # Disabled (skipped, not run) rather than left to auto-run on every
+    # push to main showing a fake "complete" -- `if: false` gives a clean
+    # "skipped" status instead of either a misleading pass or a failure
+    # spamming every routine push. Flip back to
+    # `if: github.ref == 'refs/heads/main'` once the real deploy steps
+    # below are filled in.
+    name: "Deploy to Staging (not yet implemented)"
     runs-on: ubuntu-latest
     needs: [build, integration]
-    if: github.ref == 'refs/heads/main'
+    if: false
     environment: staging
 
     steps:
@@ -248,7 +260,6 @@ jobs:
 
       - name: Deploy to staging server
         run: |
-          echo "Deploying to staging..."
           # SSH into staging server and pull + restart
           # ssh deploy@staging.cerebro-x.com << 'EOF'
           #   cd /opt/cerebro-x
@@ -256,19 +267,30 @@ jobs:
           #   docker-compose -f docker-compose.prod.yml up -d --remove-orphans
           #   docker-compose -f docker-compose.prod.yml exec cerebro-api python -c "from cerebro_monitoring import HealthChecker; print(HealthChecker.deep_health())"
           # EOF
-          echo "Staging deployment complete"
+          echo "::error::Not implemented -- fill in the real deploy steps above, then flip this job's `if:` back on."
+          exit 1
 
       - name: Smoke test
         run: |
-          echo "Running smoke tests against staging..."
           # curl -f https://staging.cerebro-x.com/healthz
           # curl -f https://staging.cerebro-x.com/readyz
-          echo "Smoke tests passed"
+          echo "::error::Not implemented -- fill in real smoke-test curls above."
+          exit 1
 
   deploy-production:
-    name: "Deploy to Production"
+    # Manual-trigger-only (workflow_dispatch, environment=production) --
+    # unlike deploy-staging this never runs on a routine push, so failing
+    # loudly here doesn't spam anyone; it only fires if a human explicitly
+    # asks for a production deploy, and they need to know it didn't
+    # actually happen rather than see a false "All checks passed".
+    # `needs: [deploy-staging]` was dropped for now: with deploy-staging
+    # disabled (if: false, see above) a "needs" dependency on it would
+    # make this job perpetually skipped too, silently defeating the point
+    # of making a deliberate manual dispatch fail loudly. Restore the
+    # dependency once deploy-staging is for-real implemented and
+    # re-enabled.
+    name: "Deploy to Production (not yet implemented)"
     runs-on: ubuntu-latest
-    needs: [deploy-staging]
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
     environment: production
 
@@ -277,24 +299,11 @@ jobs:
 
       - name: Deploy to production
         run: |
-          echo "Deploying to production..."
           # Blue-green deployment:
           # 1. Deploy new version to green stack
           # 2. Health check green
           # 3. Switch Nginx upstream to green
           # 4. Drain blue connections
           # 5. Stop blue stack
-          echo "Production deployment complete"
-
-      - name: Post-deploy verification
-        run: |
-          echo "Running post-deploy health checks..."
-          # curl -f https://api.cerebro-x.com/healthz
-          # curl -f https://api.cerebro-x.com/readyz
-          echo "All checks passed"
-
-      - name: Notify team
-        if: always()
-        run: |
-          echo "Sending deployment notification..."
-          # Slack/Teams webhook notification
+          echo "::error::Not implemented -- fill in the real blue-green deploy steps above."
+          exit 1
