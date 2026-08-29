@@ -202,6 +202,114 @@ class TestDDSScore:
             assert 0 <= score <= 100
 
 
+class TestImputerEngineRespectsSecondaryFieldsWhitelist:
+    """ImputerEngine's own docstring documents a deliberate philosophy:
+    CORE fields are strict-rejected, and ONLY a curated SECONDARY_FIELDS
+    whitelist (LogP, PDI, ligand density, ...) is eligible for
+    IterativeImputer -- everything else should be left alone. The actual
+    `eligible` list in impute() never consulted SECONDARY_FIELDS at all;
+    it imputed any numeric column the caller passed minus the 3 CORE
+    fields, whatever else happened to be in the dataframe. Harmless at
+    the one real call site today (runs before any score/rank column
+    exists), but silently dropped the safety boundary the class exists
+    to enforce."""
+
+    def test_only_whitelisted_secondary_fields_get_imputed(self):
+        import numpy as np
+        import pandas as pd
+
+        from src.dds.enterprise_infra import ImputerEngine
+
+        df = pd.DataFrame({
+            "Drug": ["A", "B", "C"],
+            "MW_Da": [300, 350, 320],
+            "Half_Life_Days": [1, 2, 3],
+            "LogP": [2.1, np.nan, 1.8],             # in SECONDARY_FIELDS
+            "Some_Other_Score": [50, np.nan, 70],   # NOT in SECONDARY_FIELDS
+        })
+        out = ImputerEngine.impute(
+            df, df.select_dtypes(include=np.number).columns.tolist())
+        assert not out["LogP"].isna().any()
+        assert out["Some_Other_Score"].isna().sum() == 1, (
+            "a column outside SECONDARY_FIELDS must not be ML-imputed")
+
+
+class TestDdsEngineEnrichDrugFieldsHonestFallback:
+    """enrich_drug_fields' own comment states its v22.1 policy: "NO
+    drug-name-specific fallbacks. If cascade fails, the fields stay
+    None and downstream code reports the gap" -- applied correctly to
+    MW_Da/Half_Life_Days (both default to None via MW_REF/CLINICAL_HL
+    lookups) but LogP silently defaulted to a hardcoded -0.7 for every
+    drug regardless of what the cascade actually returned, contradicting
+    that same policy stated two lines below it. The subsequent log.info
+    call also crashed with TypeError on a genuinely-missing (None) value
+    -- formatting None with ':.0f' -- which the surrounding
+    except Exception then mislabeled as "cascade enrichment failed" even
+    when enrichment had actually succeeded for the fields it could."""
+
+    def _install_fake_cascade(self, monkeypatch, mw_da=None, logp=None, half_life=None):
+        import types
+
+        class FakeCascade:
+            @staticmethod
+            def fetch_drug(name):
+                data = {}
+                if mw_da is not None:
+                    data["MW_Da"] = mw_da
+                if logp is not None:
+                    data["LogP"] = logp
+                if half_life is not None:
+                    data["Half_Life_Days"] = half_life
+                return data
+
+        fake_pipeline = types.ModuleType("CEREBRO_Pipeline")
+        fake_pipeline.CLINICAL_HL = {}
+        fake_pipeline.MW_REF = {}
+        fake_pipeline.CascadeDataEngine = FakeCascade
+        # monkeypatch.setitem restores the real "CEREBRO_Pipeline" entry
+        # (registered by src.path_resolver, and depended on by unrelated
+        # tests -- e.g. TestModulePathShims checking CEREBRO_Pipeline.PATHS)
+        # automatically when this test ends, unlike a bare
+        # sys.modules[...] = assignment, which would leak this fake,
+        # PATHS-less module into every later test in the same session.
+        monkeypatch.setitem(__import__("sys").modules, "CEREBRO_Pipeline", fake_pipeline)
+
+    def test_logp_stays_none_when_cascade_does_not_return_it(self, monkeypatch):
+        import numpy as np
+        import pandas as pd
+
+        from src.dds.enterprise_infra import DDSEngine
+
+        self._install_fake_cascade(monkeypatch, mw_da=300.5)  # LogP/HL genuinely absent
+        df = pd.DataFrame({"Drug": ["test_drug"], "MW_Da": [np.nan],
+                            "LogP": [np.nan], "Half_Life_Days": [np.nan]})
+        out = DDSEngine.enrich_drug_fields(df)
+        assert out["MW_Da"].iloc[0] == 300.5
+        assert pd.isna(out["LogP"].iloc[0]), (
+            "LogP must not silently become -0.7 for a drug the cascade "
+            "couldn't resolve it for")
+        assert pd.isna(out["Half_Life_Days"].iloc[0])
+
+    def test_log_statement_does_not_crash_and_mislabel_a_partial_success(self, monkeypatch):
+        """A genuinely-missing field (None) reaching the log.info format
+        string must not raise -- that TypeError used to get caught by
+        the surrounding except Exception and logged as "cascade
+        enrichment failed", which is false: MW_Da enrichment above had
+        already succeeded."""
+        import numpy as np
+        import pandas as pd
+
+        from src.dds.enterprise_infra import DDSEngine
+
+        self._install_fake_cascade(monkeypatch, mw_da=300.5)
+        df = pd.DataFrame({"Drug": ["test_drug"], "MW_Da": [np.nan],
+                            "LogP": [np.nan], "Half_Life_Days": [np.nan]})
+        out = DDSEngine.enrich_drug_fields(df)  # must not raise
+        assert out["MW_Da"].iloc[0] == 300.5, (
+            "the real enrichment succeeded and must not be discarded by "
+            "a log-formatting crash being mistaken for a cascade failure")
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 3. MLOps
 # ═════════════════════════════════════════════════════════════════════════════
@@ -2859,6 +2967,39 @@ class TestResultsDownloadPathTraversal:
             os.chdir(cwd)
 
 
+class TestEnterpriseInfraResultsDownloadPathTraversal:
+    """The equivalent GET /results/{filepath:path} endpoint in
+    src/dds/enterprise_infra.py (a separate, legacy standalone FastAPI
+    app -- not the one served by docker-compose.prod.yml, but still
+    directly importable/runnable, and with no authentication at all)
+    had the identical vulnerability as the one already fixed in
+    src/api/app.py: filepath joined onto OUTPUT_ROOT with no containment
+    check. Same fix, same reason to hit the real endpoint through a real
+    TestClient rather than unit-testing the Path logic in isolation."""
+
+    def test_traversal_attempt_is_rejected(self):
+        from fastapi.testclient import TestClient
+
+        from src.dds.enterprise_infra import app
+        client = TestClient(app)
+        r = client.get("/results/%2e%2e/%2e%2e/%2e%2e/dds/enterprise_infra.py")
+        assert r.status_code == 403, (
+            f"Expected the traversal to be rejected with 403, got "
+            f"{r.status_code}: {r.text[:200]}")
+
+    def test_legitimate_file_still_downloads(self):
+        from pathlib import Path
+
+        from fastapi.testclient import TestClient
+
+        from src.dds.enterprise_infra import OUTPUT_ROOT, app
+        (Path(OUTPUT_ROOT) / "_test_legit_download.txt").write_text("hello world")
+        client = TestClient(app)
+        r = client.get("/results/_test_legit_download.txt")
+        assert r.status_code == 200
+        assert r.text == "hello world"
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 14. DRUG_SMILES RESOLVER — NAME MUST NEVER BE USED AS A SMILES FALLBACK
 # ═════════════════════════════════════════════════════════════════════════════
@@ -5445,24 +5586,31 @@ class TestModulePathShims:
     def test_enterprise_infra_resolves_its_own_project_root_not_src_dds(self):
         """enterprise_infra.py used to compute SCRIPT_DIR as its own file's
         directory (.../src/dds), then derive CONFIG_DIR/OUTPUT_ROOT/
-        DDS_CONFIG/DDS_RESULTS/DATABASE_URL from it at that same
-        module-import time. path_resolver.py's post-import SCRIPT_DIR
-        patch runs too late to fix any of those already-derived globals --
-        and never even attempted to for DDS_CONFIG/DDS_RESULTS/
-        DATABASE_URL, which it has no per-module knowledge of (unlike
-        pipeline.py's PATHS/DB_PATH, which it does patch). Verified
-        directly before this fix: importing enterprise_infra.py fresh with
-        no live Postgres server baked DATABASE_URL in as
-        "sqlite:////.../src/dds/outputs/cerebro_postgres_fallback.db" and
-        DDS_CONFIG as ".../src/dds/config/dds_config.yaml" (which does not
-        exist), instead of the real project-root locations -- silently
-        breaking config lookups and scattering a stray fallback DB in the
-        wrong directory. Fixed at the root: enterprise_infra.py now walks
+        DDS_CONFIG/DDS_RESULTS from it at that same module-import time.
+        path_resolver.py's post-import SCRIPT_DIR patch runs too late to
+        fix any of those already-derived globals -- and never even
+        attempted to for DDS_CONFIG/DDS_RESULTS, which it has no
+        per-module knowledge of (unlike pipeline.py's PATHS/DB_PATH, which
+        it does patch). Verified directly before this fix: importing
+        enterprise_infra.py fresh baked DDS_CONFIG in as
+        ".../src/dds/config/dds_config.yaml" (which does not exist),
+        instead of the real project-root location -- silently breaking
+        config lookups. Fixed at the root: enterprise_infra.py now walks
         up from its own directory to find run.py (the same way it already
         does to find .env) and resolves SCRIPT_DIR to that project root
         BEFORE anything derives a path from it, so every current and
         future SCRIPT_DIR-derived global in the file is correct on first
         import -- with or without path_resolver's later patch.
+
+        (A separate, unrelated ~260-line prototype script -- its own
+        DATABASE_URL/engine/Drug-table/toy ml_score FastAPI app -- had
+        been concatenated onto the end of this same file and, on import,
+        silently reassigned `app` to itself, making the real, documented
+        API [health checks, /run-pipeline, /run-dds, /dds/ranking,
+        /results/{filepath:path}, ...] completely unreachable by anyone
+        who imported this module rather than running it as __main__.
+        Zero other code in the repo referenced any of that prototype's
+        names, so it was removed outright rather than patched around.)
 
         Run in a fresh subprocess: enterprise_infra.py is very likely
         already imported (and cached in sys.modules) by earlier tests in
@@ -5479,7 +5627,6 @@ class TestModulePathShims:
             "import importlib; "
             "mod = importlib.import_module('src.dds.enterprise_infra'); "
             "print('DDS_CONFIG_EXISTS=' + str(mod.DDS_CONFIG.exists())); "
-            "print('DATABASE_URL=' + mod.DATABASE_URL); "
             "print('SCRIPT_DIR=' + mod.SCRIPT_DIR)"
         )
         result = subprocess.run(
@@ -5491,6 +5638,33 @@ class TestModulePathShims:
         assert f"SCRIPT_DIR={project_root}" in result.stdout, result.stdout
         assert "src/dds" not in result.stdout, (
             f"a SCRIPT_DIR-derived global still points inside src/dds:\n{result.stdout}")
+
+    def test_enterprise_infra_app_exposes_the_real_routes_not_a_stale_prototype(self):
+        """A ~260-line, fully self-contained prototype script (its own
+        redundant imports, its own DATABASE_URL/engine/Drug SQL model, a
+        toy ml_score FastAPI app, a do-nothing "background monitoring"
+        task) had been concatenated onto the end of this file and, being
+        pure module-level code with no __main__ guard, unconditionally
+        reassigned `app` to itself on every import -- silently discarding
+        the real, documented app (with /health, /run-pipeline, /run-dds,
+        /dds/ranking, /results/{filepath:path}, ...) for any caller that
+        imports this module rather than running it directly as a script.
+        Confirms the real app -- not the toy one -- is what `app` resolves
+        to, and that none of the prototype's names remain."""
+        from src.dds.enterprise_infra import app
+
+        route_paths = {r.path for r in app.routes}
+        assert "/run-dds" in route_paths
+        assert "/dds/ranking" in route_paths
+        assert "/results/{filepath:path}" in route_paths
+        assert "/drug/" not in route_paths
+        assert "/top/" not in route_paths
+
+        import src.dds.enterprise_infra as mod
+        for stale_name in ("Drug", "MLCore", "DrugInput", "async_pipeline",
+                           "feature_engineering", "compute_affinity"):
+            assert not hasattr(mod, stale_name), (
+                f"{stale_name} from the removed prototype script still exists")
 
     @pytest.mark.slow
     def test_phase5_smoke_test_script_passes_end_to_end(self):

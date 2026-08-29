@@ -368,9 +368,19 @@ class ImputerEngine:
         if df.empty:
             return df
 
-        # 2. Identify secondary columns eligible for imputation
+        # 2. Identify secondary columns eligible for imputation.
+        # SECONDARY_FIELDS is the deliberate, curated whitelist this
+        # class's own docstring describes ("SECONDARY features... LogP,
+        # PDI, Ligand_Density, etc."); it was never actually consulted
+        # here -- any numeric column the caller passed (minus the 3 CORE
+        # fields) got imputed, whatever else happened to be in the
+        # dataframe at call time. Currently harmless in the one real call
+        # site (build_dataframe -> enrich_drug_fields runs before any
+        # score/rank column exists), but silently drops the safety
+        # boundary this class exists to enforce for any future caller or
+        # column addition.
         eligible = [c for c in numeric_cols
-                    if c in df.columns and c not in cls.CORE_FIELDS]
+                    if c in df.columns and c in cls.SECONDARY_FIELDS]
 
         # Track which cells were imputed (for documentation)
         mask_before = df[eligible].isna()
@@ -667,15 +677,25 @@ class DDSEngine:
                     df["MW_Da"] = data.get("MW_Da",
                                            MW_REF.get(drug_name, None))
                 if needs_lp:
-                    df["LogP"]  = data.get("LogP", -0.7)
+                    # v22.1: no drug-name-specific fallback -- matches
+                    # MW_Da/Half_Life_Days just above. This used to
+                    # default to a hardcoded -0.7 for every drug whose
+                    # cascade fetch didn't return LogP, silently
+                    # contradicting that same policy for the other two
+                    # fields right next to it.
+                    df["LogP"] = data.get("LogP", None)
                 if needs_hl:
                     df["Half_Life_Days"] = data.get(
                         "Half_Life_Days",
                         CLINICAL_HL.get(drug_name, None))
+
+                def _fmt(v, spec):
+                    return format(v, spec) if pd.notna(v) else "N/A"
+
                 log.info(f"  [DDS] Drug fields enriched from cascade: "
-                         f"MW={df['MW_Da'].iloc[0]:.0f} Da, "
-                         f"LogP={df['LogP'].iloc[0]:.2f}, "
-                         f"HL={df['Half_Life_Days'].iloc[0]:.1f}d")
+                         f"MW={_fmt(df['MW_Da'].iloc[0], '.0f')} Da, "
+                         f"LogP={_fmt(df['LogP'].iloc[0], '.2f')}, "
+                         f"HL={_fmt(df['Half_Life_Days'].iloc[0], '.1f')}d")
         except Exception as e:
             log.warning(f"  [DDS] Cascade enrichment failed: {e}")
             # v22.1: NO drug-name-specific fallbacks. If cascade fails,
@@ -726,14 +746,16 @@ class DDSEngine:
         # Save ranked output
         path = DDS_RESULTS / "formulation_ranking.csv"
         df.to_csv(path, index=False)
+        _drug_name = cfg["drug"]["name"]
         write_doc(path, {
             "overview":
-                "Complete ranking of 100 DDS formulations for lecanemab BBB delivery, "
-                "scored by the CEREBRO-X BBB Engineering Score (0–100).",
+                f"Complete ranking of {len(df)} DDS formulations for "
+                f"{_drug_name} BBB delivery, scored by the CEREBRO-X BBB "
+                f"Engineering Score (0–100).",
             "significance":
-                "Identifies the top drug delivery architectures for solving "
-                "lecanemab's fundamental BBB penetration problem (< 0.1% native). "
-                "The top-ranked systems are recommended for in-vitro validation.",
+                f"Identifies the top drug delivery architectures for solving "
+                f"{_drug_name}'s BBB penetration problem. "
+                f"The top-ranked systems are recommended for in-vitro validation.",
             "strategic_decision":
                 "Formulations with BBB_Engineering_Score > 75 AND "
                 "off_target_liver_pct < 30 AND carpa_risk_index < 0.35 "
@@ -997,8 +1019,22 @@ if _HAS_FASTAPI:
 
     @app.get("/results/{filepath:path}", tags=["Results"])
     def download_result(filepath: str):
-        """Download a specific result file."""
-        full = OUTPUT_ROOT / filepath
+        """Download a specific result file.
+
+        Path traversal: filepath is a raw user-controlled path -- this
+        used to join it onto OUTPUT_ROOT with no containment check, so
+        any caller (this legacy endpoint has no authentication at all)
+        could pass "../../../etc/passwd" or an equivalent URL-encoded
+        traversal and read any file the server process can read,
+        completely outside OUTPUT_ROOT. Same vulnerability class already
+        fixed for the equivalent endpoint in src/api/app.py. Resolve both
+        sides and require the result to actually be a descendant of
+        OUTPUT_ROOT before serving it.
+        """
+        results_root = Path(OUTPUT_ROOT).resolve()
+        full = (results_root / filepath).resolve()
+        if not full.is_relative_to(results_root):
+            raise HTTPException(403, detail="Access denied: path escapes results directory")
         if not full.exists():
             raise HTTPException(404, detail=f"File not found: {filepath}")
         return FileResponse(str(full))
@@ -1557,267 +1593,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# =============================================================================
-# CEREBRO-X — PRODUCTION BACKEND (FastAPI + PostgreSQL)
-# =============================================================================
-
-import asyncio
-import logging
-import os
-import sys
-
-import pandas as pd
-from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseModel
-from sklearn.decomposition import PCA
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sqlalchemy import Column, Float, Integer, String, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session, sessionmaker
-
-# =============================================================================
-# 1. CONFIG
-# =============================================================================
-
-# Read from environment — works both locally AND in Docker
-# Docker: DATABASE_URL=postgresql://postgres:password@postgres_db:5432/cerebro_db
-# Local:  DATABASE_URL=postgresql://postgres:cerebro@localhost:5432/cerebro_db
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://postgres:cerebro@localhost:5432/cerebro_db"  # local fallback
-)
-log.info(f"[DB] PostgreSQL URL: {DATABASE_URL.split('@')[-1]}")  # log host only
-
-# Resilient engine: falls back to SQLite if PostgreSQL unavailable
-try:
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,        # health-check connection before use
-        pool_size=5,
-        max_overflow=10,
-        connect_args={"connect_timeout": 5} if "postgresql" in DATABASE_URL else {},
-    )
-    # Quick connectivity test
-    with engine.connect() as conn:
-        conn.execute(__import__("sqlalchemy").text("SELECT 1"))
-    log.info(f"[DB] PostgreSQL connected: {DATABASE_URL.split('@')[-1]}")
-except Exception as _db_err:
-    _sqlite_path = str(Path(SCRIPT_DIR) / "outputs" / "cerebro_postgres_fallback.db")
-    log.warning(f"[DB] PostgreSQL unavailable ({_db_err}). Falling back to SQLite: {_sqlite_path}")
-    DATABASE_URL = f"sqlite:///{_sqlite_path}"
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-
-SessionLocal = sessionmaker(bind=engine)
-Base = declarative_base()
-
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger("CEREBRO")
-
-# =============================================================================
-# 2. DATABASE MODELS
-# =============================================================================
-
-class Drug(Base):
-    __tablename__ = "drugs"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-    mw = Column(Float)
-    logp = Column(Float)
-    half_life = Column(Float)
-    affinity = Column(Float)
-    ml_score = Column(Float)
-
-
-try:
-    try:
-        Base.metadata.create_all(bind=engine)
-        log.info("[DB] Tables created/verified")
-    except Exception as _create_err:
-        log.warning(f"[DB] Table creation failed (non-fatal): {_create_err}")
-    log.info("[DB] Tables created/verified")
-except Exception as e:
-    log.warning(f"[DB] Table creation failed: {e}")
-
-# =============================================================================
-# 3. FASTAPI INIT
-# =============================================================================
-
-app = FastAPI(title="CEREBRO-X API", version="22.1")
-
-# =============================================================================
-# 4. DEPENDENCY (DB SESSION)
-# =============================================================================
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-# =============================================================================
-# 5. DATA SCHEMA (INPUT)
-# =============================================================================
-
-class DrugInput(BaseModel):
-    name: str
-    mw: float
-    logp: float
-    half_life: float
-
-# =============================================================================
-# 6. FEATURE ENGINEERING
-# =============================================================================
-
-def feature_engineering(df):
-    df["stability_index"] = df["half_life"] / df["mw"]
-    return df
-
-# =============================================================================
-# 7. ML ENGINE (PIPELINE)
-# =============================================================================
-
-class MLCore:
-    def __init__(self):
-        self.pipeline = Pipeline([
-            ("scaler", StandardScaler()),
-            ("pca", PCA(n_components=2)),
-            ("model", RandomForestRegressor(n_estimators=150))
-        ])
-
-    def train(self, df):
-        X = df[["mw", "logp", "half_life", "stability_index"]]
-        y = abs(df["affinity"]) * 0.6 + df["half_life"] * 0.4
-
-        self.pipeline.fit(X, y)
-        df["ml_score"] = self.pipeline.predict(X)
-
-        return df
-
-ml_model = MLCore()
-
-# =============================================================================
-# 8. CORE LOGIC
-# =============================================================================
-
-def compute_affinity(row):
-    return -(abs(row["logp"]) + row["mw"] / 100000)
-
-# =============================================================================
-# 9. API ENDPOINTS
-# =============================================================================
-
-@app.get("/")
-def root():
-    return {"status": "CEREBRO-X Backend Running"}
-
-# -----------------------------------------------------------------------------
-# ADD DRUG
-# -----------------------------------------------------------------------------
-
-@app.post("/drug/")
-def add_drug(drug: DrugInput, db: Session = Depends(get_db)):
-
-    affinity = compute_affinity(drug.dict())
-
-    db_drug = Drug(
-        name=drug.name,
-        mw=drug.mw,
-        logp=drug.logp,
-        half_life=drug.half_life,
-        affinity=affinity,
-        ml_score=0
-    )
-
-    db.add(db_drug)
-    db.commit()
-    db.refresh(db_drug)
-
-    return {"message": "Drug added", "id": db_drug.id}
-
-# -----------------------------------------------------------------------------
-# TRAIN MODEL
-# -----------------------------------------------------------------------------
-
-@app.post("/train/")
-def train_model(db: Session = Depends(get_db)):
-
-    drugs = db.query(Drug).all()
-
-    if len(drugs) < 3:
-        raise HTTPException(status_code=400, detail="Not enough data")
-
-    df = pd.DataFrame([{
-        "mw": d.mw,
-        "logp": d.logp,
-        "half_life": d.half_life,
-        "affinity": d.affinity
-    } for d in drugs])
-
-    df = feature_engineering(df)
-    df = ml_model.train(df)
-
-    # update DB
-    for i, d in enumerate(drugs):
-        d.ml_score = float(df.iloc[i]["ml_score"])
-
-    db.commit()
-
-    return {"message": "Model trained successfully"}
-
-# -----------------------------------------------------------------------------
-# GET DRUGS
-# -----------------------------------------------------------------------------
-
-@app.get("/drugs/")
-def get_drugs(db: Session = Depends(get_db)):
-
-    drugs = db.query(Drug).all()
-
-    return [
-        {
-            "name": d.name,
-            "mw": d.mw,
-            "logp": d.logp,
-            "half_life": d.half_life,
-            "affinity": d.affinity,
-            "ml_score": d.ml_score
-        }
-        for d in drugs
-    ]
-
-# -----------------------------------------------------------------------------
-# TOP CANDIDATES
-# -----------------------------------------------------------------------------
-
-@app.get("/top/")
-def top_candidates(db: Session = Depends(get_db)):
-
-    drugs = db.query(Drug).order_by(Drug.ml_score.desc()).limit(5).all()
-
-    return [
-        {"name": d.name, "ml_score": d.ml_score}
-        for d in drugs
-    ]
-
-# =============================================================================
-# 10. ASYNC PIPELINE (BACKGROUND TASK SIMULATION)
-# =============================================================================
-
-async def async_pipeline():
-    while True:
-        log.info("Running background monitoring...")
-        await asyncio.sleep(10)
-
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(async_pipeline())
-
-# =============================================================================
-# RUN
-# =============================================================================
-# uvicorn main:app --reload
