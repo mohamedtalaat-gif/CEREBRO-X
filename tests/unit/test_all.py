@@ -2358,6 +2358,53 @@ class TestPBPKCNSMassConservation:
         assert result["Cmax_brain_ug_mL"] > 0
 
 
+class TestBiologicPBPKOrganDistribution:
+    """BiologicPBPK.simulate's organ_distribution built "Other tissues" as
+    100 - 70 - 12 - 8 - 6 - 4 - brain_pct. Since 70+12+8+6+4 already equals
+    100, that expression collapses to -brain_pct -- always negative
+    whenever any drug reaches the brain (which is the whole point of a
+    CNS delivery model), and small-but-nonzero brain uptake is the normal
+    case, not an edge case. This surfaced in real pipeline output as
+    "Other tissues": -0.1% for a real Lecanemab run. Fixed by giving
+    "Other tissues" a real fixed literature-based share and letting Blood
+    (not a fabricated negative bucket) absorb the brain-crossing
+    fraction."""
+
+    def test_organ_distribution_has_no_negative_percentages(self):
+        from src.core.cerebro_science_modules import BiologicPBPK
+        mol_profile = {"MW_Da": 148000, "Half_Life_Days": 21,
+                       "molecule_class": "monoclonal_antibody"}
+        top_dds = {"BBB_Engineering_Score": 65}
+        result = BiologicPBPK.simulate(mol_profile, top_dds, dose_mg=10.0,
+                                        disease_stage="alzheimer_3")
+        organs = result["organ_distribution"]
+        for name, pct in organs.items():
+            assert pct >= 0, f"{name} is negative: {pct}"
+
+    def test_organ_distribution_sums_to_100_percent(self):
+        from src.core.cerebro_science_modules import BiologicPBPK
+        mol_profile = {"MW_Da": 148000, "Half_Life_Days": 21,
+                       "molecule_class": "monoclonal_antibody"}
+        top_dds = {"BBB_Engineering_Score": 65}
+        result = BiologicPBPK.simulate(mol_profile, top_dds, dose_mg=10.0,
+                                        disease_stage="alzheimer_3")
+        organs = result["organ_distribution"]
+        assert sum(organs.values()) == pytest.approx(100.0, abs=0.1)
+
+    def test_other_tissues_has_a_real_nonzero_share(self):
+        """Regression guard specifically for the collapsed-to-zero-budget
+        bug: 'Other tissues' must carry its own literature-based share,
+        not just be whatever's left after the other five buckets already
+        consumed the full 100%."""
+        from src.core.cerebro_science_modules import BiologicPBPK
+        mol_profile = {"MW_Da": 148000, "Half_Life_Days": 21,
+                       "molecule_class": "monoclonal_antibody"}
+        top_dds = {"BBB_Engineering_Score": 65}
+        result = BiologicPBPK.simulate(mol_profile, top_dds, dose_mg=10.0,
+                                        disease_stage="alzheimer_3")
+        assert result["organ_distribution"]["Other tissues"] > 1.0
+
+
 class TestDDSComparisonStrengthWeaknessClassification:
     """DDSComparisonEngine.compare's per-formulation strengths/weaknesses
     classification used `(v > med*1.2) == higher_better` /

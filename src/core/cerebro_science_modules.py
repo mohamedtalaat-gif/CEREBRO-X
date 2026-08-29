@@ -163,17 +163,21 @@ class BiologicPBPK:
                            for i in range(1, len(time_days)))
 
         # Organ distribution (biologic — primarily plasma + lymphatics)
-        # Sources: Shah 2012 Table 2 mAb organ partition
+        # Sources: Shah 2012 Table 2 mAb organ partition. The fixed organs
+        # below (Liver+Spleen+Lung+Kidney+Other tissues = 35%) already leave
+        # a margin for brain uptake, which is capped at 0.5% (cns_fraction
+        # capped above) — Blood absorbs that small crossing fraction so the
+        # whole set still sums to ~100% without any bucket going negative.
+        brain_pct = cns_fraction * bbb_integrity * 100
         organs = {
-            "Brain (Target)":   round(cns_fraction * bbb_integrity * 100, 3),
+            "Brain (Target)":   round(brain_pct, 3),
             "Liver":             12.0,   # FcRn + Fc receptor clearance
             "Spleen":             8.0,   # lymphatic accumulation
             "Lung":               6.0,
             "Kidney":             4.0,   # minimal renal clearance for mAbs
-            "Blood":             round(70.0 - cns_fraction * bbb_integrity * 100, 1),
-            "Other tissues":     round(100 - 70.0 - 12.0 - 8.0 - 6.0 - 4.0
-                                        - cns_fraction * bbb_integrity * 100, 1),
+            "Other tissues":      5.0,   # muscle/skin/GI/bone interstitial distribution
         }
+        organs["Blood"] = round(max(0.0, 100.0 - sum(organs.values())), 1)
         # Normalise to 100%
         total = sum(organs.values())
         organs = {k: round(v/total*100, 2) for k, v in organs.items()}
