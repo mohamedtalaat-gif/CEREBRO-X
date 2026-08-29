@@ -181,11 +181,21 @@ def _dds_specs_from_bundle(dds_bundle: dict, dds_row: dict | None = None) -> dic
         "carrier":  carrier,
         "rel_kin":  _str(dds_row, "Release_Kinetics", "sustained"),
         "ph_trig":  _safe(dds_row, "pH_Trigger", 6.5),
-        "endo_esc": _safe(dds_row, "Endosomal_Escape_Eff", 0.5),
+        # P06 (endosomal escape scoring, below) reads this. "Endosomal_Escape_Eff"
+        # is never a real column in dds_row (df_dds's actual per-formulation
+        # column is "PgP_Escape_Coeff", computed in pipeline_runner.py) -- the
+        # old key name meant escape=0.5 for every formulation, every time,
+        # silently erasing the one term meant to differentiate carriers by
+        # their actual escape efficiency in the P06 ranking score.
+        "endo_esc": _safe(dds_row, "PgP_Escape_Coeff",
+                            _safe(dds_row, "Endosomal_Escape_Eff", 0.5)),
         "phase_T":  _safe(dds_row, "Phase_Transition_Temp_C",
                             b_value(dds_bundle, "material_lipid_tm", 42) or 42),
         "elast":    _safe(dds_row, "Elasticity_kPa", 0.5),
-        "cns_bio":  _safe(dds_row, "CNS_Bioavailability_Pct", 10),
+        # Unused by any P-function today (dead value) but corrected for the
+        # same reason: "CNS_Bioavailability_Pct" is never a real dds_row
+        # column either -- see _dds_metrics.backfill_legacy_aliases.
+        "cns_bio":  _safe(dds_row, "BBB_Engineering_Score", 10),
         "scale":    _str(dds_row, "Scale_Up_Readiness", "lab"),
         "drug_load":_safe(dds_row, "Drug_Loading_Pct", 10),
         # Bundle-resolved material properties (Tier 3-7 with provenance)

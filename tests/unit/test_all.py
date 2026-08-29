@@ -5716,6 +5716,76 @@ class TestCompletedExcelWriterHelpers:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# 39b. SURROGATE ENGINE DDS-SPEC RESOLUTION (cerebro_62_surrogate_engine.py)
+# ═════════════════════════════════════════════════════════════════════════════
+class TestSurrogateEngineDdsSpecKeyNames:
+    """_dds_specs_from_bundle (engine/cerebro_62_surrogate_engine.py) reads
+    dds_row (the real per-formulation df_dds row, injected into
+    combo_bundle["_meta"]["dds_row"] by cerebro_62_orchestrator.py before
+    every P-function call) via "Endosomal_Escape_Eff" and
+    "CNS_Bioavailability_Pct" -- neither of which _run_dds_from_yaml ever
+    produces (the real column is "PgP_Escape_Coeff"; see
+    _dds_metrics.backfill_legacy_aliases for the same ghost-key pattern
+    fixed elsewhere). Unlike the display-only bugs fixed in the viz layer,
+    this one is load-bearing: P06 (endosomal escape scoring, one of the
+    57 fast-surrogate principles that feed Principle_Composite_Score, the
+    actual DDS ranking) read s["endo_esc"] and silently got the same
+    hardcoded 0.5 for every formulation being ranked against every other,
+    erasing the one term meant to differentiate carriers by their real
+    escape efficiency. Verified directly: two formulations differing only
+    in PgP_Escape_Coeff (0.05 vs 0.95) produced identical P06 scores
+    before the fix (50.26 in both directions collapsed to whichever value
+    a shared bundle-cache last saw); after the fix they diverge exactly as
+    the formula requires (50.26 vs 97.38 for this drug)."""
+
+    def test_endo_esc_reads_real_pgp_escape_coeff_column(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import _dds_specs_from_bundle
+        from cerebro_resolved_bundles import resolve_dds_bundle
+
+        dds_bundle = resolve_dds_bundle(carrier_type="liposome", ligand="RVG29")
+        low = _dds_specs_from_bundle(dds_bundle, dds_row={"PgP_Escape_Coeff": 0.05})
+        high = _dds_specs_from_bundle(dds_bundle, dds_row={"PgP_Escape_Coeff": 0.95})
+        assert low["endo_esc"] == pytest.approx(0.05)
+        assert high["endo_esc"] == pytest.approx(0.95)
+
+    def test_p06_endosomal_escape_score_differs_by_real_formulation_data(self):
+        """The actual ranking-affecting regression: P06 must score two
+        formulations differently when their real PgP_Escape_Coeff differs,
+        not collapse to whatever the hardcoded legacy-key default was."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import P06
+        from cerebro_resolved_bundles import resolve_combo_bundle, resolve_dds_bundle, resolve_drug_bundle
+
+        drug_bundle = resolve_drug_bundle(name="Aspirin", smiles="CC(=O)Oc1ccccc1C(=O)O",
+                                            molecule_class="small_molecule")
+        dds_bundle = resolve_dds_bundle(carrier_type="liposome", ligand="RVG29")
+        # resolve_combo_bundle is cached per (drug, dds) identity, so mutate
+        # the shared object's dds_row and score immediately each time --
+        # exactly the assign-then-score pattern cerebro_62_orchestrator.py
+        # itself uses in its per-formulation evaluation loop.
+        combo = resolve_combo_bundle(drug_bundle, dds_bundle)
+
+        combo["_meta"]["dds_row"] = {"PgP_Escape_Coeff": 0.05, "pH_Trigger": 6.5}
+        low = P06(drug_bundle, dds_bundle, combo)
+
+        combo["_meta"]["dds_row"] = {"PgP_Escape_Coeff": 0.95, "pH_Trigger": 6.5}
+        high = P06(drug_bundle, dds_bundle, combo)
+
+        assert low["score"] != high["score"]
+        assert high["score"] > low["score"]
+
+    def test_cns_bio_reads_real_bbb_engineering_score_not_ghost_column(self):
+        import src.path_resolver  # noqa: F401
+        from cerebro_62_surrogate_engine import _dds_specs_from_bundle
+        from cerebro_resolved_bundles import resolve_dds_bundle
+
+        dds_bundle = resolve_dds_bundle(carrier_type="liposome", ligand="RVG29")
+        out = _dds_specs_from_bundle(dds_bundle, dds_row={"BBB_Engineering_Score": 88.0})
+        assert out["cns_bio"] == pytest.approx(88.0)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 # 40. CINEMATIC VISUAL PRIMITIVES (cerebro_cinematic_primitives.py)
 # ═════════════════════════════════════════════════════════════════════════════
 class TestCinematicPrimitivesLookups:
