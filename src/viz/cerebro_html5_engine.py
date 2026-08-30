@@ -2539,7 +2539,7 @@ def h29_translational(drug_name: str, translational: dict) -> str:
                   "P56":"Patentability"}
     for pid, t in sorted(translational.items()):
         status = t.get("status","?")
-        bg = ("#E8F5E9" if status in ("structured_outline_ready","scored","audit_completed","search_queries_prepared")
+        bg = ("#E8F5E9" if status in ("structured_outline_ready","scored","self_assessment_completed","search_queries_prepared")
               else "#FFEBEE")
         score_val = (t.get("compliance_score") or t.get("fto_score")
                       or t.get("patentability_score") or "—")

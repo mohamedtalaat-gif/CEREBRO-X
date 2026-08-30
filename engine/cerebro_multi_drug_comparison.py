@@ -862,7 +862,7 @@ def _write_cplus_translational_compare_sheet(wb, summary: dict) -> None:
 
     STATUS_COLOR = {"structured_outline_ready":"C6EFCE",
                       "search_queries_prepared":"DDEBCB",
-                      "audit_completed":"DDEBCB",
+                      "self_assessment_completed":"DDEBCB",
                       "scored":"C6EFCE",
                       "skipped_deep_validation_insufficient":"FFC7CE",
                       "failed":"F2A1A1"}

@@ -1311,6 +1311,40 @@ class TestH23BiodistributionOrganSharesSumTo100:
 # 6. COMPLIANCE
 # ═════════════════════════════════════════════════════════════════════════════
 
+class TestTranslationalStatusColorMatchesRealP45Status:
+    """When trans_P45's status was renamed from "audit_completed" to
+    "self_assessment_completed" (self-assessment relabeling, see
+    cerebro_62_translational_engine.py), two separate status-to-color
+    lookup dicts elsewhere in the codebase still checked for the old
+    string: h29_translational (src/viz/cerebro_html5_engine.py) and
+    _write_cplus_translational_compare_sheet's STATUS_COLOR
+    (engine/cerebro_multi_drug_comparison.py). Both silently fell through
+    to their "unknown status" branch (red/error styling) for every real
+    P45 card from that point on, even though P45 had succeeded normally.
+    Same class of regression as the STATUS_COLOR dict already fixed in
+    cerebro_completed_excel_writer.py in the same pass that renamed the
+    status -- these two were missed then."""
+
+    def test_h29_renders_success_color_for_the_real_p45_status(self):
+        from src.viz.cerebro_html5_engine import h29_translational
+        html = h29_translational("TEST_DRUG_X", {
+            "P45": {"status": "self_assessment_completed",
+                     "compliance_score": 62.5, "narrative": "n/a"},
+        })
+        assert "#E8F5E9" in html
+        assert "#FFEBEE" not in html
+
+    def test_h29_no_longer_recognizes_the_removed_audit_completed_status(self):
+        """Regression guard: if the old string is ever reintroduced by
+        mistake, it must not silently be treated as a success status
+        again -- it should hit the fallback (error) styling."""
+        from src.viz.cerebro_html5_engine import h29_translational
+        html = h29_translational("TEST_DRUG_X", {
+            "P45": {"status": "audit_completed", "compliance_score": 62.5},
+        })
+        assert "#FFEBEE" in html
+
+
 class TestCompliance:
     """PHI detection, audit trail, data masking."""
 
