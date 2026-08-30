@@ -475,7 +475,7 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
                 top_dds     = _top_dds_dict,
                 df_dds_data = _dfd2,
                 science     = science_results,
-                out_dir     = trial_dir / "videos",
+                out_dir     = trial_dir / "media" / "videos",
                 fps         = 24,
             )
             log.info("[VIDEO] MP4 videos generated")
@@ -494,7 +494,7 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
                 top_dds     = _top_dds_dict,
                 df_dds_data = _dfd3,
                 science     = science_results,
-                out_dir     = trial_dir / "canvas_videos",
+                out_dir     = trial_dir / "media" / "canvas_videos",
             )
             _n_cv = sum(1 for v in _canvas_videos.values() if v)
             log.info(f"[CANVAS] {_n_cv}/5 HTML5 Canvas videos generated")
@@ -518,7 +518,7 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
                     ligand=_top_dds_ligand,
                     formulation_id=str(_top_dds_dict.get("Formulation_ID","F1")),
                 )
-                _cine_dir = trial_dir / "cinematic"
+                _cine_dir = trial_dir / "media" / "cinematic"
                 _cine_paths = generate_cinematic_suite(
                     drug_bundle=drug_bundle_top1,
                     dds_bundle=_top_dds_bundle,
@@ -1047,7 +1047,7 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
                     drug_bundle=_extra_drug_bundle,
                     dds_bundle=_ext_dds_b,
                     top_dds=_extra_top,
-                    out_dir=_extra_trial_dir / "cinematic",
+                    out_dir=_extra_trial_dir / "media" / "cinematic",
                 )
                 log.info(f"[CINEMATIC] {len(_ext_cine)}/5 scenes for "
                           f"{_extra_name} × {_extra_top.get('Formulation_Name','?')}")

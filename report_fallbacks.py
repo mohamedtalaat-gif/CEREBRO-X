@@ -33,7 +33,7 @@ def _make_static_figures(df_ml, df_dds, df_pk, trial_dir: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    figs = trial_dir / "figures"
+    figs = trial_dir / "media" / "figures"
     figs.mkdir(parents=True, exist_ok=True)
 
     # ── 1. BBB Score ranking bar chart ────────────────────────────────────
@@ -392,7 +392,7 @@ def _generate_merged_pdf(df_ml, df_dds, df_pk, metrics: dict,
 
     # ── Figures ───────────────────────────────────────────────────────────
     story.append(Paragraph("Visualisations", h1_s))
-    figs_dir = trial_dir / "figures"
+    figs_dir = trial_dir / "media" / "figures"
     fig_files = sorted(figs_dir.glob("*.png")) if figs_dir.exists() else []
     for fp in fig_files:
         if "_DOCUMENTATION" in fp.name:

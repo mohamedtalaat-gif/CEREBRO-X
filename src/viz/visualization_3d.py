@@ -1167,8 +1167,8 @@ class VisualisationOrchestrator:
         """
         Run full visualisation suite. Returns list of produced file paths.
         """
-        figs_dir = trial_dir / "figures"
-        sch_dir  = trial_dir / "schematics"
+        figs_dir = trial_dir / "media" / "figures"
+        sch_dir  = trial_dir / "media" / "schematics"
         figs_dir.mkdir(parents=True, exist_ok=True)
         sch_dir.mkdir(parents=True, exist_ok=True)
 

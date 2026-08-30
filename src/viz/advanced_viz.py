@@ -1871,7 +1871,7 @@ class AdvancedVizOrchestrator:
                  ligand:      str  = "RVG29") -> dict[str, Path | None]:
         """Run complete visualization suite. Returns dict of produced paths."""
 
-        figs_dir = trial_dir / "figures"
+        figs_dir = trial_dir / "media" / "figures"
         figs_dir.mkdir(parents=True, exist_ok=True)
 
         produced = {}
@@ -1913,8 +1913,8 @@ class AdvancedVizOrchestrator:
 
         # Videos
         if make_videos:
-            vid_dir = trial_dir / "videos"
-            vid_dir.mkdir(exist_ok=True)
+            vid_dir = trial_dir / "media" / "videos"
+            vid_dir.mkdir(parents=True, exist_ok=True)
             vid_tasks = [
                 ("video_bbb",    lambda: SimulationVideoEngine.video_bbb_crossing(drug_name, ligand, vid_dir)),
                 ("video_pk",     lambda: SimulationVideoEngine.video_pk_kinetics(df_pk, drug_name, vid_dir)),

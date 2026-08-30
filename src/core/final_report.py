@@ -273,7 +273,7 @@ class FinalReportGenerator:
 
         # Embed all PNGs
         figs_html = ""
-        figs_dir = trial_dir / "figures"
+        figs_dir = trial_dir / "media" / "figures"
         if figs_dir.exists():
             figs_html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
             for fp in sorted(figs_dir.glob("*.png")):
