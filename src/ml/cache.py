@@ -435,7 +435,16 @@ def _build_key(prefix: str, args: tuple, kwargs: dict) -> str:
 def invalidate_on_excel_change(excel_path: str):
     """
     Invalidates all cached data when the input Excel file changes.
-    Called by the file watcher in run.py.
+
+    NOT currently wired into run.py or the real pipeline -- confirmed via
+    repo-wide grep, nothing calls get_cache()/CacheManager()/@cached
+    anywhere outside this file and its own tests. This whole L1/L2/L3
+    caching layer is dormant infrastructure. The real, live per-trial
+    cache invalidation is trial_manager.invalidate_molecule_cache(),
+    which run.py's watcher actually calls (JSON files under
+    outputs/molecule_cache/ + the cerebro_knowledge.db SQLite table).
+    This docstring previously claimed "Called by the file watcher in
+    run.py", which was never true.
     """
     cache = get_cache()
     cache.flush("molecule")
