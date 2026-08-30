@@ -5996,6 +5996,43 @@ class TestModulePathShims:
             assert not hasattr(mod, stale_name), (
                 f"{stale_name} from the removed prototype script still exists")
 
+    def test_enterprise_infra_write_autostart_points_at_a_real_file(
+            self, monkeypatch, tmp_path):
+        """write_autostart() joined SCRIPT_DIR (patched to the project
+        root) with the literal "cerebro_enterprise_infra.py" -- that name
+        is only a sys.modules alias registered inside an already-running
+        process (src/path_resolver.py); no file by that name exists
+        anywhere on disk, unlike CEREBRO_Pipeline.py which does have a
+        real root-level shim. Every autostart config this wrote (launchd
+        plist / systemd service / Task Scheduler XML / cron line) pointed
+        at a script path that would fail to launch on the next boot.
+        Redirects Path.home() to a temp dir so this doesn't touch the
+        real machine's LaunchAgents/systemd config."""
+        import os
+        import platform
+
+        import src.dds.enterprise_infra as ei
+
+        monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+        # write_autostart() also writes autostart_info.txt(_DOCUMENTATION.txt)
+        # directly under SCRIPT_DIR, which is the real project root -- redirect
+        # that too so this test doesn't leave a stray file in the working tree.
+        monkeypatch.setattr(ei, "SCRIPT_DIR", str(tmp_path))
+        ei.write_autostart()
+
+        real_script = "src" + os.sep + "dds" + os.sep + "enterprise_infra.py"
+        if platform.system() == "Darwin":
+            plist = tmp_path / "Library" / "LaunchAgents" / "com.cerebro.enterprise.plist"
+            assert plist.exists()
+            content = plist.read_text()
+            assert real_script in content
+            assert "cerebro_enterprise_infra.py</string>" not in content
+        elif platform.system() == "Linux":
+            svc = tmp_path / ".config" / "systemd" / "user" / "cerebro.service"
+            assert svc.exists()
+            content = svc.read_text()
+            assert real_script in content
+
     @pytest.mark.slow
     def test_phase5_smoke_test_script_passes_end_to_end(self):
         """engine/phase5_smoke_test.py is a standalone script (real ChEMBL

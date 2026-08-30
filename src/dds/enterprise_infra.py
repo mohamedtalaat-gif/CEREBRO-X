@@ -1345,7 +1345,17 @@ def write_autostart():
     """
     OS = platform.system()
     py  = sys.executable
-    script = os.path.join(SCRIPT_DIR, "cerebro_enterprise_infra.py")
+    # SCRIPT_DIR is patched to the project root by the ANCHOR fix above,
+    # not this file's own src/dds/ directory -- the real file lives at
+    # src/dds/enterprise_infra.py relative to that root. The literal
+    # "cerebro_enterprise_infra.py" this used to join onto SCRIPT_DIR
+    # doesn't exist anywhere in the project (that name is only a
+    # sys.modules alias registered by src/path_resolver.py inside an
+    # already-running process, not a real file on disk), so every
+    # autostart config this function wrote (launchd plist / systemd
+    # service / Task Scheduler XML / cron line) pointed at a script path
+    # that would fail to launch on the next boot.
+    script = os.path.join(SCRIPT_DIR, "src", "dds", "enterprise_infra.py")
     log_f  = str(INFRA_LOG)
 
     write_doc(Path(SCRIPT_DIR) / "autostart_info.txt", {
