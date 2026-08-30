@@ -757,7 +757,7 @@ class DDSEngine:
         })
 
         log.info(f"\n{'─'*60}")
-        log.info("TOP 5 DDS FORMULATIONS FOR LECANEMAB BBB DELIVERY:")
+        log.info(f"TOP 5 DDS FORMULATIONS FOR {_drug_name.upper()} BBB DELIVERY:")
         for _, row in df.head(5).iterrows():
             log.info(f"  #{int(row['Rank']):3d}  {row['Formulation_ID']:12s}  "
                      f"Score={row['BBB_Engineering_Score']:5.1f}  "

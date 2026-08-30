@@ -201,6 +201,51 @@ class TestDDSScore:
             score = DDSEngine.compute_bbb_engineering_score(row)
             assert 0 <= score <= 100
 
+    def test_run_summary_log_names_the_actual_drug_not_a_hardcoded_one(
+            self, monkeypatch, tmp_path, caplog):
+        """DDSEngine.run()'s top-5 summary line was hardcoded to
+        "... FOR LECANEMAB BBB DELIVERY:" regardless of which drug's
+        config was actually loaded -- the same class of bug this project
+        has repeatedly had to purge elsewhere (an unrelated drug name
+        bleeding into output for any other drug). Runs the real engine
+        end-to-end against a temp config for a differently-named drug
+        and confirms the log names that drug, not Lecanemab."""
+        import logging
+
+        import yaml as _yaml
+
+        import src.dds.enterprise_infra as ei
+
+        cfg = {
+            "drug": {"name": "Rivastigmine", "mw_da": 250.3,
+                      "logp": 1.7, "half_life_days": 0.04},
+            "formulations": [{
+                "id": "F1", "name": "Test-Formulation", "carrier_type": "liposome",
+                "size_nm": 80, "zeta_potential_mv": -10,
+                "pegylation_degree_mol_pct": 5, "surface_ligand": "ApoE",
+                "ligand_density_per_nm2": 1.0, "encapsulation_efficiency_pct": 85,
+                "pgp_escape_coeff": 0.9, "apo_e_affinity": "very_high",
+                "carpa_risk_index": 0.1, "off_target_liver_pct": 15,
+                "phase_transition_temp_c": 55,
+            }],
+        }
+        config_path = tmp_path / "dds_config.yaml"
+        config_path.write_text(_yaml.dump(cfg))
+        results_dir = tmp_path / "dds_results"
+        results_dir.mkdir()
+        monkeypatch.setattr(ei, "DDS_CONFIG", config_path)
+        monkeypatch.setattr(ei, "DDS_RESULTS", results_dir)
+
+        with caplog.at_level(logging.INFO, logger="CEREBRO-INFRA"):
+            df = ei.DDSEngine.run()
+
+        assert df is not None
+        summary_lines = [r.message for r in caplog.records
+                          if "BBB DELIVERY" in r.message]
+        assert summary_lines, "expected the top-5 summary line to be logged"
+        assert "LECANEMAB" not in summary_lines[0]
+        assert "RIVASTIGMINE" in summary_lines[0]
+
 
 class TestImputerEngineRespectsSecondaryFieldsWhitelist:
     """ImputerEngine's own docstring documents a deliberate philosophy:
