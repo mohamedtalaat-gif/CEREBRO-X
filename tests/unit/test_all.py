@@ -1308,6 +1308,44 @@ class TestPbbmDiagnosticPlotsHonestLabeling:
         assert fig13_pbbm_diagnostic_plots(df_no_conc, "TEST_DRUG_X", tmp_path) is None
 
 
+class TestBaseHtmlDoesNotClobberRowLevelTextColor:
+    """_base_html's shared <style> block (src/viz/cerebro_html5_engine.py --
+    the single source used by every generated report page) had a global
+    `td{color:var(--text-primary)}` rule. CSS inheritance is overridden by
+    ANY explicitly matching rule regardless of its specificity, so this
+    bare element-selector rule beat even an inline `color` set on a row's
+    own <tr> -- every table that colors a <tr> for its own light
+    background (e.g. h27's 62-principle scoreboard: <tr style="background:
+    #F1F8E9;color:#0a0a1a">) had its <td> children silently render in the
+    page's pale default text color (#E0E0E0) instead, on a near-white
+    background -- functionally invisible. Confirmed against a live browser
+    DOM: getComputedStyle(td).color was rgb(224,224,224) before the fix,
+    rgb(10,10,26) (the row's own color) after. Fixed by dropping color
+    from the td rule entirely -- it was redundant with body's own
+    color (already inherited) and is the only thing that broke row-level
+    overrides."""
+
+    def test_td_rule_does_not_set_a_color(self):
+        from src.viz.cerebro_html5_engine import _base_html
+        html = _base_html("Test", "<p>body</p>")
+        import re
+        m = re.search(r"\btd\{([^}]*)\}", html)
+        assert m, "could not find the shared td{} CSS rule in _base_html output"
+        assert "color" not in m.group(1), (
+            f"td{{}} must not set color -- it beats inherited per-row/per-cell "
+            f"color overrides used throughout the generated report tables. Rule: {m.group(1)}"
+        )
+
+    def test_th_rule_is_unaffected(self):
+        """Only td's redundant color was the problem -- th's own
+        color:var(--gold) is a deliberate header style, not a bug."""
+        from src.viz.cerebro_html5_engine import _base_html
+        html = _base_html("Test", "<p>body</p>")
+        import re
+        m = re.search(r"\bth\{([^}]*)\}", html)
+        assert m and "color:var(--gold)" in m.group(1)
+
+
 class TestH07ScoreBreakdownHonestLabeling:
     """h07_shap (src/viz/cerebro_html5_engine.py) titled itself "SHAP
     Explainability" and its body text claimed "SHAP (SHapley Additive

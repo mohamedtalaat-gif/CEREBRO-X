@@ -132,8 +132,18 @@ def _base_html(title: str, body: str, extra_head: str = "") -> str:
   th{{background:var(--void-panel);color:var(--gold);padding:9px 12px;
       text-align:left;font-weight:600;letter-spacing:0.5px;
       border-bottom:2px solid var(--gold)}}
-  td{{padding:8px 12px;border-bottom:1px solid var(--hairline);
-      color:var(--text-primary)}}
+  /* td deliberately has no color: here. color is inherited, but the
+     cascade always prefers an explicitly specified rule over an
+     inherited one no matter how low its specificity -- so a bare
+     td color rule here would beat even an inline color set on the
+     row's own tr, silently discarding every per-row text-color
+     override the generated tables rely on for light-background rows
+     (they'd render in this page's pale default text color instead,
+     nearly invisible against a light background). Every table still
+     gets the correct default via ordinary inheritance from body above;
+     every row/cell that overrides color for its own background now
+     actually keeps it. */
+  td{{padding:8px 12px;border-bottom:1px solid var(--hairline)}}
   tr:hover td{{background:rgba(201,168,76,0.05)}}
   .waterfall-bar{{cursor:pointer;transition:opacity .2s}}
   .waterfall-bar:hover{{opacity:.75}}
