@@ -84,10 +84,26 @@ IS_PRODUCTION  = ENVIRONMENT == "production"
 # hashes and rewrite history undetected. Signing with a key that is never
 # stored in the same database (HMAC) makes forged entries detectable unless
 # the attacker also has this key. Falls back to an ephemeral per-process key
-# with a loud warning if unset, matching the pattern used for JWT_SECRET_KEY
-# in src/api/auth.py.
+# with a loud warning if unset in development, matching the pattern used for
+# JWT_SECRET_KEY/CEREBRO_ADMIN_PASSWORD (src/api/auth.py) and ENCRYPTION_KEY
+# (EncryptionEngine below) — but in production this used to only warn, never
+# fail hard like its three siblings, silently leaving the "tamper-proof"
+# audit trail forgeable by anyone with DB write access whenever the operator
+# forgot to set AUDIT_HMAC_KEY. Now refuses to start in that case instead.
 AUDIT_HMAC_KEY = os.environ.get("AUDIT_HMAC_KEY", "")
 if not AUDIT_HMAC_KEY:
+    if IS_PRODUCTION:
+        raise RuntimeError(
+            "AUDIT_HMAC_KEY is unset, but ENVIRONMENT=production. Refusing "
+            "to start with the audit-trail hash chain silently signed by an "
+            "ephemeral per-process key — that defeats its own tamper-"
+            "detection guarantee (verification would fail on every restart, "
+            "and a forged chain segment would be indistinguishable from a "
+            "real one across a worker boundary). Generate one with "
+            "`python -c \"import secrets; print(secrets.token_hex(32))\"` "
+            "and set it in the environment (kept outside COMPLIANCE_DB's own "
+            "storage) before starting in production."
+        )
     import secrets as _secrets
     AUDIT_HMAC_KEY = _secrets.token_hex(32)
     logging.getLogger("CEREBRO-COMPLIANCE").warning(

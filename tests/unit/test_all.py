@@ -1266,12 +1266,52 @@ class TestCompliance:
         import src.compliance.privacy as privacy_module
         monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.delenv("ENCRYPTION_KEY", raising=False)
+        # AUDIT_HMAC_KEY has its own production fail-hard check at module
+        # import time (see test_audit_hmac_key_fails_hard_in_production_
+        # without_key) -- set a valid one here so the reload itself
+        # succeeds and this test isolates EncryptionEngine's own behavior.
+        monkeypatch.setenv("AUDIT_HMAC_KEY", "test_hmac_key_for_encryption_test")
         importlib.reload(privacy_module)
         try:
             with pytest.raises(RuntimeError):
                 privacy_module.EncryptionEngine()
         finally:
             monkeypatch.delenv("ENVIRONMENT", raising=False)
+            monkeypatch.delenv("AUDIT_HMAC_KEY", raising=False)
+            importlib.reload(privacy_module)
+
+    def test_audit_hmac_key_fails_hard_in_production_without_key(self, monkeypatch):
+        """AUDIT_HMAC_KEY used to only warn and fall back to an ephemeral
+        per-process key when unset, even in production -- unlike its three
+        siblings (JWT_SECRET_KEY, CEREBRO_ADMIN_PASSWORD, ENCRYPTION_KEY),
+        which all refuse to start. That silently defeated the audit trail's
+        own tamper-detection guarantee: a forged chain segment signed with a
+        different ephemeral key would be indistinguishable from a real one
+        across a process/worker boundary. This check happens at module
+        import time (a module-level constant, not a class __init__), so the
+        reload itself must raise."""
+        import importlib
+
+        import src.compliance.privacy as privacy_module
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.delenv("AUDIT_HMAC_KEY", raising=False)
+        try:
+            with pytest.raises(RuntimeError):
+                importlib.reload(privacy_module)
+        finally:
+            monkeypatch.delenv("ENVIRONMENT", raising=False)
+            importlib.reload(privacy_module)
+
+    def test_audit_hmac_key_falls_back_with_warning_outside_production(self, monkeypatch):
+        import importlib
+
+        import src.compliance.privacy as privacy_module
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+        monkeypatch.delenv("AUDIT_HMAC_KEY", raising=False)
+        try:
+            importlib.reload(privacy_module)
+            assert privacy_module.AUDIT_HMAC_KEY  # ephemeral key generated, not empty
+        finally:
             importlib.reload(privacy_module)
 
     def test_retention_check(self):
