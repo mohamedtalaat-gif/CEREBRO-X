@@ -1227,6 +1227,86 @@ class TestPbbmDiagnosticPlotsHonestLabeling:
         assert fig13_pbbm_diagnostic_plots(df_no_conc, "TEST_DRUG_X", tmp_path) is None
 
 
+class TestH07ScoreBreakdownHonestLabeling:
+    """h07_shap (src/viz/cerebro_html5_engine.py) titled itself "SHAP
+    Explainability" and its body text claimed "SHAP (SHapley Additive
+    exPlanations)... Based on gradient boosted ensemble model" -- neither
+    was true. The features dict is a hand-written heuristic decomposition
+    of the DDS composite score (BBB_Enhanced_Pct*0.25, a size penalty,
+    etc.), not real Shapley values from the `shap` library run against a
+    trained model. A genuine SHAP TreeExplainer does exist elsewhere in
+    this codebase (AdvancedMLEngine, feeding
+    models/shap_feature_importance.csv) -- for the separate
+    ML_Success_Probability regressor, not this DDS score -- so the old
+    label borrowed a real technique's name for an unrelated illustrative
+    calculation. Same class of issue as the fabricated "1000 bootstrap
+    resamples" claim already found and fixed in h20_bootstrap in this
+    same file, and the VPC/GOF mislabeling fixed in
+    fig13_pbbm_diagnostic_plots above."""
+
+    def test_output_makes_no_shap_claim(self):
+        from src.viz.cerebro_html5_engine import h07_shap
+        html = h07_shap({"Composite_Score": 72.0, "Formulation_Name": "LNP-3"},
+                         "TEST_DRUG_X")
+        assert "SHAP" not in html
+        assert "gradient boosted ensemble" not in html.lower()
+
+    def test_still_renders_the_waterfall_chart_and_score(self):
+        """The fix is to the label, not the underlying illustrative
+        computation -- the chart and composite score must still render."""
+        from src.viz.cerebro_html5_engine import h07_shap
+        html = h07_shap({"Composite_Score": 72.0, "Formulation_Name": "LNP-3"},
+                         "TEST_DRUG_X")
+        assert "shapChart" in html
+        assert "72.0" in html
+
+
+class TestH23BiodistributionOrganSharesSumTo100:
+    """h23_biodistribution_animated's fallback organ-distribution
+    calculator (used whenever science["biodistribution_map"] has no real
+    data) computed "Blood" as a residual against hardcoded placeholder
+    stand-ins for Lung and Kidney (literal 3 and 4), not the real Lung/
+    Kidney values computed two lines above it -- which range far outside
+    3-4 depending on size_nm/stealth. The six organ shares then didn't
+    actually sum to 100% of the administered dose: verified directly
+    across realistic size_nm/stealth combinations, the raw total ranged
+    from 95.5% up to 107% -- a physically nonsensical "more than 100% of
+    the dose was distributed" result for the large-size/low-stealth case.
+    Same root-cause pattern as the negative "Other tissues" bucket
+    already found and fixed in BiologicPBPK.simulate's organ_distribution
+    (src/core/cerebro_science_modules.py) -- a residual computed against
+    an assumed sub-total instead of the real sibling values. Fixed the
+    same way: Blood now absorbs whatever's actually left after the real
+    Lung/Kidney/Spleen/Liver/Brain shares, then the whole dict is
+    renormalized to guarantee an exact 100% total."""
+
+    def _organ_values(self, html: str) -> list[float]:
+        import re
+        m = re.search(r"data:(\[[\d.,\s]+\]),\s*\n\s*backgroundColor", html)
+        assert m, "could not find the doughnut chart's data array in the output"
+        import json as _json
+        return _json.loads(m.group(1))
+
+    def test_large_particle_low_stealth_no_longer_exceeds_100_percent(self):
+        """The parameter combination (size_nm=300, Stealth_Index=0.0) that
+        used to sum to 107% under the old hardcoded-residual formula."""
+        from src.viz.cerebro_html5_engine import h23_biodistribution_animated
+        top_dds = {"CNS_Bioavailability_Pct": 10, "Off_Target_Liver_pct": 30,
+                   "Stealth_Index": 0.0, "size_nm": 300}
+        mol_profile = {"molecule_class": "small_molecule", "MW_Da": 300}
+        html = h23_biodistribution_animated({}, top_dds, "TEST_DRUG_X", mol_profile)
+        vals = self._organ_values(html)
+        assert sum(vals) == pytest.approx(100.0, abs=0.2)
+        assert all(v >= 0 for v in vals)
+
+    def test_default_parameters_sum_to_100_percent(self):
+        from src.viz.cerebro_html5_engine import h23_biodistribution_animated
+        mol_profile = {"molecule_class": "small_molecule", "MW_Da": 300}
+        html = h23_biodistribution_animated({}, {}, "TEST_DRUG_X", mol_profile)
+        vals = self._organ_values(html)
+        assert sum(vals) == pytest.approx(100.0, abs=0.2)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 6. COMPLIANCE
 # ═════════════════════════════════════════════════════════════════════════════

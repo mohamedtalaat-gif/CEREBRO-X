@@ -567,9 +567,23 @@ new Chart(dlvoCtx,{{
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# H07: SHAP EXPLAINABILITY (Waterfall)
+# H07: SCORE CONTRIBUTION BREAKDOWN (Waterfall)
 # ─────────────────────────────────────────────────────────────────────────────
 def h07_shap(top_dds: dict, drug_name: str) -> str:
+    """Labeled "SHAP Explainability" / "Based on gradient boosted ensemble
+    model" until this pass -- neither was true. This is a hand-written
+    heuristic decomposition of the DDS composite score into named
+    per-feature terms (BBB_Enhanced_Pct*0.25, a size penalty, etc.), not
+    real Shapley values computed by the `shap` library against a trained
+    model. A genuine SHAP TreeExplainer does exist elsewhere in this
+    codebase (src/core/pipeline.py's AdvancedMLEngine, feeding
+    models/shap_feature_importance.csv) -- for the separate
+    ML_Success_Probability regressor, not this DDS score, so the label
+    borrowed a real technique's name for an unrelated illustrative
+    calculation. Same class of issue as the fabricated "1000 bootstrap
+    resamples" claim already found and fixed in h20_bootstrap in this
+    same file (see docs/AUDIT_REPORT.md).
+    """
     score = float(top_dds.get("Composite_Score") or top_dds.get("BBB_Engineering_Score") or 60)
     features = {
         "Surface_Ligand":      float(top_dds.get("BBB_Enhanced_Pct", 30)) * 0.25,
@@ -584,16 +598,16 @@ def h07_shap(top_dds: dict, drug_name: str) -> str:
     names = list(features.keys())
     vals  = list(features.values())
     colors = ["#0D6E6E" if v >= 0 else "#C62828" for v in vals]
-    base  = score - sum(vals)
 
     body = f"""
 <div class="card">
-  <div class="title">H07 · SHAP Explainability — DDS Score Waterfall</div>
+  <div class="title">H07 · Score Contribution Breakdown — DDS Score Waterfall</div>
   <div class="subtitle">{drug_name} | {top_dds.get('Formulation_Name','?')} | Composite Score = {score:.1f}</div>
   <canvas id="shapChart" height="140"></canvas>
   <p style="color:#888;font-size:.78em;margin-top:8px">
-    SHAP (SHapley Additive exPlanations) shows contribution of each feature to the final score.
-    Green = positive contribution. Red = negative. Based on gradient boosted ensemble model.
+    Illustrative decomposition of the composite score into named per-feature
+    terms (a fixed heuristic formula, not Shapley values from a trained model).
+    Green = positive contribution. Red = negative.
   </p>
 </div>
 <script>
@@ -603,7 +617,7 @@ new Chart(shapCtx,{{
   data:{{
     labels:{json.dumps(names)},
     datasets:[{{
-      label:'SHAP contribution to score',
+      label:'Contribution to score',
       data:{json.dumps([round(v,2) for v in vals])},
       backgroundColor:{json.dumps(colors)},
       borderColor:{json.dumps(['#0D6E6E' if v>=0 else '#C62828' for v in vals])},
@@ -614,7 +628,7 @@ new Chart(shapCtx,{{
     responsive:true,indexAxis:'y',
     plugins:{{legend:{{display:false}}}},
     scales:{{
-      x:{{ticks:{{color:'#888'}},grid:{{color:'#1F2937'}},title:{{display:true,text:'SHAP value (score points)',color:'#888'}}}},
+      x:{{ticks:{{color:'#888'}},grid:{{color:'#1F2937'}},title:{{display:true,text:'Contribution (score points)',color:'#888'}}}},
       y:{{ticks:{{color:'#E0E0E0',font:{{size:11}}}},grid:{{color:'#1F2937'}}}}
     }}
   }}
@@ -1296,11 +1310,8 @@ def build_html5_report(drug_name: str, top_dds: dict, df_dds_data: list[dict],
     v22: now also renders the C+ Flow outputs (surrogate principle scores,
     deep validation, translational deliverables, fallback chain).
     """
-    sections = []
-
     # All 25 visualizations
     sections = []
-    _safe_call = lambda fn, *a, **kw: (lambda: fn(*a, **kw))() if True else ""
     sections += [
         h01_bbb_crossing(drug_name, top_dds, science),
         h02_pbpk(drug_name, science.get("pbpk_cns",{}), top_dds),
@@ -1999,14 +2010,32 @@ def h23_biodistribution_animated(science: dict, top_dds: dict, drug_name: str, m
             stealth = float(top_dds.get("Stealth_Index", 0.5) or 0.5)
             size_nm = float(top_dds.get("size_nm", 80) or 80)
             spleen  = max(1.0, 20 * (1 - stealth) * (1 + (size_nm - 80) / 200))
+            lung    = max(0.5, 3*(size_nm/100)) if size_nm>100 else 2
+            kidney  = max(0.5, 5*(1-stealth))
+            # "Blood" used to be a residual computed against hardcoded
+            # placeholder stand-ins for Lung/Kidney (literal 3 and 4)
+            # instead of the real values computed just above -- which
+            # can differ substantially (Lung ranges ~0.5-15+ with size_nm,
+            # Kidney ~0.5-5 with stealth). The six organ shares then didn't
+            # actually sum to 100% (verified: as low as 95.5%, as high as
+            # 107% for realistic size_nm/stealth combinations) -- the same
+            # "residual bucket computed against an assumed sub-total, not
+            # the real sibling values" bug already found and fixed in
+            # BiologicPBPK.simulate's organ_distribution
+            # (src/core/cerebro_science_modules.py). Blood now absorbs
+            # whatever's actually left after the real Lung/Kidney/Spleen/
+            # Liver/Brain shares, then the whole dict is renormalized to
+            # guarantee it sums to exactly 100%.
             organs  = {
                 "Brain (Target)": round(cns_ba, 1),
                 "Liver":          round(liver, 1),
                 "Spleen":         round(max(1, spleen), 1),
-                "Lung":           round(max(0.5, 3*(size_nm/100)) if size_nm>100 else 2, 1),
-                "Kidney":         round(max(0.5, 5*(1-stealth)), 1),
-                "Blood":          round(max(1, 100-cns_ba-liver-spleen-3-4), 1),
+                "Lung":           round(lung, 1),
+                "Kidney":         round(kidney, 1),
             }
+            organs["Blood"] = round(max(1.0, 100.0 - sum(organs.values())), 1)
+            _organs_total = sum(organs.values())
+            organs = {k: round(v / _organs_total * 100, 2) for k, v in organs.items()}
     
     organ_list = list(organs.items())[:7]
     org_colors = ["#C9A84C","#F57C00","#7C4DFF","#0D6E6E","#0D6E6E","#C62828","#888888"]
