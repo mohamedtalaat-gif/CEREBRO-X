@@ -1022,8 +1022,18 @@ def main():
     host = os.environ.get("FASTAPI_HOST", "0.0.0.0")
     port = int(os.environ.get("FASTAPI_PORT", "8000"))
     log.info(f"Starting CEREBRO-X API on http://{host}:{port}")
+    # "cerebro_api_v2" only resolves inside THIS already-running process,
+    # where src/path_resolver.py registered it as a sys.modules alias --
+    # multi-worker mode needs uvicorn to re-import the app by string in
+    # fresh worker subprocesses, and no real file named cerebro_api_v2.py
+    # exists anywhere for a subprocess with a bare sys.modules cache to
+    # find (unlike CEREBRO_Pipeline.py/cerebro_enterprise_infra.py, which
+    # do have real root-level shim files). docker-compose.prod.yml's own
+    # command already uses the real dotted path directly for exactly this
+    # reason (`python -m uvicorn src.api.app:app --workers 2`) -- matching
+    # that here instead of the alias.
     uvicorn.run(
-        "cerebro_api_v2:app",
+        "src.api.app:app",
         host=host,
         port=port,
         workers=int(os.environ.get("API_WORKERS", "4")),

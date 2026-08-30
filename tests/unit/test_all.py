@@ -2980,6 +2980,26 @@ class TestRateLimiting:
         assert result.returncode != 0
         assert "CORS_ORIGINS" in result.stderr
 
+    def test_main_uses_a_real_import_path_not_a_process_local_alias(self, monkeypatch):
+        """main()'s uvicorn.run() used the legacy flat alias
+        "cerebro_api_v2:app" -- that name only exists in sys.modules
+        inside THIS already-running process (registered by
+        src/path_resolver.py); no file named cerebro_api_v2.py exists
+        anywhere for a freshly-spawned multi-worker subprocess (a bare
+        module cache) to resolve it by. docker-compose.prod.yml's actual
+        command already sidesteps this by using the real dotted path
+        directly (`python -m uvicorn src.api.app:app`) -- main() must
+        match it."""
+        import src.api.app as app_module
+
+        captured = {}
+        def _fake_run(target, **kwargs):
+            captured["target"] = target
+        monkeypatch.setattr(app_module.uvicorn, "run", _fake_run)
+
+        app_module.main()
+        assert captured["target"] == "src.api.app:app"
+
 
 # Module-level (not nested) so joblib can pickle/unpickle them when
 # saved to a temp file and loaded back inside the /predict endpoint.
