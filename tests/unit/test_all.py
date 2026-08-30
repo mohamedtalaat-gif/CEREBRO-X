@@ -3501,6 +3501,60 @@ class TestEnterpriseInfraResultsDownloadPathTraversal:
         assert r.text == "hello world"
 
 
+class TestRunPyDoesNotClobberItsOwnAutostartRegistration:
+    """run.py defines its own write_autostart() (registers `run.py
+    --headless` -- the real, full, Excel-driven trial-versioned pipeline
+    -- as the OS-level autostart target) and calls it in __main__ right
+    before calling start_infra(). start_infra() used to ALSO import and
+    call a second, different write_autostart() from
+    cerebro_enterprise_infra (src/dds/enterprise_infra.py) a few lines
+    later -- which writes to the exact same OS-level identifier (same
+    launchd Label + plist path on macOS, same systemd unit path on
+    Linux, same Task Scheduler name on Windows), so it silently
+    overwrote run.py's own correct registration to instead autostart
+    `src/dds/enterprise_infra.py`'s main(), whose --headless mode only
+    runs DDSEngine.run() on a schedule -- not the real pipeline this
+    project's own docstring promises ("AUTO-START: Registers itself on
+    first run. After that runs every hour headlessly"). This bug was
+    dormant (both plists were broken anyway) until this same audit fixed
+    enterprise_infra.py's write_autostart() to point at a real script
+    path -- at which point the collision became live: the wrong program
+    would actually launch successfully on every boot/hourly restart.
+    Fixed by removing the duplicate call/import from start_infra()."""
+
+    def test_start_infra_no_longer_imports_or_calls_the_other_write_autostart(self):
+        import ast
+        import inspect
+
+        import run
+        src = inspect.getsource(run.start_infra)
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                assert not any(alias.name == "write_autostart" for alias in node.names), (
+                    "start_infra() must not import a second write_autostart "
+                    "-- it collides with run.py's own on the same OS-level "
+                    "autostart identifier"
+                )
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                assert node.func.id != "write_autostart", (
+                    "start_infra() must not call write_autostart() itself "
+                    "-- run.py's own write_autostart() already ran in "
+                    "__main__ immediately before start_infra() is called"
+                )
+
+    def test_run_py_still_defines_and_uses_its_own_write_autostart(self):
+        from pathlib import Path
+
+        import run
+        assert callable(run.write_autostart)
+        main_src = Path(run.__file__).read_text(encoding="utf-8")
+        assert '    write_autostart()\n    run_once(force=force)' in main_src, (
+            "run.py's __main__ block should still register ITS OWN "
+            "write_autostart() before starting infra"
+        )
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 14. DRUG_SMILES RESOLVER — NAME MUST NEVER BE USED AS A SMILES FALLBACK
 # ═════════════════════════════════════════════════════════════════════════════

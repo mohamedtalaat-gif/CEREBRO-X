@@ -170,7 +170,6 @@ def start_infra(headless: bool = False) -> None:
             _HAS_FASTAPI,
             app,
             start_scheduler,
-            write_autostart,
         )
 
         # Patch scheduler to use our Excel-driven loop
@@ -178,7 +177,18 @@ def start_infra(headless: bool = False) -> None:
             log.info("[Scheduler] Hourly run triggered")
             run_once(force=False)
 
-        write_autostart()
+        # NOTE: do NOT call cerebro_enterprise_infra's own write_autostart()
+        # here. It writes to the exact same OS-level identifier as this
+        # module's write_autostart() (same launchd Label/plist path on
+        # macOS, same systemd unit path on Linux, same Task Scheduler name
+        # on Windows) -- __main__ already calls THIS module's
+        # write_autostart() (registering run.py itself, the full
+        # Excel-driven trial-versioned pipeline) immediately before calling
+        # start_infra(). Calling the other implementation here used to
+        # silently overwrite that registration to instead autostart
+        # src/dds/enterprise_infra.py's `main()` --headless, which only
+        # runs DDSEngine.run() on a schedule, not the real pipeline this
+        # project promises to run automatically on boot/hourly.
 
         try:
             from datetime import timedelta
