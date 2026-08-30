@@ -354,7 +354,8 @@ def fig03_plotly_interactive_dashboard(df_dds: pd.DataFrame,
     # Panel 3: PK kinetics (interactive)
     if df_pk is not None and not df_pk.empty:
         t_col = "Day" if "Day" in df_pk.columns else "Hour"
-        c_col = next((c for c in ["Concentration_pct","Concentration_ugL"]
+        c_col = next((c for c in ["Concentration_pct","Concentration_Pct",
+                                   "Concentration_ugL"]
                       if c in df_pk.columns), None)
         if c_col:
             grp_col = "Compartment" if "Compartment" in df_pk.columns else "Drug"
@@ -371,7 +372,7 @@ def fig03_plotly_interactive_dashboard(df_dds: pd.DataFrame,
         top20 = df_dds.nlargest(20, "BBB_Engineering_Score")
         fig.add_trace(
             go.Bar(
-                x=top20.get("Formulation_ID", range(len(top20))).tolist(),
+                x=top20.get("Formulation_ID", pd.Series(range(len(top20)))).tolist(),
                 y=top20["BBB_Engineering_Score"].tolist(),
                 marker_color=[
                     CARRIER_COLOURS.get(ct, C["navy"])
@@ -1740,7 +1741,8 @@ class SimulationVideoEngine:
             return None
 
         t_col = "Day" if "Day" in df_pk.columns else "Hour"
-        c_col = next((c for c in ["Concentration_pct","Concentration_ugL"]
+        c_col = next((c for c in ["Concentration_pct","Concentration_Pct",
+                                   "Concentration_ugL"]
                       if c in df_pk.columns), None)
         if not c_col:
             return None

@@ -1196,6 +1196,64 @@ class TestFig01ConcentrationMultipanelMatchesRealColumnName:
         assert out.exists()
 
 
+class TestFig03PlotlyDashboardAndPkVideoMatchRealColumnName:
+    """The same lowercase-only "Concentration_pct"/"Concentration_ugL"
+    column bug (real column from AnalyticsEngine.simulate_pkpd is
+    "Concentration_Pct", capital P) also existed in two more spots in
+    src/viz/advanced_viz.py that were missed when the sibling fixes went
+    into fig01/fig13/visualization_3d.py: fig03_plotly_interactive_
+    dashboard's PK-kinetics panel (row 2, col 1) and SimulationVideoEngine.
+    video_pk_kinetics. Both silently produced an empty panel / no video on
+    every real pipeline run.
+
+    Fixing the column lookup surfaced a second, independent crash in the
+    same Panel-4 code path: `top20.get("Formulation_ID", range(len(top20)))
+    .tolist()` -- DataFrame.get() returns its default arg verbatim when the
+    column is absent, so a plain `range` object (no .tolist()) blew up with
+    AttributeError instead of falling back gracefully like the neighbouring
+    Carrier_Type lookup two lines below it, which already wraps its default
+    in pd.Series(...). test_plotly_dashboard_plots_the_real_column_name's
+    df_dds has no Formulation_ID column, so it exercises this path too."""
+
+    def _df_pk(self):
+        import pandas as pd
+        return pd.DataFrame({
+            "Day": list(range(10)),
+            "Compartment": ["blood"] * 10,
+            "Concentration_Pct": [100 * (0.9 ** i) for i in range(10)],
+        })
+
+    def test_plotly_dashboard_plots_the_real_column_name(self, tmp_path):
+        import pandas as pd
+
+        from src.viz.advanced_viz import fig03_plotly_interactive_dashboard
+        df_dds = pd.DataFrame({
+            "size_nm": [80, 90], "zeta_potential_mv": [-10, -12],
+            "BBB_Engineering_Score": [70, 85], "Carrier_Type": ["Liposome", "Exosome"],
+        })
+        out = fig03_plotly_interactive_dashboard(df_dds, self._df_pk(), None,
+                                                   "TEST_DRUG_X", tmp_path)
+        assert out is not None and out.exists()
+        html = out.read_text(encoding="utf-8")
+        assert "97.29" in html or "Concentration_Pct" in html or "blood" in html
+
+    def test_pk_kinetics_video_finds_the_real_column_name(self, tmp_path, monkeypatch):
+        from src.viz.advanced_viz import SimulationVideoEngine
+        monkeypatch.setattr(SimulationVideoEngine, "_check_writer",
+                             classmethod(lambda cls: "imageio"))
+        written = {}
+
+        def _fake_write_mp4(frames_bytes, out, fps=15):
+            written["frames"] = len(frames_bytes)
+            out.write_bytes(b"fake-mp4")
+        monkeypatch.setattr(SimulationVideoEngine, "_write_mp4",
+                             classmethod(lambda cls, frames_bytes, out, fps=15:
+                                         _fake_write_mp4(frames_bytes, out, fps)))
+        out = SimulationVideoEngine.video_pk_kinetics(self._df_pk(), "TEST_DRUG_X", tmp_path)
+        assert out is not None
+        assert written.get("frames", 0) > 0
+
+
 class TestPbbmDiagnosticPlotsHonestLabeling:
     """fig13_pbbm_diagnostic_plots (src/viz/advanced_viz.py) used to label
     itself a "Visual Predictive Check" (VPC) and "Goodness-of-Fit" (GOF)
