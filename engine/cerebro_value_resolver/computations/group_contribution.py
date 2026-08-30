@@ -310,12 +310,21 @@ def stokes_einstein_diff(mw_Da: float, T_K: float = 310.15,
                             visc_Pa_s: float = 6.91e-4) -> float:
     """Stokes-Einstein D (m²/s) for spherical solute.
 
-    D = kT / (6πηr); r ≈ 0.066·MW^(1/3) Å (Wilke-Chang correlation).
+    D = kT / (6πηr); r ≈ 0.66·MW^(1/3) Å -- derived from r = (3·MW·v̄ /
+    (4π·N_A))^(1/3) with a typical small-molecule partial specific volume
+    v̄ ≈ 0.73 cm³/g (matches real literature: glucose MW=180 -> r≈3.7 Å,
+    a known experimental value). A prior version of this line used
+    0.066·MW^(1/3) Å (10x too small, r≈0.37 Å for glucose -- smaller than
+    a single hydrogen atom, not a plausible size for an entire molecule),
+    which inflated every diffusion coefficient computed here by ~10x
+    (D ∝ 1/r): a MW=350 drug came back at D≈71e-10 m²/s, well above real
+    aqueous small-molecule diffusion coefficients (typically 4-9e-10 m²/s)
+    and the corrected constant lands at 7.1e-10 m²/s for the same MW.
     Defaults: T=37°C body temp, η=plasma viscosity.
     """
     if mw_Da <= 0: return 0.0
     k_B = 1.380649e-23
-    r_m = 6.6e-12 * (mw_Da ** (1/3))
+    r_m = 6.6e-11 * (mw_Da ** (1/3))
     return (k_B * T_K) / (6 * math.pi * visc_Pa_s * r_m)
 
 

@@ -4026,6 +4026,18 @@ class TestPhysicsTransportComputations:
     published formulas independent of the resolver wrapper."""
 
     def test_stokes_einstein_diff_matches_published_formula(self):
+        """Regression guard: this used a radius coefficient of 6.6e-12
+        (r ≈ 0.066·MW^(1/3) Å), which gives a MW=180 (glucose) radius of
+        0.37 Å -- smaller than a single hydrogen atom, not a plausible
+        size for an entire molecule -- and inflated every diffusion
+        coefficient here by ~10x (D ∝ 1/r). The physically correct
+        coefficient, r ≈ (3·MW·v̄/(4π·N_A))^(1/3) with a typical
+        small-molecule partial specific volume v̄≈0.73 cm³/g, works out to
+        r ≈ 0.66·MW^(1/3) Å -- giving glucose r≈3.7 Å, matching its known
+        experimental hydrodynamic radius, and 6.6e-11 in this formula's
+        units. This test re-derives that coefficient from v̄ independently
+        rather than hardcoding the same constant the implementation uses,
+        so a regression back to the 10x-too-small radius would be caught."""
         import math
 
         import src.path_resolver  # noqa: F401
@@ -4033,9 +4045,14 @@ class TestPhysicsTransportComputations:
 
         mw, T_K, visc = 350.0, 310.15, 6.91e-4
         k_B = 1.380649e-23
-        r_m = 6.6e-12 * (mw ** (1 / 3))
+        N_A = 6.022e23
+        v_bar_cm3_g = 0.73    # typical small-molecule partial specific volume
+        r_cm = (3 * mw * v_bar_cm3_g / (4 * math.pi * N_A)) ** (1 / 3)
+        r_m = r_cm * 1e-2
         expected = (k_B * T_K) / (6 * math.pi * visc * r_m)
-        assert stokes_einstein_diff(mw, T_K=T_K, visc_Pa_s=visc) == pytest.approx(expected, rel=1e-9)
+        assert stokes_einstein_diff(mw, T_K=T_K, visc_Pa_s=visc) == pytest.approx(expected, rel=0.05)
+        # And: not the old, order-of-magnitude-too-fast value.
+        assert stokes_einstein_diff(mw, T_K=T_K, visc_Pa_s=visc) < 2e-9
 
     def test_stokes_einstein_diff_zero_or_negative_mw_returns_zero(self):
         import src.path_resolver  # noqa: F401

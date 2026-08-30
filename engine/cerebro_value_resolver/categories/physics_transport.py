@@ -71,7 +71,7 @@ def resolve_physics_diff_coeff_water(name: str = "", smiles: str = "",
         D = stokes_einstein_diff(mw_Da, T_K=T_K)
         return _resolved(value=D, tier=7,
                           source="cerebro_value_resolver:stokes_einstein",
-                          method="D = kT/(6πηr); r ≈ 0.066·MW^(1/3) Å",
+                          method="D = kT/(6πηr); r ≈ 0.66·MW^(1/3) Å",
                           reference="Stokes GG (1851); Einstein A (1905)",
                           live_db_misses=db_misses,
                           extra={"unit": "m²/s"})
