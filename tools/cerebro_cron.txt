@@ -1,2 +1,7 @@
+# Manual-cron alternative to run.py's own write_autostart() (which already
+# registers a systemd --user service on Linux, launchd on macOS, or a
+# scheduled task on Windows -- see run.py). Use this only if you'd rather
+# manage scheduling with plain cron instead.
+#
 # Add this line to crontab (crontab -e):
-0 * * * *  cd /app && /usr/local/bin/python /app/cerebro_enterprise_infra.py --headless >> /app/src/dds/CEREBRO_RESULTS/logs/infra.log 2>&1
+0 * * * *  cd /app && python run.py --headless >> /app/cerebro_run.log 2>&1

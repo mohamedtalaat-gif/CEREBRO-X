@@ -107,11 +107,12 @@ function Invoke-Run {
     Write-Step "Starting CEREBRO-X services..."
     Set-Location $PROJECT_DIR
 
-    # Create results directory
-    $resultsDir = Join-Path $PROJECT_DIR "CEREBRO_RESULTS"
-    if (-not (Test-Path $resultsDir)) {
-        New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
-    }
+    # No host directory to pre-create here: docker-compose.prod.yml stores
+    # results in the named Docker volume "cerebro_results" (Docker-managed,
+    # not a bind mount), so nothing on the host needs to exist beforehand.
+    # A prior version of this step created a stale, unreferenced
+    # "CEREBRO_RESULTS" folder left over from before that rename to
+    # "outputs/" -- nothing ever read it.
 
     # Start with production compose
     docker compose -f docker-compose.prod.yml up -d --remove-orphans
