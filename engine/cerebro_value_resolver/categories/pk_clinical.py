@@ -288,7 +288,7 @@ def resolve_pk_halflife(name: str = "", smiles: str = "",
             return _resolved(value=round(r["halflife_h"]/24, 4), tier=1,
                               source="ChEMBL bioactivity",
                               method="ChEMBL standard_type=Half-life",
-                              reference="Mendez D et al (2019) NAR 47:D930",
+                              reference="",
                               live_db_misses=db_misses)
     except Exception: pass
     db_misses.append("ChEMBL")
@@ -349,8 +349,7 @@ def resolve_pk_halflife(name: str = "", smiles: str = "",
                 source="cerebro_value_resolver:empirical_pbpk_regression",
                 method="Lombardo F (2018) AAPS J 20:71 — population regression "
                         "log10(t½_h) = a + b·LogP + c·log10(MW), class-specific intercept",
-                reference="Lombardo F et al (2018) AAPS J 20:71. "
-                           "doi:10.1208/s12248-018-0226-5",
+                reference="",
                 live_db_misses=db_misses)
         except Exception as e:
             log.debug(f"[empirical-t12] {e}")
@@ -368,7 +367,7 @@ def resolve_pk_halflife(name: str = "", smiles: str = "",
         value=class_means.get(molecule_class, 0.5), tier=7,
         source="cerebro_value_resolver:class_typical_mean",
         method=f"Class median for {molecule_class}",
-        reference="Wishart DS et al (2018) NAR 46:D1074 (DrugBank summary)",
+        reference="",
         live_db_misses=db_misses,
         extra={"confidence":"LOW",
                 "warning":"ALL tiers failed — class mean returned"})
@@ -407,7 +406,7 @@ def resolve_pk_clearance(name: str = "", smiles: str = "",
             return _resolved(value=r["clearance_lph"], tier=1,
                               source="ChEMBL bioactivity",
                               method="standard_type=Clearance",
-                              reference="Mendez D et al (2019) NAR 47:D930",
+                              reference="",
                               live_db_misses=db_misses)
     except Exception: pass
     db_misses.append("ChEMBL")
@@ -419,8 +418,7 @@ def resolve_pk_clearance(name: str = "", smiles: str = "",
         return _resolved(value=round(cl, 3), tier=6,
                           source="cerebro_value_resolver:allometric_cl",
                           method="Mahmood I (2007) — allometric CL ∝ MW^-0.25",
-                          reference="Mahmood I (2007) Eur J Drug Metab "
-                                     "Pharmacokinet 32:25",
+                          reference="",
                           live_db_misses=db_misses)
     db_misses.append("empirical (need MW)")
 
@@ -465,7 +463,7 @@ def resolve_pk_volume_distribution(name: str = "", smiles: str = "",
             return _resolved(value=r["Vd_L"], tier=1,
                               source="ChEMBL bioactivity",
                               method="standard_type=Volume of distribution",
-                              reference="Mendez D et al (2019) NAR 47:D930",
+                              reference="",
                               live_db_misses=db_misses)
     except Exception: pass
     db_misses.append("ChEMBL")
@@ -479,7 +477,7 @@ def resolve_pk_volume_distribution(name: str = "", smiles: str = "",
         return _resolved(value=round(vd, 1), tier=6,
                           source="cerebro_value_resolver:logp_vd_regression",
                           method="Vd_ss ≈ (0.2 + 0.6·LogP + 0.05·LogP²)·BW",
-                          reference="Obach RS et al (2008) Drug Metab Dispos 36:1385",
+                          reference="",
                           live_db_misses=db_misses)
     db_misses.append("empirical (need LogP)")
 
@@ -528,8 +526,7 @@ def resolve_pk_protein_binding(name: str = "", smiles: str = "",
         return _resolved(value=round(fb, 4), tier=6,
                           source="cerebro_value_resolver:logp_fb_logit",
                           method="logit(fb) ≈ -2 + 0.5·LogP",
-                          reference="Lobell M & Sivarajah V (2003) Drug "
-                                     "Discov Today 8:867",
+                          reference="",
                           live_db_misses=db_misses)
     return _resolved(value=0.5, tier=7,
                       source="cerebro_value_resolver:class_typical_mean",

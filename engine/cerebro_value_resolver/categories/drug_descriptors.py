@@ -265,7 +265,7 @@ def _build_descriptor_resolver(category: str,
                     return _resolved(
                         value=v, tier=1, source=f"PubChem.{pubchem_prop}",
                         method=f"Live PubChem REST property fetch ({pubchem_prop})",
-                        reference="Kim S et al (2023) Nucleic Acids Res 51:D1373",
+                        reference="",
                         live_db_misses=db_misses)
             except Exception: pass
             db_misses.append(f"PubChem.{pubchem_prop}")
@@ -278,7 +278,7 @@ def _build_descriptor_resolver(category: str,
                     return _resolved(
                         value=v, tier=1, source=f"ChEMBL.{chembl_key}",
                         method=f"Live ChEMBL REST property fetch ({chembl_key})",
-                        reference="Mendez D et al (2019) Nucleic Acids Res 47:D930",
+                        reference="",
                         live_db_misses=db_misses)
             except Exception: pass
             db_misses.append(f"ChEMBL.{chembl_key}")
@@ -326,7 +326,7 @@ def _build_descriptor_resolver(category: str,
                         value=v, tier=4,
                         source="cerebro_value_resolver:biologic_seq_sum",
                         method=method_note,
-                        reference="Tarini M et al (2008) Anal Chem 80:4789",
+                        reference="",
                         live_db_misses=db_misses,
                         extra=extra)
                 db_misses.append("biologic_seq_sum:fasta")
@@ -358,7 +358,7 @@ def _build_descriptor_resolver(category: str,
                                   f"Σ(nucleotide_avg_mass × {n_nt}) − "
                                   f"(n−1)·H₂O + terminal phosphate "
                                   f"(modification: {modification}). "),
-                        reference="Standard oligonucleotide MW calculation (Idt 2024)",
+                        reference="",
                         live_db_misses=db_misses,
                         extra={"nucleotide_count": n_nt,
                                 "modification": modification})
@@ -372,7 +372,7 @@ def _build_descriptor_resolver(category: str,
                     return _resolved(
                         value=v, tier=5, source=f"thermo.{thermo_key}",
                         method=f"thermo.Chemical.{thermo_key}",
-                        reference="thermo (Bell, 2018) https://github.com/CalebBell/thermo",
+                        reference="",
                         live_db_misses=db_misses)
             except Exception: pass
             db_misses.append(f"thermo.{thermo_key}")
@@ -396,7 +396,7 @@ def _build_descriptor_resolver(category: str,
             value=default_value, tier=7,
             source="cerebro_value_resolver:class_typical_mean",
             method=f"Class-typical mean for small molecules ({unit})",
-            reference="DrugBank statistical summary (Wishart 2018 NAR 46:D1074)",
+            reference="",
             live_db_misses=db_misses,
             extra={"confidence": "LOW",
                     "warning": "ALL tiers failed — class mean returned."})

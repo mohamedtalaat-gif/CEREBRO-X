@@ -206,7 +206,7 @@ def train_and_evaluate(epochs: int = 30, seed: int = 42) -> dict:
         "final_val_accuracy": float(history.history["val_accuracy"][-1]),
         "split": "stratified random 80/10/10, seed=42 (NOT scaffold split)",
         "architecture": "2048-bit ECFP4 -> Dense(256) -> Dropout(0.3) -> Dense(64) -> Dropout(0.3) -> Dense(1, sigmoid)",
-        "reference": "Martins IF et al. (2012) J Chem Inf Model 52:1686; Wu Z et al. (2018) Chem Sci 9:513",
+        "reference": "",
         "dataset_source": BBBP_URL,
     }
 
@@ -265,8 +265,7 @@ def predict_bbb_class(smiles: str) -> dict:
         "predicted_class": "permeable" if proba >= 0.5 else "non_permeable",
         "confidence": "MODERATE",
         "method": "DNN (2048-bit ECFP4 -> 256 -> 64 -> 1, sigmoid) trained on BBBP",
-        "reference": "Martins IF et al. (2012) J Chem Inf Model 52:1686 (BBBP dataset); "
-                     "Wu Z et al. (2018) Chem Sci 9:513 (MoleculeNet)",
+        "reference": "",
         "model_test_accuracy": metrics.get("test_accuracy"),
         "model_test_roc_auc": metrics.get("test_roc_auc"),
         "model_n_train": metrics.get("n_train"),

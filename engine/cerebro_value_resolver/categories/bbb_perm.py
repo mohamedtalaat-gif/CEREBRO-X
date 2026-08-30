@@ -93,13 +93,12 @@ def resolve_bbb_cns_mpo(name: str = "", smiles: str = "",
         return _resolved(value=round(s, 2), tier=6,
                           source="cerebro_value_resolver:cns_mpo",
                           method="Wager CNS-MPO algorithm (6-criterion sum)",
-                          reference="Wager TT et al (2010) ACS Chem Neurosci "
-                                     "1:420. doi:10.1021/cn100008c",
+                          reference="",
                           live_db_misses=[])
     return _resolved(value=3.0, tier=7,
                       source="cerebro_value_resolver:typical_cns_drug",
                       method="Median CNS-MPO for marketed CNS drugs",
-                      reference="Wager TT (2010) median value",
+                      reference="",
                       live_db_misses=["MW/LogP/TPSA/HBD/aromatic_rings missing"],
                       extra={"confidence":"LOW"})
 
@@ -149,7 +148,7 @@ def resolve_bbb_logBB(name: str = "", smiles: str = "",
                                             value=float(v), tier=1,
                                             source="ChEMBL LogBB activity",
                                             method="Live ChEMBL standard_type=LogBB",
-                                            reference="Mendez D et al (2019) NAR 47:D930",
+                                            reference="",
                                             live_db_misses=db_misses)
                                     except: pass
         except Exception as e:
@@ -162,12 +161,12 @@ def resolve_bbb_logBB(name: str = "", smiles: str = "",
         return _resolved(value=round(v, 3), tier=6,
                           source="cerebro_value_resolver:clark_logbb",
                           method="logBB = 0.152·LogP − 0.0148·TPSA + 0.139",
-                          reference="Clark DE (1999) J Pharm Sci 88:815",
+                          reference="",
                           live_db_misses=db_misses)
     return _resolved(value=-0.5, tier=7,
                       source="cerebro_value_resolver:class_typical",
                       method="Median logBB for non-CNS drugs (≈ -0.5)",
-                      reference="Clark DE (1999) typical",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW"})
 
@@ -231,7 +230,7 @@ def resolve_bbb_permeability(name: str = "", smiles: str = "",
                                     f"passive diffusion (Pardridge 2020). "
                                     f"Clark logBB equation does not apply. "
                                     f"Class median for {mc_lower}: {v}%."),
-                          reference="Pardridge WM (2020) Fluids Barriers CNS 17:62",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"warning": "Biologic — typical native BBB% is "
                                               "<0.5% without targeting carrier"})
@@ -320,7 +319,7 @@ def resolve_bbb_permeability(name: str = "", smiles: str = "",
                           source="cerebro_value_resolver:clark_logbb_to_pct",
                           method="logBB = 0.152·LogP − 0.0148·TPSA + 0.139; "
                                   "BBB% ≈ B/P_ratio × 5",
-                          reference="Clark DE (1999) J Pharm Sci 88:815",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"intermediate_logBB": round(logbb, 3),
                                   "intermediate_BP_ratio": round(bp_ratio, 3)})
@@ -331,6 +330,6 @@ def resolve_bbb_permeability(name: str = "", smiles: str = "",
     return _resolved(value=cls_default.get(molecule_class, 5.0), tier=7,
                       source="cerebro_value_resolver:class_typical",
                       method=f"Class median BBB % for {molecule_class}",
-                      reference="Wager TT (2010) class median; Pardridge WM (2020)",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW"})

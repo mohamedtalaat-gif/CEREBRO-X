@@ -1860,7 +1860,13 @@ class TestRealDockingEngine:
         1994). Regression-test the actual arithmetic, not just 'returns a
         number' — this is what distinguishes a real correlation from a
         black box, per the audit's distinction between this file (praised
-        as genuine) and the fabricated Monte-Carlo code it also found."""
+        as genuine) and the fabricated Monte-Carlo code it also found.
+
+        The formula's provenance is still Aqvist 1994 -- that hasn't
+        changed. What changed is a later product decision (2026-08-30) to
+        stop printing literature citations anywhere in generated output,
+        so `reference` is now deliberately always "" rather than the
+        citation text; this test no longer checks it."""
         from src.core.real_docking_engine import _lie_estimate
         # Donepezil-like small molecule: MW 379.5, LogP 4.77, TPSA 38.8
         result = _lie_estimate(ligand_mw=379.5, logp=4.77, tpsa=38.8,
@@ -1871,7 +1877,6 @@ class TestRealDockingEngine:
         assert result["delta_G_kcal_mol"] == round(expected_dG, 2)
         assert result["docking_method"] == "LIE approximation (fallback — Vina unavailable)"
         assert result["confidence"] == "LOW — LIE approximation only"
-        assert result["reference"].startswith("Aqvist 1994")
         # Kd back-calculated from the same delta_G via RT ln(Kd), R=1.987e-3
         # kcal/(mol·K) — regression-pinned to the exact formula, not just
         # "> 0": this used to divide by (8.314 * 310), mixing the SI
@@ -3526,14 +3531,19 @@ class TestEnterpriseInfraResultsDownloadPathTraversal:
             f"Expected the traversal to be rejected with 403, got "
             f"{r.status_code}: {r.text[:200]}")
 
-    def test_legitimate_file_still_downloads(self):
-        from pathlib import Path
-
+    def test_legitimate_file_still_downloads(self, tmp_path, monkeypatch):
         from fastapi.testclient import TestClient
 
-        from src.dds.enterprise_infra import OUTPUT_ROOT, app
-        (Path(OUTPUT_ROOT) / "_test_legit_download.txt").write_text("hello world")
-        client = TestClient(app)
+        import src.dds.enterprise_infra as ei
+        # The route re-reads the module-level OUTPUT_ROOT on every request
+        # (results_root = Path(OUTPUT_ROOT).resolve() inside the handler),
+        # so patching the module attribute redirects it without touching
+        # the real project outputs/ directory -- this test used to write
+        # directly into the real OUTPUT_ROOT with no cleanup, leaving a
+        # stray _test_legit_download.txt in the actual project tree.
+        monkeypatch.setattr(ei, "OUTPUT_ROOT", tmp_path)
+        (tmp_path / "_test_legit_download.txt").write_text("hello world")
+        client = TestClient(ei.app)
         r = client.get("/results/_test_legit_download.txt")
         assert r.status_code == 200
         assert r.text == "hello world"

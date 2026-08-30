@@ -86,7 +86,7 @@ def _build_target_resolver(category: str, std_type: str, default_nM: float):
                                   source=f"ChEMBL {std_type}",
                                   method=f"Median ChEMBL {std_type} against "
                                           f"{target_chembl or 'any target'}",
-                                  reference="Mendez D et al (2019) NAR 47:D930",
+                                  reference="",
                                   live_db_misses=db_misses,
                                   extra={"unit": "nM"})
         except Exception: pass
@@ -131,7 +131,7 @@ def resolve_drug_loading_capacity_pct(carrier: str = "",
         return _resolved(value=round(max_load, 1), tier=6,
                           source="cerebro_value_resolver:bunjes_lipid_load",
                           method="Bunjes rule: max_load(%) ≈ LogP × 2 for lipid carriers",
-                          reference="Bunjes H (2010) Curr Opin Colloid Interface Sci 15:80",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "% w/w"})
 
@@ -143,7 +143,7 @@ def resolve_drug_loading_capacity_pct(carrier: str = "",
         return _resolved(value=round(min(35, load), 1), tier=6,
                           source="cerebro_value_resolver:polymer_load_heuristic",
                           method="Polymer carrier loading heuristic from LogP + MW",
-                          reference="Soppimath KS et al (2001) J Control Release 70:1",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "% w/w"})
 
@@ -151,7 +151,7 @@ def resolve_drug_loading_capacity_pct(carrier: str = "",
     return _resolved(value=8.0, tier=7,
                       source="cerebro_value_resolver:carrier_class_median",
                       method="Median drug loading across carrier classes",
-                      reference="Allen TM & Cullis PR (2013) Adv Drug Deliv Rev 65:36",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "% w/w"})
 
@@ -187,7 +187,7 @@ def resolve_material_pdi(carrier: str = "",
     return _resolved(value=pdi, tier=7,
                       source="cerebro_value_resolver:carrier_class_PDI",
                       method=f"Carrier-class typical PDI for {key}",
-                      reference="Allen TM & Cullis PR (2013) Adv Drug Deliv Rev 65:36",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"unit": "dimensionless"})
 
@@ -224,6 +224,6 @@ def resolve_material_porosity(carrier: str = "",
     return _resolved(value=p, tier=7,
                       source="cerebro_value_resolver:carrier_class_porosity",
                       method=f"Carrier-class typical porosity for {key}",
-                      reference="Brunauer S, Emmett PH, Teller E (1938) J Am Chem Soc 60:309",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"unit": "volume fraction"})

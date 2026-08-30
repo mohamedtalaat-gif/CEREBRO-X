@@ -426,7 +426,7 @@ def P01(drug_bundle, dds_bundle, combo_bundle=None):
     scenarios.append(ox_score)
 
     score = sum(scenarios) / len(scenarios)
-    return _hb(score, "Anchordoquy TJ et al (2017) ACS Nano 11:12",
+    return _hb(score, "",
                 "Mean of 6 stress scenarios (pH4.5, pH2, pH8.5, 42°C, "
                 "complement, oxidation); each scenario penalized by drug-"
                 "specific sensitivities derived from SMILES + microspeciation",
@@ -452,7 +452,7 @@ def P02(drug_bundle, dds_bundle, combo_bundle=None):
         scale_score = 75
     # BBB-related boost if drug already known to cross
     if d["bbb"] > 5: scale_score = min(100, scale_score + 10)
-    return _hb(scale_score, "Mahmood I (2007) Eur J Drug Metab Pharmacokinet 32:25",
+    return _hb(scale_score, "",
                 "BW^0.75 scaling + class-specific adjustment",
                 {"mw": d["mw"], "mclass": d["mclass"], "bbb_pct": d["bbb"]})
 
@@ -490,7 +490,7 @@ def P03(drug_bundle, dds_bundle, combo_bundle=None):
         base_penalty -= 5     # CNS biologic delivery still less explored
 
     novelty = max(20, min(100, 100 - base_penalty))
-    return _hb(novelty, "ClinicalTrials.gov landscape",
+    return _hb(novelty, "",
                 "Novelty = 100 - frequency_of_combo_in_CNS_trials, "
                 "modified by whether the drug's LogP/pKa/MW profile is in "
                 "the typical CNS-DDS-literature zone (basic amines, LogP 2-5)",
@@ -505,7 +505,7 @@ def P04(drug_bundle, dds_bundle, combo_bundle=None):
     """Quantum Coherence Transport — only meaningful for small drugs."""
     d = _drug_specs_from_bundle(drug_bundle)
     if d["mw"] >= 500:
-        return _hb(50, "Cao J et al (2020) Sci Adv 6:eaaz4888",
+        return _hb(50, "",
                     "MW ≥ 500 Da → tunneling negligible",
                     {"mw": d["mw"]}, conf="LOW",
                     warnings=["Quantum tunneling only meaningful for MW<500 Da"])
@@ -513,7 +513,7 @@ def P04(drug_bundle, dds_bundle, combo_bundle=None):
     barrier = abs(d["logp"] - 2.5) + 1.0   # eV-equivalent surrogate
     p_tunnel = math.exp(-2 * barrier)
     score = min(100, p_tunnel * 200)
-    return _hb(score, "Cao J et al (2020) Sci Adv 6:eaaz4888",
+    return _hb(score, "",
                 "WKB tunneling: P ∝ exp(-2·barrier)",
                 {"mw": d["mw"], "barrier_eV_proxy": round(barrier, 2)},
                 value=round(p_tunnel, 4))
@@ -529,7 +529,7 @@ def P05(drug_bundle, dds_bundle, combo_bundle=None):
     if smi.count("N") >= 1 and "c1cc" in smi.lower(): cyp_risk += 30
     if d["logp"] > 4: cyp_risk += 20  # high LogP = often CYP substrate
     score = max(40, 100 - cyp_risk)
-    return _hb(score, "Whirl-Carrillo M et al (2012) Clin Pharmacol Ther 92:414",
+    return _hb(score, "",
                 "% subgroups responding (lower CYP risk = more universal)",
                 {"cyp_risk_pct": cyp_risk})
 
@@ -566,7 +566,7 @@ def P06(drug_bundle, dds_bundle, combo_bundle=None):
     # Total escape: combine carrier-mediated + drug-passive
     total_escape = escape + drug_passive * (1 - escape)   # complementary
     score = min(100, total_escape * 100 * ph_boost)
-    return _hb(score, "Smith SA et al (2019) Trends Biotechnol 37:1077",
+    return _hb(score, "",
                 "Carrier endosomal_escape ⊕ drug-passive permeation at pH 5.5; "
                 "drug-passive = LogP-driven for neutral drugs, "
                 "blocked for endosomally-cationic drugs",
@@ -587,7 +587,7 @@ def P07(drug_bundle, dds_bundle, combo_bundle=None):
     if s["carrier"] in ("liposome","plga"): base += 20
     if d["bbb"] > 0: base += 10
     score = min(100, base)
-    return _hb(score, "NCBI E-utilities — heuristic (no live fetch in surrogate)",
+    return _hb(score, "",
                 "log-count proxy of literature support",
                 {"carrier": s["carrier"], "ligand": s["ligand"] or "(none)"},
                 conf="LOW",
@@ -630,7 +630,7 @@ def P08(drug_bundle, dds_bundle, combo_bundle=None):
     drug_ox_penalty -= lipophilic_bonus
 
     score = min(100, max(0, (Ea - 60) * 1.5 - drug_ox_penalty))
-    return _hb(score, "Halliwell B & Gutteridge JMC (2015) Free Radicals in Biology",
+    return _hb(score, "",
                 "Arrhenius k=A·exp(-Ea/RT) for carrier; minus penalties for "
                 "drug-side oxidation-prone moieties detected in SMILES "
                 "(phenols, thioethers, aldehydes, polyenes, polycyclic aromatics)",
@@ -652,7 +652,7 @@ def P09(drug_bundle, dds_bundle, combo_bundle=None):
     if d["logp"] > 5: risk += 30   # very lipophilic → fat accumulation
     if d["mw"] > 800: risk += 15   # large MW → biliary excretion only
     score = max(30, 100 - risk)
-    return _hb(score, "Djoumbou-Feunang Y et al (2019) J Cheminform 11:2",
+    return _hb(score, "",
                 "100 - sum(metabolite organ accumulation risks)",
                 {"smiles_features": {"halogens": "F" in smi or "Cl" in smi,
                                        "high_logp": d["logp"]>5,
@@ -678,7 +678,7 @@ def P10(drug_bundle, dds_bundle, combo_bundle=None):
         ion_stability = 100 * (1 - 0.4 * abs(d["net_q_pH74"]))
         if d["f_zwit"] > 0.3:    ion_stability += 5    # zwitterion buffer
         return _hb(min(100, ion_stability),
-                    "Hafez IM et al (2001) Adv Drug Deliv Rev 47:139",
+                    "",
                     "Non-LNP carrier — falls back to drug-side ionization "
                     "stability at storage pH 7.4 (lower |net_charge| = better)",
                     {"carrier": s["carrier"],
@@ -700,8 +700,7 @@ def P10(drug_bundle, dds_bundle, combo_bundle=None):
     drug_synergy = max(0.0, min(1.0, charge_swing + 0.5))
 
     score = min(100, charge_lipid_endosome * 100 * (0.5 + 0.5 * drug_synergy))
-    return _hb(score, "Hafez IM et al (2001) Adv Drug Deliv Rev 47:139; "
-                       "Akinc A et al (2019) Nat Nanotechnol 14:1084",
+    return _hb(score, "",
                 "Lipid Henderson-Hasselbalch ionization at endosomal pH 5.5, "
                 "modulated by drug charge-swing (pH7.4→pH5.5) — ideal drug "
                 "co-ionizes with lipid for amplified osmotic disruption",
@@ -728,7 +727,7 @@ def P11(drug_bundle, dds_bundle, combo_bundle=None):
     if "SS" in smi: weak_score -= 20
     # Carrier-related: PLGA has labile esters → reflect
     if s["carrier"] == "plga": weak_score -= 10
-    return _hb(max(20, weak_score), "Luo YR (2007) Comprehensive Handbook of BDE",
+    return _hb(max(20, weak_score), "",
                 "100 - sum(weak-bond penalties from SMILES)",
                 {"weakest_bonds_present": [
                     "ester" if "C(=O)O" in smi else None,
@@ -763,8 +762,7 @@ def P12(drug_bundle, dds_bundle, combo_bundle=None):
 
     base = 100 * bbb_factor * (0.4 + 0.6 * drug_perm_factor)
     score = min(100, base + target_boost)
-    return _hb(score, "Sweeney MD et al (2018) Nat Rev Neurol 14:133; "
-                       "Wager TT et al (2010) ACS Chem Neurosci 1:420",
+    return _hb(score, "",
                 "Score = 100·BBB_integrity_factor × (0.4 + 0.6·CNS-MPO/6) "
                 "+ targeting_boost (larger boost for hard-to-deliver drugs)",
                 {"disease_stage": stage, "bbb_factor": bbb_factor,
@@ -789,7 +787,7 @@ def P13(drug_bundle, dds_bundle, combo_bundle=None):
     if s["peg"] >= 3: dds_boost *= 1.2   # stealth
     auc_ratio = bbb_perm * dds_boost
     score = min(100, auc_ratio * 1500)   # 0.05 ratio → 75 score
-    return _hb(score, "Hammarlund-Udenaes M et al (2008) Pharm Res 25:1737",
+    return _hb(score, "",
                 "AUC_brain/AUC_plasma proxy; 3-compartment surrogate",
                 {"bbb_perm": bbb_perm, "dds_boost": round(dds_boost, 2),
                   "auc_ratio_estimate": round(auc_ratio, 3)})
@@ -826,8 +824,7 @@ def P14(drug_bundle, dds_bundle, combo_bundle=None):
     # ideal t50 = 36h; gaussian-like decay from there
     target = 36.0
     score = 100 * math.exp(-((t50_h - target) ** 2) / (2 * 24 ** 2))
-    return _hb(score, "Costa P & Lobo JM (2001) Eur J Pharm Sci 13:123; "
-                       "Higuchi T (1961) J Pharm Sci 50:874",
+    return _hb(score, "",
                 "t50 from carrier kinetics × drug-membrane partition factor "
                 "(10^logK_mem); HBD-anchoring boost in polymer carriers",
                 {"release_kinetics": s["rel_kin"], "carrier": s["carrier"],
@@ -860,7 +857,7 @@ def P15(drug_bundle, dds_bundle, combo_bundle=None):
     sl25_drug = sl25 * drug_stab_factor
 
     score = min(100, sl25_drug / 0.36)
-    return _hb(score, "Kennon L (1964) J Pharm Sci 53:815; ICH Q1A(R2)",
+    return _hb(score, "",
                 "Arrhenius baseline × (0.7 + 0.3·EE) × drug_hydrolysis_factor "
                 "(0.08 penalty per hydrolyzable bond detected in SMILES)",
                 {"carrier": s["carrier"], "ee_pct": s["ee"],
@@ -896,7 +893,7 @@ def P16(drug_bundle, dds_bundle, combo_bundle=None):
     if d["rotbonds"] > 10: proc_flags.append("highly_flexible")
 
     score = max(20, min(100, base + elast_bonus - proc_penalty))
-    return _hb(score, "am Ende DJ (2011) Chemical Engineering in Pharma Industry",
+    return _hb(score, "",
                 "Scale-readiness × shear-robustness, minus drug-processability "
                 "penalties (MW, HBD-crystallinity, LogP-aggregation, flexibility)",
                 {"scale_up_readiness": s["scale"],
@@ -949,7 +946,7 @@ def P17(drug_bundle, dds_bundle, combo_bundle=None):
     oxi = max(20, min(100, oxi))
 
     composite = (hemo + comp + res + oxi) / 4
-    return _hb(composite, "Nel A et al (2006) Science 311:622",
+    return _hb(composite, "",
                 "Mean of (hemolysis penalized by drug net+ charge, "
                 "complement penalized for biologics, RES size-window, "
                 "oxidative penalized for reactive drug moieties)",
@@ -1003,7 +1000,7 @@ def P18(drug_bundle, dds_bundle, combo_bundle=None):
     # (post-receptor crossing). Continuous, small contribution.
     aff *= (0.95 + 0.01 * max(0, min(5, d["logp"])))
 
-    return _hb(aff, "Pardridge WM (2020) Fluids Barriers CNS 17:62",
+    return _hb(aff, "",
                 "Ligand-affinity table × density × drug-compatibility "
                 "(receptor-pathway-specific drug requirements: transferrin "
                 "needs partial endosomal protonation; RVG29 prefers small MW; "
@@ -1043,8 +1040,7 @@ def P19(drug_bundle, dds_bundle, combo_bundle=None):
     in_spec_continuous = in_spec + load_cqa_score   # continuous 5th CQA
 
     score = (in_spec_continuous / 5) * 100
-    return _hb(score, "ICH Q8(R2) Pharmaceutical Development; "
-                       "Bunjes H (2010) Curr Opin Colloid Interface Sci 15:80",
+    return _hb(score, "",
                 "Fraction of CQAs (size, zeta, EE, PDI, drug-loading) "
                 "within ICH spec — 5th CQA depends on whether claimed "
                 "drug load is feasible given drug LogP",
@@ -1083,8 +1079,7 @@ def P20(drug_bundle, dds_bundle, combo_bundle=None):
     cost += drug_cost
 
     score = max(0, 100 - cost * 3)
-    return _hb(score, "Cost-of-goods analysis (Pharm Eng J 2019); "
-                       "Walsh G (2018) Nat Biotechnol 36:1136 (biologic costs)",
+    return _hb(score, "",
                 "Score = 100 - 3·($/mg estimate, drug+carrier+ligand+API). "
                 "Drug API cost from stereocenters, MW, aromatic complexity, class",
                 {"carrier_cost": BASE.get(s["carrier"], 5),
@@ -1131,8 +1126,7 @@ def P22(drug_bundle, dds_bundle, combo_bundle=None):
     elif s["peg"] >= 3: thickness *= 0.7
 
     score = min(100, max(0, 100 * math.exp(-thickness/10)))
-    return _hb(score, "Tenzer S et al (2013) Nat Nanotechnol 8:772; "
-                       "Schöttler S et al (2016) Nat Nanotechnol 11:372",
+    return _hb(score, "",
                 "100 × exp(-corona_thickness/10); thickness from carrier "
                 "(|zeta|, size) + drug-side (LogP × loading for lipid "
                 "carriers; cationic drug penalty for non-PEGylated)",
@@ -1153,7 +1147,7 @@ def P23(drug_bundle, dds_bundle, combo_bundle=None):
     rot_proxy = smi.count("CC") + smi.count("CO") + smi.count("CN")
     risk = min(70, rot_proxy * 3 + d["hbd"] * 5 + d["hba"] * 2)
     score = max(20, 100 - risk)
-    return _hb(score, "Bernstein J (2020) Polymorphism in Molecular Crystals",
+    return _hb(score, "",
                 "100 - polymorph risk (rot_bonds + H-bond pattern)",
                 {"rotatable_proxy": rot_proxy, "hbd": d["hbd"], "hba": d["hba"]})
 
@@ -1191,8 +1185,7 @@ def P24(drug_bundle, dds_bundle, combo_bundle=None):
     crit = max(crit, op / 1000.0)
     margin = math.log10(crit / op)
     score = min(100, max(0, margin * 30 + 30))
-    return _hb(score, "Maa YF & Hsu CC (1996) Biotechnol Bioeng 51:458; "
-                       "Bunjes H (2010) Curr Opin Colloid Interface Sci 15:80",
+    return _hb(score, "",
                 "log10(crit_shear/operating_shear) × 30; crit_shear softened "
                 "by drug-load for lipid carriers (-4% per %loading >5%) "
                 "and by drug LogP (-2% per LogP unit >4)",
@@ -1212,7 +1205,7 @@ def P25(drug_bundle, dds_bundle, combo_bundle=None):
     elif d["logp"] > 3:
         risk = 20
     score = max(30, 100 - risk)
-    return _hb(score, "USP <1663>/<1664>",
+    return _hb(score, "",
                 "100 - leachables risk by drug LogP × carrier",
                 {"drug_logp": d["logp"], "carrier": s["carrier"]})
 
@@ -1244,7 +1237,7 @@ def P26(drug_bundle, dds_bundle, combo_bundle=None):
     if "Oc1cc" in d["smiles"]:  drug_risk += 8         # phenol
 
     score = max(20, 100 - susc - drug_risk)
-    return _hb(score, "Zimmermann M et al (2019) Nature 570:462",
+    return _hb(score, "",
                 "100 - mean_microbiome_degradability(carrier) - "
                 "drug-side risk (anionic-fraction, polar surface, lipophilicity, "
                 "azo/phenol moieties)",
@@ -1263,7 +1256,7 @@ def P27(drug_bundle, dds_bundle, combo_bundle=None):
     # Lower Tg' (more negative) → higher cake collapse risk
     risk = max(0, abs(tg) - 5) * 1.5
     score = max(20, 100 - risk)
-    return _hb(score, "Pikal MJ (2002) Pharmaceutical Lyophilization",
+    return _hb(score, "",
                 "100 - (|Tg'| - 5) × 1.5",
                 {"carrier": s["carrier"], "tg_prime_C": tg})
 
@@ -1274,7 +1267,7 @@ def P28(drug_bundle, dds_bundle, combo_bundle=None):
     PRINT = {"polymer":85, "plga":80, "dendrimer":50, "liposome":40,
               "micelle":45, "nanogel":75, "solid_lipid":60, "metallic":30}
     score = PRINT.get(s["carrier"], 50)
-    return _hb(score, "Trenfield SJ et al (2019) Adv Drug Deliv Rev 138:139",
+    return _hb(score, "",
                 "Carrier-specific printability index",
                 {"carrier": s["carrier"]})
 
@@ -1287,7 +1280,7 @@ def P29(drug_bundle, dds_bundle, combo_bundle=None):
             "micelle":40, "dendrimer":35, "metallic":20, "solid_lipid":50}
     base = BIO.get(s["carrier"], 50)
     if s["peg"] >= 5: base = min(100, base + 15)
-    return _hb(base, "Hu CMJ et al (2011) PNAS 108:10980",
+    return _hb(base, "",
                 "Stealth-from-macrophage score; PEG ≥5% boost",
                 {"carrier": s["carrier"], "peg_pct": s["peg"]})
 
@@ -1298,7 +1291,7 @@ def P30(drug_bundle, dds_bundle, combo_bundle=None):
     # pH-trigger selectivity: bigger gap from blood pH (7.4) = better
     selectivity = abs(7.4 - s["ph_trig"])
     score = min(100, selectivity * 50)
-    return _hb(score, "Senn HM & Thiel W (2009) Angew Chem Int Ed 48:1198",
+    return _hb(score, "",
                 "Score = 50 × |7.4 - pH_trigger|",
                 {"ph_trigger": s["ph_trig"], "ph_selectivity": round(selectivity,1)})
 
@@ -1313,7 +1306,7 @@ def P31(drug_bundle, dds_bundle, combo_bundle=None):
     brain_pct = bbb * target * size_match * 100
     # Score: target ≥ 5% brain fraction → 100
     score = min(100, brain_pct / 0.05)
-    return _hb(score, "Wilhelm S et al (2016) Nat Rev Mater 1:16014",
+    return _hb(score, "",
                 "brain% = BBB · ligand · size_match · 100; 100 if ≥5%",
                 {"bbb_perm": bbb, "ligand_target_x": target,
                   "size_match": round(size_match, 2),
@@ -1337,7 +1330,7 @@ def P33(drug_bundle, dds_bundle, combo_bundle=None):
     density_factor = min(1.2, max(0.6, density))
     score = (0.6 * lig_score + 0.4 * size_score) * density_factor
     score = min(100, score)
-    return _hb(score, "Pardridge WM (2020) Fluids Barriers CNS 17:62",
+    return _hb(score, "",
                 "(0.6·ligand + 0.4·size) × density_factor",
                 {"ligand": s["ligand"] or "(none)", "size_nm": s["size"],
                   "density": density},
@@ -1350,7 +1343,7 @@ def P34(drug_bundle, dds_bundle, combo_bundle=None):
     GATE = {"dna":95, "polymer":40, "liposome":15, "plga":20,
              "dendrimer":50, "exosome":25}
     return _hb(GATE.get(s["carrier"], 25),
-                "Douglas SM et al (2012) Science 335:831",
+                "",
                 "DNA-based carriers score high",
                 {"carrier": s["carrier"]})
 
@@ -1361,7 +1354,7 @@ def P35(drug_bundle, dds_bundle, combo_bundle=None):
     # Smaller particles = lower Péclet = gravity-independent
     # Size 50-200 nm = gravity-irrelevant for most carriers
     score = 100 if s["size"] < 200 else max(50, 100 - (s["size"] - 200) * 0.3)
-    return _hb(score, "Reichert B et al (2019) NPJ Microgravity 5:18",
+    return _hb(score, "",
                 "Sedimentation-Péclet proxy; smaller = better",
                 {"size_nm": s["size"]}, conf="LOW")
 
@@ -1374,7 +1367,7 @@ def P36(drug_bundle, dds_bundle, combo_bundle=None):
                   "solid_lipid":75, "dendrimer":40, "metallic":50, "exosome":30}
     score = DIVERSITY.get(s["carrier"], 60)
     if s["ligand"] in ("rvg29","lactoferrin"): score -= 20   # specialty
-    return _hb(max(20, score), "FDA Drug Shortage analysis",
+    return _hb(max(20, score), "",
                 "Supplier-diversity index by carrier + ligand",
                 {"carrier": s["carrier"], "ligand": s["ligand"] or "(none)"})
 
@@ -1385,7 +1378,7 @@ def P37(drug_bundle, dds_bundle, combo_bundle=None):
     BIODEG = {"plga":95, "polymer":75, "liposome":90, "micelle":70,
                 "solid_lipid":90, "metallic":5, "dendrimer":50, "nanogel":60}
     return _hb(BIODEG.get(s["carrier"], 60),
-                "Boxall ABA (2004) EMBO Rep 5:1110",
+                "",
                 "Biodegradability index by carrier class",
                 {"carrier": s["carrier"]})
 
@@ -1397,7 +1390,7 @@ def P38(drug_bundle, dds_bundle, combo_bundle=None):
     score = _triangular(s["size"], 80, 150, 1.2, 0.4)
     # Charge neutrality boost
     if abs(s["zeta"]) < 15: score = min(100, score * 1.1)
-    return _hb(score, "Iliff JJ et al (2012) Sci Transl Med 4:147ra111",
+    return _hb(score, "",
                 "Stokes-Einstein: optimum 80-150 nm",
                 {"size_nm": s["size"], "abs_zeta": abs(s["zeta"])})
 
@@ -1414,7 +1407,7 @@ def P39(drug_bundle, dds_bundle, combo_bundle=None):
     # Carrier-class
     if s["carrier"] in ("metallic", "dendrimer"): risk += 15
     return _hb(max(20, 100 - risk),
-                "Hickman SE et al (2018) Nat Neurosci 21:1359",
+                "",
                 "100 - (cationic_charge + carrier_risk - PEG_protection)",
                 {"zeta_mV": s["zeta"], "peg_pct": s["peg"], "carrier": s["carrier"]})
 
@@ -1430,7 +1423,7 @@ def P40(drug_bundle, dds_bundle, combo_bundle=None):
     score = MUCO.get(s["carrier"], 40)
     # Thermo-responsive boost
     if 32 <= s["phase_T"] <= 36: score = min(100, score + 15)
-    return _hb(score, "Illum L (2003) J Pharm Pharmacol 56:3",
+    return _hb(score, "",
                 "Mucoadhesion + thermo-responsive boost",
                 {"carrier": s["carrier"], "phase_T_C": s["phase_T"]})
 
@@ -1439,12 +1432,12 @@ def P41(drug_bundle, dds_bundle, combo_bundle=None):
     """Exosome Cargo Loading."""
     d, s, _ctx = _resolve_inputs(drug_bundle, dds_bundle, combo_bundle)
     if s["carrier"] != "exosome":
-        return _hb(40, "Alvarez-Erviti L et al (2011) Nat Biotechnol 29:341",
+        return _hb(40, "",
                     "Not an exosome carrier — N/A",
                     {"carrier": s["carrier"]}, conf="LOW")
     # Sonication efficiency for given drug MW
     eff = max(30, 100 - abs(d["mw"] - 400) / 10)
-    return _hb(eff, "Alvarez-Erviti L et al (2011) Nat Biotechnol 29:341",
+    return _hb(eff, "",
                 "Exosome-loading efficiency for drug MW",
                 {"mw_da": d["mw"], "carrier": s["carrier"]})
 
@@ -1456,7 +1449,7 @@ def P42(drug_bundle, dds_bundle, combo_bundle=None):
     SPATIAL = {"transferrin":70, "rvg29":85, "apoe":75,
                 "lactoferrin":75, "insulin":80, "":25,"none":25}
     return _hb(SPATIAL.get(s["ligand"], 40),
-                "Nutt DJ & Need AC (2014) Lancet Psychiatry 1:78",
+                "",
                 "Ligand-region specificity table",
                 {"ligand": s["ligand"] or "(none)"})
 
@@ -1467,7 +1460,7 @@ def P43(drug_bundle, dds_bundle, combo_bundle=None):
     FUS = {"microbubble":95, "gas-liposome":85, "liposome":40,
             "polymer":15, "plga":20, "micelle":15}
     return _hb(FUS.get(s["carrier"], 25),
-                "Hynynen K & Jolesz FA (1998) Ultrasound Med Biol 24:275",
+                "",
                 "FUS-response by carrier acoustic properties",
                 {"carrier": s["carrier"]})
 
@@ -1481,7 +1474,7 @@ def P44(drug_bundle, dds_bundle, combo_bundle=None):
     auc_brain = bbb_perm * target_factor * 24    # 24h window
     # Score for therapeutic AUC
     score = min(100, auc_brain * 200)
-    return _hb(score, "Bies RR et al (2019) Annu Rev Pharmacol Toxicol 59:131",
+    return _hb(score, "",
                 "AUC over 24h therapeutic window proxy",
                 {"bbb_perm": bbb_perm, "target_factor": target_factor,
                   "auc_24h_proxy": round(auc_brain, 3)})
@@ -1500,7 +1493,7 @@ def P46(drug_bundle, dds_bundle, combo_bundle=None):
     # Tertiary amine + lipophilic
     if d["logp"] > 4 and "N(C)C" in smi: risk += 25
     return _hb(max(40, 100 - risk),
-                "Jamei M et al (2009) Br J Clin Pharmacol 67:472",
+                "",
                 "CYP-inhibition heuristic from SMILES",
                 {"cyp_inhibition_risk": risk})
 
@@ -1520,7 +1513,7 @@ def P47(drug_bundle, dds_bundle, combo_bundle=None):
     if d["logp"] < 0: dg += 1.0
     # Score: more negative ΔG = better binding
     score = min(100, abs(dg) * 12)
-    return _hb(score, "Wang L et al (2015) JACS 137:2695",
+    return _hb(score, "",
                 "Vina-like ΔG proxy from MW + LogP (deep mode runs full FEP+)",
                 {"dg_proxy_kcal_mol": round(dg, 2)},
                 conf="LOW",
@@ -1539,7 +1532,7 @@ def P48(drug_bundle, dds_bundle, combo_bundle=None):
     # AhR: planar aromatic
     if smi.count("c") > 8 and d["logp"] > 5: risk += 20
     return _hb(max(30, 100 - risk),
-                "Bowes J et al (2012) Nat Rev Drug Discov 11:909",
+                "",
                 "50-receptor QSAR surrogate (hERG, 5HT2B, AhR risks)",
                 {"off_target_risk": risk})
 
@@ -1551,7 +1544,7 @@ def P49(drug_bundle, dds_bundle, combo_bundle=None):
     score = 80 if 50 <= s["size"] <= 200 else 50
     if s["pdi"] > 0.4: score -= 20
     return _hb(max(30, score),
-                "Bhatia SN & Ingber DE (2014) Nat Biotechnol 32:760",
+                "",
                 "Microfluidic compatibility (size + PDI)",
                 {"size_nm": s["size"], "pdi": s["pdi"]})
 
@@ -1562,7 +1555,7 @@ def P50(drug_bundle, dds_bundle, combo_bundle=None):
     # Phase-transition margin from -20C target
     margin = abs(-20 - s["phase_T"])
     score = min(100, margin * 1.3)
-    return _hb(score, "Crommelin DJA et al (2021) Int J Pharm 593:120163",
+    return _hb(score, "",
                 "Distance from -20°C phase transition × 1.3",
                 {"phase_T_C": s["phase_T"], "margin_C": margin})
 
@@ -1573,7 +1566,7 @@ def P51(drug_bundle, dds_bundle, combo_bundle=None):
     GAMMA = {"liposome":50, "plga":85, "polymer":80, "solid_lipid":75,
               "dendrimer":70, "metallic":95, "micelle":40, "nanogel":50}
     return _hb(GAMMA.get(s["carrier"], 60),
-                "Reid BD (1995) J Pharm Sci Technol 49:83",
+                "",
                 "Carrier gamma-radiation survival (25 kGy)",
                 {"carrier": s["carrier"]})
 
@@ -1584,7 +1577,7 @@ def P52(drug_bundle, dds_bundle, combo_bundle=None):
     CM = {"liposome":85, "plga":80, "polymer":75, "micelle":85,
             "solid_lipid":70, "exosome":35, "dendrimer":50, "metallic":75}
     return _hb(CM.get(s["carrier"], 60),
-                "Lee SL et al (2015) J Pharm Innov 10:191",
+                "",
                 "Continuous-process readiness by carrier",
                 {"carrier": s["carrier"]})
 
@@ -1601,7 +1594,7 @@ def P53(drug_bundle, dds_bundle, combo_bundle=None):
     elif abs(s["zeta"]) > 35:
         risk = 30
     return _hb(max(30, 100 - risk),
-                "Begley CG & Ellis LM (2012) Nature 483:531",
+                "",
                 "Similarity-to-documented-failure",
                 {"detected_risks": ["cationic_metallic" if s["carrier"]=="metallic" and s["zeta"]>0 else None,
                                      "oversize" if s["size"]>300 else None,
@@ -1615,7 +1608,7 @@ def P54(drug_bundle, dds_bundle, combo_bundle=None):
     if d["mclass"] == "small_molecule": score = 70   # CYP variants matter
     elif d["mclass"] in ("biologic","monoclonal_antibody","mab"): score = 90   # less CYP
     else: score = 75
-    return _hb(score, "Whirl-Carrillo M et al (2012) Clin Pharmacol Ther 92:414",
+    return _hb(score, "",
                 "Class-based pharmacogenomic applicability",
                 {"molecule_class": d["mclass"]})
 
@@ -1628,7 +1621,7 @@ def P57(drug_bundle, dds_bundle, combo_bundle=None):
     if s["carrier"] in ("liposome","solid_lipid","micelle","plga"):
         score = 90 if 50 <= s["size"] <= 150 else 70
     else: score = 50
-    return _hb(score, "Belliveau NM et al (2012) Mol Ther Nucleic Acids 1:e37",
+    return _hb(score, "",
                 "Microfluidic readiness for size 50-150 nm",
                 {"carrier": s["carrier"], "size_nm": s["size"]})
 
@@ -1641,7 +1634,7 @@ def P58(drug_bundle, dds_bundle, combo_bundle=None):
                     "dendrimer":25, "micelle":15, "solid_lipid":10}
     risk = METAL_RISK.get(s["carrier"], 20)
     return _hb(max(30, 100 - risk),
-                "ICH Q3D Elemental Impurities",
+                "",
                 "Carrier residual-metals impurity profile",
                 {"carrier": s["carrier"], "metal_risk": risk})
 
@@ -1653,7 +1646,7 @@ def P59(drug_bundle, dds_bundle, combo_bundle=None):
     if s["rel_kin"] in ("ph-responsive","thermo"): score += 50
     if s["carrier"] == "polymer" and s["rel_kin"] == "ph-responsive": score += 20
     return _hb(min(100, score),
-                "Stuart MAC et al (2010) Nat Mater 9:101",
+                "",
                 "Stimuli-responsive bonus by release kinetics",
                 {"release_kinetics": s["rel_kin"]})
 
@@ -1663,7 +1656,7 @@ def P60(drug_bundle, dds_bundle, combo_bundle=None):
     s = _dds_specs_from_bundle(dds_bundle, dds_row=(combo_bundle or {}).get("_meta",{}).get("dds_row",{}))
     # Most current DDS = no swarm = baseline
     return _hb(15 if s["carrier"] != "swarm" else 80,
-                "Servant A et al (2015) Sci Robot 1:eaaq1155",
+                "",
                 "Swarm capability (most carriers: no)",
                 {"carrier": s["carrier"]}, conf="LOW")
 
@@ -1675,7 +1668,7 @@ def P61(drug_bundle, dds_bundle, combo_bundle=None):
     bbb = d["bbb"] / 100 if d["bbb"] > 0 else 0.05
     target = 1.5 if (s["ligand"] and s["ligand"] not in ("none","-","")) else 1.0
     responders = min(95, 30 + bbb * 800 * target)
-    return _hb(responders, "Polasek TM & Rostami-Hodjegan A (2020) AAPS J 22:97",
+    return _hb(responders, "",
                 "Virtual-cohort responder fraction",
                 {"bbb_perm": bbb, "ligand_target_x": target},
                 value=round(responders, 0))
@@ -1690,7 +1683,7 @@ def P62(drug_bundle, dds_bundle, combo_bundle=None):
                  ("","plga"):25, ("lactoferrin","solid_lipid"):75,
                  ("rvg29","liposome"):60}
     score = NOVELTY.get((s["ligand"], s["carrier"]), 65)
-    return _hb(score, "Ekins S et al (2019) Drug Discov Today 24:2104",
+    return _hb(score, "",
                 "Novelty distance from on-market CNS DDS",
                 {"carrier": s["carrier"], "ligand": s["ligand"] or "(none)"},
                 conf="LOW")

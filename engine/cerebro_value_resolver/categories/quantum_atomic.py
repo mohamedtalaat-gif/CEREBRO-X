@@ -65,7 +65,7 @@ def resolve_quantum_polarizability(name: str = "", smiles: str = "",
         return _resolved(value=15.0, tier=7,
                           source="cerebro_value_resolver:typical_drug",
                           method="Median α for drug-sized molecules",
-                          reference="Miller KJ (1990) J Am Chem Soc 112:8533",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"confidence":"LOW", "unit": "Å³"})
 
@@ -89,13 +89,13 @@ def resolve_quantum_polarizability(name: str = "", smiles: str = "",
                                   else "cerebro_value_resolver:atomic_additivity",
                           method="Σ α_i (atomic dipole polarizabilities, "
                                   "Schwerdtfeger 2019)",
-                          reference="Schwerdtfeger P, Nagle JK (2019) Mol Phys 117:1200",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "Å³", "n_atoms_summed": n_atoms})
     return _resolved(value=15.0, tier=7,
                       source="cerebro_value_resolver:typical_drug",
                       method="Median drug polarizability",
-                      reference="Miller KJ (1990) J Am Chem Soc 112:8533",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "Å³"})
 
@@ -137,7 +137,7 @@ def resolve_quantum_dipole_moment(name: str = "", smiles: str = "",
                     return _resolved(value=round(mu, 3), tier=3,
                                       source="rdkit.Gasteiger+MMFF94",
                                       method="MMFF94-optimized geometry × Gasteiger charges",
-                                      reference="Gasteiger J & Marsili M (1980) Tetrahedron 36:3219",
+                                      reference="",
                                       live_db_misses=db_misses,
                                       extra={"unit": "Debye"})
         except Exception as e:
@@ -147,7 +147,7 @@ def resolve_quantum_dipole_moment(name: str = "", smiles: str = "",
     return _resolved(value=2.5, tier=7,
                       source="cerebro_value_resolver:typical_drug",
                       method="Median drug dipole moment",
-                      reference="Lien EJ et al (1982) Eur J Med Chem 17:133",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "Debye"})
 
@@ -171,14 +171,13 @@ def resolve_quantum_homo_lumo_gap(name: str = "", smiles: str = "",
         return _resolved(value=gap, tier=6,
                           source="cerebro_value_resolver:empirical_pi_conj",
                           method="HOMO-LUMO ≈ 5.5 - 0.4·N_aromatic_rings",
-                          reference="Halls MD & Schlegel HB (2001) Chem Mater 13:2632 "
-                                     "(empirical conjugation→gap)",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "eV"})
     return _resolved(value=4.5, tier=7,
                       source="cerebro_value_resolver:typical_drug",
                       method="Typical drug HOMO-LUMO gap",
-                      reference="Halls MD & Schlegel HB (2001)",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "eV"})
 
@@ -209,7 +208,7 @@ def resolve_quantum_atomic_charges_sum(name: str = "", smiles: str = "",
                 return _resolved(value=round(total, 4), tier=3,
                                   source="rdkit.Gasteiger",
                                   method="Σ|q_i| over Gasteiger atomic charges",
-                                  reference="Gasteiger J & Marsili M (1980) Tetrahedron 36:3219",
+                                  reference="",
                                   live_db_misses=[],
                                   extra={"unit": "e"})
         except Exception: pass
@@ -271,6 +270,6 @@ def resolve_quantum_ionization_energy(symbol: str = "C",
                       source="cerebro_value_resolver:hydrogen_like_baseline",
                       method="Generic hydrogen-like ionization-energy baseline "
                               "(no data for this element symbol)",
-                      reference="NIST CODATA 2018 fundamental constants",
+                      reference="",
                       live_db_misses=["mendeleev (no value for this symbol)"],
                       extra={"confidence": "LOW", "unit": "eV"})

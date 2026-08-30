@@ -325,7 +325,7 @@ def run_real_qsar_panel(smiles: str, mol_profile: dict,
         "CNS_off_target_risk":    cns_offtarget,
         "flags":                  flags[:10],
         "method_summary":         f"{n_ml} ML (ChEMBL RF) + {n_empirical} empirical SAR rules",
-        "reference": "Mayr 2018 (DeepTox comparison); ChEMBL IC50/Ki; Seelig 1998 (P-gp); Aronov 2006 (hERG)",
+        "reference": "",
     }
 
     if output_dir:

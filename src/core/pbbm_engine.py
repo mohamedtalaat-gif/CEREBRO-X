@@ -461,12 +461,6 @@ class PBBMEngine:
                     f"Cmax_brain={Cmax_brain:.4f} µmol/L\n"
                     f"LogBB > -1 → adequate BBB penetration.\n"
                     f"LogBB < -2 → poor penetration — carrier essential.",
-                "References":
-                    "Poulin & Theil, J Pharm Sci 91:129-156 (2002) and\n"
-                    "Rodgers & Rowland, J Pharm Sci 95:1113-1122 (2006) — cited\n"
-                    "as the tissue-partition literature this model approximates,\n"
-                    "not as an exact implementation of either method.\n"
-                    "ICRP 2002 Reference Man physiological parameters.",
             })
             log.info(f"  [PBPK] → {out}")
 
@@ -646,9 +640,6 @@ class NCAEngine:
                     "CL: clearance = Dose/AUC_inf\n"
                     "Vd_ss: steady-state volume of distribution\n"
                     "lambda_z: terminal elimination rate constant",
-                "References":
-                    "FDA Guidance: Bioavailability/Bioequivalence NCA (2003).\n"
-                    "Gibaldi & Perrier, Pharmacokinetics 2nd ed (1982).",
             })
         return df
 
@@ -784,9 +775,6 @@ class MetaboliteTracker:
                 "Interpretation":
                     "High AUC metabolite = pharmacologically active concern.\n"
                     "Check G1 metabolites for: activity, toxicity, DDI potential.",
-                "References":
-                    "Houston 1994 (in vitro–in vivo scaling).\n"
-                    "Obach 1999 (Km/Vmax microsomal data).",
             })
         log.info(f"  [MetabTree] {parent_name}: {len(df)} metabolite nodes "
                  f"({max_depth} generations)")
@@ -1455,10 +1443,6 @@ class ADMETPredictor:
                 "Scoring":
                     "ADMET_Score 0-100: A≥70, B≥50, C≥30, D<30.\n"
                     "Grade A = viable CNS drug candidate.",
-                "References":
-                    "Clark 2003 (BBB); Yalkowsky 1980 (solubility);\n"
-                    "Potts-Guy 1992 (skin); Palm 1997 (Peff);\n"
-                    "Seelig 1998 (P-gp); Lobell 2003 (fu); Oie-Tozer 1979 (Vd).",
             })
         return profile
 
@@ -2030,10 +2014,5 @@ def _write_pbbm_report(results: dict, drug_name: str,
             "This report is a research/decision-support aid, not a validated "
             "IND-enabling study — any regulatory submission requires "
             "independent experimental confirmation of the values used.",
-        "References":
-            "FDA BCS Guidance 2000; ICH M9 2021; ICH E14;\n"
-            "Rodgers & Rowland 2006; Yu & Amidon 1999;\n"
-            "Yalkowsky 1980; Clark 2003; Palm 1997;\n"
-            "Ito-Sugiyama 2004; Chen DILIrank 2016.",
     })
     log.info(f"  [PBBM] Master report → {report_path}")

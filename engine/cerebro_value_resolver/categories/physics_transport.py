@@ -60,7 +60,7 @@ def resolve_physics_diff_coeff_water(name: str = "", smiles: str = "",
             return _resolved(value=D_cm2_s * 1e-4, tier=6,
                               source="cerebro_value_resolver:wilke_chang",
                               method="Wilke-Chang aqueous diffusion correlation",
-                              reference="Wilke CR & Chang P (1955) AIChE J 1:264",
+                              reference="",
                               live_db_misses=db_misses,
                               extra={"unit": "m²/s"})
         except Exception: pass
@@ -72,13 +72,13 @@ def resolve_physics_diff_coeff_water(name: str = "", smiles: str = "",
         return _resolved(value=D, tier=7,
                           source="cerebro_value_resolver:stokes_einstein",
                           method="D = kT/(6πηr); r ≈ 0.66·MW^(1/3) Å",
-                          reference="Stokes GG (1851); Einstein A (1905)",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "m²/s"})
     return _resolved(value=5e-10, tier=7,
                       source="cerebro_value_resolver:typical_small_mol",
                       method="Typical aqueous D for small molecules at 37°C",
-                      reference="Cussler EL (1997) Diffusion 2nd ed",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "m²/s"})
 
@@ -106,13 +106,13 @@ def resolve_physics_diff_coeff_membrane(name: str = "", smiles: str = "",
         return _resolved(value=D, tier=6,
                           source="cerebro_value_resolver:saffman_delbruck",
                           method="Saffman-Delbrück + LogP-driven retention factor",
-                          reference="Saffman PG & Delbrück M (1975) PNAS 72:3111",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "m²/s"})
     return _resolved(value=1e-12, tier=7,
                       source="cerebro_value_resolver:typical_membrane_D",
                       method="Typical membrane D for small molecules",
-                      reference="Vaz WLC et al (1985) Biochemistry 24:781",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "m²/s"})
 
@@ -142,7 +142,7 @@ def resolve_physics_lj_epsilon(name: str = "", smiles: str = "",
         return _resolved(value=eps_k, tier=7,
                           source="cerebro_value_resolver:stiel_thodos",
                           method="ε/k_B = 0.77·Tc (Stiel-Thodos correlation)",
-                          reference="Stiel LI & Thodos G (1962) AIChE J 8:229",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "K"})
     # Tier 6: empirical from MW
@@ -151,13 +151,13 @@ def resolve_physics_lj_epsilon(name: str = "", smiles: str = "",
         return _resolved(value=eps_k, tier=6,
                           source="cerebro_value_resolver:empirical_mw",
                           method="ε/k ≈ 0.5·MW (rough empirical for organics)",
-                          reference="Reid RC et al (1987) Properties of Gases & Liquids",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "K"})
     return _resolved(value=300.0, tier=7,
                       source="cerebro_value_resolver:typical_organic",
                       method="Typical LJ ε/k for organic small molecules",
-                      reference="Reid RC et al (1987)",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "K"})
 
@@ -180,8 +180,7 @@ def resolve_physics_lj_sigma(name: str = "", smiles: str = "",
         return _resolved(value=sigma, tier=6,
                           source="cerebro_value_resolver:bsl_correlation",
                           method="σ = 0.841·Vc^(1/3) (BSL correlation)",
-                          reference="Bird RB, Stewart WE, Lightfoot EN (2002) "
-                                     "Transport Phenomena 2nd ed",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "Å"})
     if mw_Da:
@@ -189,13 +188,13 @@ def resolve_physics_lj_sigma(name: str = "", smiles: str = "",
         return _resolved(value=sigma, tier=7,
                           source="cerebro_value_resolver:mw_proxy",
                           method="σ ≈ 0.5·MW^(1/3) (rough)",
-                          reference="Reid RC et al (1987)",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "Å"})
     return _resolved(value=5.0, tier=7,
                       source="cerebro_value_resolver:typical_organic",
                       method="Typical LJ σ for organic small molecules",
-                      reference="Reid RC et al (1987)",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "Å"})
 
@@ -220,7 +219,7 @@ def resolve_physics_viscosity_solvent(solvent: str = "water",
                 return _resolved(value=float(c.mu), tier=5,
                                   source="thermo.Chemical.mu",
                                   method="thermo lib viscosity at given T",
-                                  reference="thermo (Bell, 2018)",
+                                  reference="",
                                   live_db_misses=db_misses,
                                   extra={"unit": "Pa·s"})
         except Exception: pass
@@ -233,7 +232,7 @@ def resolve_physics_viscosity_solvent(solvent: str = "water",
         return _resolved(value=eta, tier=7,
                           source="cerebro_value_resolver:andrade_water",
                           method="Andrade equation: η = 2.414e-5·exp(247.8/(T-140))",
-                          reference="Andrade ENC (1930) Nature 125:309",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "Pa·s"})
     return _resolved(value=1e-3, tier=7,

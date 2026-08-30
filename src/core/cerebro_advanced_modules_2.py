@@ -1722,7 +1722,7 @@ class SupplementModules:
             "PEG_protection_factor": round(k_peg_protect, 3),
             "risk": ("HIGH -- add tocopherol antioxidant" if t_half_ox < 24
                       else "LOW -- stable under physiological ROS"),
-            "reference": "Bolland & Gee 1946 (chain oxidation model)",
+            "reference": "",
         }
 
     @staticmethod
@@ -1755,7 +1755,7 @@ class SupplementModules:
             "scale_up_feasibility": mfg_scale.get(mfg, "UNKNOWN"),
             "recommendation": ("Scalable to 1000L batch" if size_ok and pdi_ok
                                 else "Lab-scale only -- reduce PDI or adjust formulation"),
-            "reference": "Kolmogorov 1941; Lim 2001 (LNP scale-up)",
+            "reference": "",
         }
 
     @staticmethod
@@ -1783,7 +1783,7 @@ class SupplementModules:
             "n_pass": n_pass, "n_total": len(cqa),
             "design_space_grade": f"{'IN' if n_pass==len(cqa) else 'EDGE OF'} Design Space",
             "FDA_QbD_ready": n_pass >= 3,
-            "reference": "ICH Q8(R2); FDA PAT guidance 2004",
+            "reference": "",
         }
 
     @staticmethod
@@ -1843,7 +1843,7 @@ class SupplementModules:
                     "organs": {k: round(v,1) for k,v in pbpk_organs.items()},
                     "CNS_vs_offtarget_ratio": round(cns_pct / max(liver_pct, 1), 3),
                     "prediction_basis": "PBPK_CNS 6-compartment ODE (scipy Radau solver)",
-                    "_reference": "Shafer SL & Varvel JR (1991) Anesthesiology 74:53 (PBPK)",
+                    "_reference": "",
                     "animal_sparing_value": "Replaces biodistribution study in N=50 mice",
                     "_confidence": "HIGH — PBPK-computed from molecular properties",
                 }
@@ -1906,7 +1906,7 @@ class SupplementModules:
                 f"Particle size {size_nm:.0f}nm with PDI {pdi:.2f}",
                 f"Combination with {mol_profile.get('name','drug')}",
             ],
-            "reference": "USPTO novelty assessment framework",
+            "reference": "",
         }
 
     @staticmethod
@@ -1935,7 +1935,7 @@ class SupplementModules:
             "predicted_PDI":        round(min(0.25, pdi_tgt * (1 + Re/2000)), 3),
             "mixing_angle_deg":     45,
             "recommended_chip":     "Herringbone chaotic mixer or SHM chip",
-            "reference": "Jahn 2010 (Langmuir); Zhigaltsev 2012 (LNP microfluidics)",
+            "reference": "",
         }
 
     @staticmethod
@@ -1961,7 +1961,7 @@ class SupplementModules:
             "olfactory_delivery_pct": round(olf_pct, 1),
             "recommended_polymer_conc": "1.5-2% poloxamer 407 for thermogelation at 34°C",
             "BBB_bypass": "YES — direct nose-to-brain via CN-I (olfactory nerve)",
-            "reference": "Illum 2003; Thorne 2004 (intranasal CNS delivery)",
+            "reference": "",
         }
 
 
@@ -2010,7 +2010,7 @@ class FinalModules:
             "affected_patients_pct": round(risk_score * 30, 0),
             "mitigation": ("Add enzyme inhibitor or use oral-resistant coating"
                             if risk_score > 0.35 else "Minimal microbiome interaction expected"),
-            "reference": "Bhatt 2020 (Microbiome excipient interactions); Haiser 2013 (Science)",
+            "reference": "",
         }
 
     @staticmethod
@@ -2036,7 +2036,7 @@ class FinalModules:
             "nozzle_speed_mm_s": 25 if printable else 10,
             "verdict":         ("PRINTABLE on FDM/SLA" if printable
                                  else "NOT printable — viscosity out of range (100-5000 Pa·s)"),
-            "reference": "Kollamaram 2018 (3D pharma printing); Melocchi 2020",
+            "reference": "",
         }
 
     @staticmethod
@@ -2059,7 +2059,7 @@ class FinalModules:
             "stealth_after_coating":  round(combined_stealth, 2),
             "MPS_evasion_improvement":f"{(combined_stealth-stealth)*100:.0f}%",
             "macrophage_uptake_reduction": f"{biomimetic_benefit*100:.0f}%",
-            "reference": "Hu 2011 (RBC membrane NP); Zhu 2016 (exosome biomimetic)",
+            "reference": "",
         }
 
     @staticmethod
@@ -2107,7 +2107,7 @@ class FinalModules:
                 "Conduct full FTO study before filing"),
             "suggested_claims":    [f"Method of CNS delivery using {carrier} + {ligand}",
                                      f"Composition of {drug} in {carrier} for CNS indication"],
-            "reference":           "Illustrative example only — not a real USPTO PAIR/Espacenet query",
+            "reference":           "",
         }
 
     @staticmethod
@@ -2132,7 +2132,7 @@ class FinalModules:
             "PDI_at_steady_state": pdi,
             "FDA_continuous_ready": N_tanks >= 3 and pdi < 0.2,
             "critical_process_param": "Flow rate ratio (TFR) ±2%",
-            "reference": "FDA 2019 (Continuous mfg guidance); Nasr 2017",
+            "reference": "",
         }
 
     @staticmethod
@@ -2166,7 +2166,7 @@ class FinalModules:
                 f"{bbb_enh:.0f}% predicted BBB enhancement (computationally validated)",
                 "PBPK-guided dose optimization eliminates early Phase 1 risks",
             ],
-            "reference": "NIH R01 format (PA-20-185)",
+            "reference": "",
         }
 
     @staticmethod
@@ -2188,7 +2188,7 @@ class FinalModules:
             "delta_pH_required":     round(7.4 - ph_trig, 1),
             "transition_efficiency": round(ph_resp*100, 0),
             "tumor_retention_boost": f"{delta_shape*50:.0f}% longer retention vs sphere",
-            "reference": "Shu 2015 (4D drug delivery); Geng 2007 (filomicelles)",
+            "reference": "",
         }
 
     @staticmethod
@@ -2214,7 +2214,7 @@ class FinalModules:
             "CNS_bioavail_swarm": round(eff_cns, 1),
             "enhancement":        f"{(eff_cns/max(cns_ba,0.1)):.1f}×",
             "mechanism":          "ATP-gradient chemotaxis + cooperative receptor saturation",
-            "reference": "Bhatt 2018 (swarm nanomedicine); Gao 2012 (nano-swarm)",
+            "reference": "",
         }
 
     @staticmethod
@@ -2242,7 +2242,7 @@ class FinalModules:
             "predicted_BBB_retention": f"{bbb_enh*0.85:.1f}–{bbb_enh*1.05:.1f}%",
             "filing_strategy": "File divisional application on composition-of-matter",
             "market_opportunity": "Biobetter (improved safety/efficacy profile)",
-            "reference": "Pardridge 2022 (BBB ligands review); USPTO strategy",
+            "reference": "",
         }
 
     @staticmethod
@@ -2265,7 +2265,7 @@ class FinalModules:
             "healthy_tissue_leakage": round((1-gate_and_prob)*100, 1),
             "tumor_release_efficiency": round(gate_and_prob*100, 1),
             "construction": "DNA tetrahedron + i-motif pH-sensitive strand",
-            "reference": "Xing 2015 (DNA logic gate drug delivery); Liu 2012 (i-motif)",
+            "reference": "",
         }
 
     @staticmethod
@@ -2298,7 +2298,7 @@ class FinalModules:
                                      else "Distributed across CNS"),
             "spatial_precision":   ("HIGH — receptor-mediated specific delivery" if specific
                                      else "MODERATE — improve with dual-ligand system"),
-            "reference": "Bhatt 2021 (brain region targeting); Pardridge 2020",
+            "reference": "",
         }
 
 
@@ -2393,7 +2393,7 @@ class MicrogravityModule:
             ),
             "applicable_carriers":   ["Liposome", "LNP", "Protein nanoparticle", "Crystalline NP"],
             "SpaceX_mission_type":   "Commercial Crew / Cargo resupply",
-            "reference": "Snell 2001 (Nature); Petsev 2003 (J Crystal Growth); Merck-NASA Keytruda ISS study 2017",
+            "reference": "",
         }
 
 
@@ -2490,7 +2490,7 @@ class ExosomeCargo:
                 f"Laplace pressure = {P_Laplace/1000:.1f} kPa requires controlled sonication amplitude ≤40%. "
                 f"Membrane integrity maintained at {membrane_integrity_pct:.0f}% post-loading."
             ),
-            "reference": "Alvarez-Erviti 2011 (Nat Biotechnol); Kooijmans 2013 (J Control Release); Weaver 1996 (electroporation)",
+            "reference": "",
         }
 
 

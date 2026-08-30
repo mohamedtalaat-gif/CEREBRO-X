@@ -891,25 +891,25 @@ def _build_source_audit(result: dict, drug_name: str, input_type: str,
         if input_type == "SMILES":
             audit["_fields"]["MW_Da"] = {
                 "value": mw, "source": "RDKit Descriptors.MolWt",
-                "reference": "Landrum G (2023) RDKit Open-Source Cheminformatics",
+                "reference": "",
                 "confidence": "HIGH — computed from SMILES"
             }
         elif input_type == "FASTA":
             audit["_fields"]["MW_Da"] = {
                 "value": mw, "source": "BioPython ProteinAnalysis.molecular_weight",
-                "reference": "Cock PJA et al (2009) Bioinformatics 25:1422",
+                "reference": "",
                 "confidence": "HIGH — computed from sequence"
             }
         elif api_source:
             audit["_fields"]["MW_Da"] = {
                 "value": mw, "source": api_source,
-                "reference": f"Live API query: {api_source} at {now}",
+                "reference": "",
                 "confidence": "HIGH — from authoritative database"
             }
         else:
             audit["_fields"]["MW_Da"] = {
                 "value": mw, "source": "MW_REF embedded library",
-                "reference": "CEREBRO-X curated library (FDA labels + DrugBank)",
+                "reference": "",
                 "confidence": "HIGH — verified against FDA label"
             }
     
@@ -919,13 +919,13 @@ def _build_source_audit(result: dict, drug_name: str, input_type: str,
         if input_type == "SMILES":
             audit["_fields"]["LogP"] = {
                 "value": logp, "source": "RDKit Crippen.MolLogP",
-                "reference": "Wildman SA & Crippen GM (1999) J Chem Inf Comput Sci 39:868",
+                "reference": "",
                 "confidence": "MODERATE — Crippen fragment method (±0.5 typical)"
             }
         elif api_source:
             audit["_fields"]["LogP"] = {
                 "value": logp, "source": f"{api_source} alogp",
-                "reference": f"{api_source} database query",
+                "reference": "",
                 "confidence": "HIGH"
             }
     
@@ -934,7 +934,7 @@ def _build_source_audit(result: dict, drug_name: str, input_type: str,
     if bbb is not None:
         audit["_fields"]["BBB_permeability_pct"] = {
             "value": bbb, "source": "Clark 1999 logistic model or literature",
-            "reference": "Clark DE (1999) J Pharm Sci 88:807-814 (logBB→BBB% conversion)",
+            "reference": "",
             "confidence": "MODERATE — model prediction ± wet-lab validation needed"
         }
     

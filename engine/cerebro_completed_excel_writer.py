@@ -130,7 +130,7 @@ def _get_tier_info(mol_profile: dict, prop_key: str) -> dict:
             "_confidence_score": 90,
             "_confidence": "HIGH (inferred — direct API result)",
             "_source": "Live API (engine-resolved)",
-            "_reference": "Direct fetch — no resolver call needed",
+            "_reference": "",
             "_doi": None, "_disclaimer": None, "_overridable": False,
         }
     return {

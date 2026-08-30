@@ -202,11 +202,7 @@ class BiologicPBPK:
             "plasma_curve_ug_mL": [round(c,5) for c in plasma_curve[::10]],
             "cns_curve_ug_mL":    [round(c,7) for c in cns_curve[::10]],
             "organ_distribution": organs,
-            "_reference": (
-                "Shah DK & Betts AM (2012) JPKPD 39:67-86; "
-                "Pardridge WM (2020) Fluids Barriers CNS 17:62; "
-                "Sarin H et al (2010) J Transl Med 8:32"
-            ),
+            "_reference": "",
             "_source":  "BiologicPBPK (two-compartment + FcRn + CNS transcytosis)",
         }
 

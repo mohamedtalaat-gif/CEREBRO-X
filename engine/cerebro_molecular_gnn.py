@@ -330,8 +330,7 @@ def train_and_evaluate(epochs: int = 30, seed: int = 42, batch_size: int = 64) -
                          "node features, dense normalized adjacency) -> "
                          "masked mean pool -> Dense(64) -> Dropout(0.3) -> "
                          "Dense(1, sigmoid)",
-        "reference": "Kipf & Welling (2017) ICLR, GCN; Martins IF et al. "
-                      "(2012) J Chem Inf Model 52:1686 (BBBP dataset)",
+        "reference": "",
     }
 
     _MODEL_DIR.mkdir(parents=True, exist_ok=True)
@@ -386,8 +385,7 @@ def predict_bbb_class_gnn(smiles: str) -> dict:
         "predicted_class": "permeable" if proba >= 0.5 else "non_permeable",
         "confidence": "MODERATE",
         "method": "Real molecular-graph GCN (RDKit atom/bond graph) trained on BBBP",
-        "reference": "Kipf & Welling (2017) ICLR; Martins IF et al. (2012) "
-                      "J Chem Inf Model 52:1686 (BBBP dataset)",
+        "reference": "",
         "model_test_accuracy": metrics.get("test_accuracy"),
         "model_test_roc_auc": metrics.get("test_roc_auc"),
         "model_n_train": metrics.get("n_train"),

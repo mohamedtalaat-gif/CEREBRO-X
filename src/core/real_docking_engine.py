@@ -60,7 +60,7 @@ def _lie_estimate(ligand_mw: float, logp: float, tpsa: float,
         "n_poses":             0,
         "receptor_pdb":        None,
         "confidence":          "LOW — LIE approximation only",
-        "reference":           "Aqvist 1994 (LIE); fallback because Vina receptor unavailable",
+        "reference":           "",
     }
 
 
@@ -331,7 +331,7 @@ def run_autodock_vina(smiles: str, pdb_id: str,
             "poses_summary":       poses_summary[:5],
             "exhaustiveness":      exhaustiveness,
             "confidence":          "HIGH — real AutoDock Vina docking on experimental receptor structure",
-            "reference":           f"Eberhardt 2021 (Vina 1.2); PDB:{pdb_id}; SMILES docking",
+            "reference":           "",
             "output_pdbqt":        str(out_pdbqt),
         }
         log.info(f"[DOCK] ✅ Real Vina docking: ΔG={best_dG:.2f} kcal/mol | Kd={Kd_nM:.1f}nM | {len(poses_dG)} poses")

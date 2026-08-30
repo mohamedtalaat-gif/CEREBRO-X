@@ -98,7 +98,7 @@ def resolve_drug_solubility_logS(name: str = "", smiles: str = "",
             return _resolved(value=round(logS, 3), tier=1,
                               source="ChEMBL Solubility",
                               method="ChEMBL standard_type=Solubility (median)",
-                              reference="Mendez D et al (2019) NAR 47:D930",
+                              reference="",
                               live_db_misses=db_misses,
                               extra={"unit": "log10(mol/L)"})
     except Exception: pass
@@ -111,7 +111,7 @@ def resolve_drug_solubility_logS(name: str = "", smiles: str = "",
         return _resolved(value=round(logS, 3), tier=6,
                           source="cerebro_value_resolver:yalkowsky_gse",
                           method="Yalkowsky GSE: logS = 0.5 − 0.01(Tm−25) − LogP",
-                          reference="Yalkowsky SH (1980) J Pharm Sci 69:912",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "log10(mol/L)"})
 
@@ -126,7 +126,7 @@ def resolve_drug_solubility_logS(name: str = "", smiles: str = "",
         return _resolved(value=round(logS, 3), tier=7,
                           source="cerebro_value_resolver:delaney_esol",
                           method="Delaney ESOL: linear regression in MW/LogP/RotBonds/aromaticProportion",
-                          reference="Delaney JS (2004) J Chem Inf Comput Sci 44:1000",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "log10(mol/L)"})
     return _resolved(value=-3.0, tier=7,
@@ -161,7 +161,7 @@ def resolve_drug_caco2_papp(name: str = "", smiles: str = "",
         if v is not None:
             return _resolved(value=v, tier=1, source="ChEMBL Permeability",
                               method="ChEMBL Permeability assay (median)",
-                              reference="Mendez D et al (2019) NAR 47:D930",
+                              reference="",
                               live_db_misses=db_misses,
                               extra={"unit": "10⁻⁶ cm/s"})
     except Exception: pass
@@ -175,13 +175,13 @@ def resolve_drug_caco2_papp(name: str = "", smiles: str = "",
         return _resolved(value=round(papp, 3), tier=6,
                           source="cerebro_value_resolver:hou_caco2",
                           method="Hou TJ regression: log(Papp) ≈ 0.43·LogP − 0.024·TPSA − 0.067·HBD + 1.46",
-                          reference="Hou TJ et al (2007) J Chem Inf Model 47:2408",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "10⁻⁶ cm/s"})
     return _resolved(value=10.0, tier=7,
                       source="cerebro_value_resolver:typical_drug",
                       method="Typical drug Caco-2 P_app median",
-                      reference="Artursson P et al (1996) Adv Drug Deliv Rev 22:67",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "10⁻⁶ cm/s"})
 
@@ -207,7 +207,7 @@ def resolve_drug_pgp_efflux_ratio(name: str = "", smiles: str = "",
         if v is not None:
             return _resolved(value=v, tier=1, source="ChEMBL Efflux Ratio",
                               method="ChEMBL standard_type=Efflux Ratio (median)",
-                              reference="Mendez D et al (2019) NAR 47:D930",
+                              reference="",
                               live_db_misses=db_misses,
                               extra={"unit": "ratio"})
     except Exception: pass
@@ -221,13 +221,13 @@ def resolve_drug_pgp_efflux_ratio(name: str = "", smiles: str = "",
         return _resolved(value=round(er, 2), tier=6,
                           source="cerebro_value_resolver:hochman_pgp",
                           method="Hochman empirical: log(ER) ∝ MW + HBA − LogP",
-                          reference="Hochman JH et al (2002) Drug Metab Dispos 30:1402",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "ratio"})
     return _resolved(value=1.5, tier=7,
                       source="cerebro_value_resolver:typical_drug",
                       method="Typical efflux ratio median (1.5)",
-                      reference="Polli JW et al (2001) JPET 299:620",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "ratio"})
 
@@ -266,7 +266,7 @@ def resolve_drug_cyp3a4_inhibition(name: str = "", smiles: str = "",
                     return _resolved(value=median, tier=1,
                                       source="ChEMBL CYP3A4 (CHEMBL340)",
                                       method="ChEMBL IC50 median against CYP3A4",
-                                      reference="Mendez D et al (2019) NAR 47:D930",
+                                      reference="",
                                       live_db_misses=db_misses,
                                       extra={"unit": "μM (assumed)"})
     except Exception: pass
@@ -274,7 +274,7 @@ def resolve_drug_cyp3a4_inhibition(name: str = "", smiles: str = "",
     return _resolved(value=50.0, tier=7,
                       source="cerebro_value_resolver:typical_non_inhibitor",
                       method="Default IC50 = 50 μM (non-inhibitor threshold)",
-                      reference="FDA Drug Interaction Guidance (2020)",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "μM"})
 
@@ -311,7 +311,7 @@ def resolve_drug_herg_ic50(name: str = "", smiles: str = "",
                     return _resolved(value=median, tier=1,
                                       source="ChEMBL hERG (CHEMBL240)",
                                       method="ChEMBL IC50 median against hERG",
-                                      reference="Mendez D et al (2019) NAR 47:D930",
+                                      reference="",
                                       live_db_misses=db_misses,
                                       extra={"unit": "μM (assumed)"})
     except Exception: pass
@@ -325,13 +325,13 @@ def resolve_drug_herg_ic50(name: str = "", smiles: str = "",
         return _resolved(value=round(ic50, 2), tier=6,
                           source="cerebro_value_resolver:aronov_herg",
                           method="Aronov pIC50 ≈ 0.4·LogP + 3.2",
-                          reference="Aronov AM (2005) Drug Discov Today 10:149",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"unit": "μM"})
     return _resolved(value=10.0, tier=7,
                       source="cerebro_value_resolver:typical_drug",
                       method="Median hERG IC50 for marketed drugs",
-                      reference="Aronov AM (2005)",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "unit": "μM"})
 
@@ -369,12 +369,12 @@ def resolve_drug_clearance_route(name: str = "", smiles: str = "",
         return _resolved(value=route, tier=6,
                           source="cerebro_value_resolver:williams_route_heuristic",
                           method=note,
-                          reference="Williams JA et al (2003) Drug Metab Dispos 31:1437",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"is_categorical": True})
     return _resolved(value="hepatic", tier=7,
                       source="cerebro_value_resolver:default",
                       method="Default hepatic (most common for small molecules)",
-                      reference="Williams JA et al (2003)",
+                      reference="",
                       live_db_misses=db_misses,
                       extra={"confidence":"LOW", "is_categorical": True})

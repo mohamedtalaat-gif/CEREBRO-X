@@ -174,8 +174,7 @@ def resolve_drug_type(name: str = "", smiles: str = "", fasta: str = "",
                 f"Step 3: Apply MW thresholds (Lipinski Ro5 + FDA peptide guidance): "
                 f"<900=small_molecule, 900-5000=peptide, >5000=protein. "
                 f"Result: {cls!r}."),
-            reference="Lipinski CA (1997) Adv Drug Deliv Rev 23:3; "
-                       "FDA peptide guidance (2021)",
+            reference="",
             live_db_misses=db_misses,
             extra={"is_categorical": True, "computed_MW_Da": round(mw, 2)})
 
@@ -210,7 +209,7 @@ def resolve_drug_type(name: str = "", smiles: str = "", fasta: str = "",
                 f"≥150 = protein-or-mAb. "
                 f"Step 5: If USAN '-mab' suffix or len>1300 → monoclonal_antibody. "
                 f"Result: {cls!r}."),
-            reference="IUPAC-IUB; Pavlou AK (2004) Nat Rev Drug Discov 3:383",
+            reference="",
             live_db_misses=db_misses,
             extra={"is_categorical": True, "sequence_length_aa": n_aa})
 
@@ -239,7 +238,7 @@ def resolve_drug_type(name: str = "", smiles: str = "", fasta: str = "",
                 f"Step 4: <50 nt = oligonucleotide (siRNA/ASO), "
                 f"≥50 nt = gene_therapy (mRNA/DNA). "
                 f"Result: {cls!r}."),
-            reference="IUPAC nucleic acid nomenclature; FDA siRNA guidance (2014)",
+            reference="",
             live_db_misses=db_misses,
             extra={"is_categorical": True, "sequence_length_nt": n_nt})
 
@@ -458,8 +457,7 @@ def resolve_dds_type(carrier: str = "", carrier_type: str = "",
                     f"cell → membrane → magnetic → implantable → "
                     f"dendrimer/micelle/liposomal/metallic → material). "
                     f"Step 3: Match {keyword!r} → classify as {cls!r} ({label})."),
-                reference="Allen TM & Cullis PR (2013) Adv Drug Deliv Rev "
-                           "65:36; Akinc A et al (2019) Nat Nanotechnol 14:1084",
+                reference="",
                 live_db_misses=db_misses,
                 extra={"is_categorical": True, "matched_keyword": keyword,
                         "label": label})

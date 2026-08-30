@@ -85,7 +85,7 @@ def _pubchem_property(drug_name: str, prop: str) -> dict | None:
             return {
                 "value": props[0][prop],
                 "_source": "pubchem_live",
-                "_reference": f"PubChem CID lookup for {drug_name}",
+                "_reference": "",
                 "_confidence": "HIGH",
                 "_confidence_score": 90,
                 "_tier": 1,
@@ -163,7 +163,7 @@ def resolve_property(drug_name: str, property_name: str,
         return {
             "value": api_value, "_tier": 1,
             "_source": "Live API (ChEMBL/PubChem/UniProt/DrugBank)",
-            "_reference": "API query at runtime",
+            "_reference": "",
             "_doi": None, "_confidence": "HIGH"
         }
     
@@ -207,11 +207,11 @@ def resolve_property(drug_name: str, property_name: str,
             mol = Chem.MolFromSmiles(smiles)
             if mol:
                 rdkit_map = {
-                    "mw_da":  (Descriptors.MolWt, "Wildman & Crippen 1999 J Chem Inf Comput Sci 39:868"),
-                    "logp":   (Descriptors.MolLogP, "Wildman & Crippen 1999 J Chem Inf Comput Sci 39:868"),
-                    "tpsa":   (Descriptors.TPSA, "Ertl P et al 2000 J Med Chem 43:3714"),
-                    "hbd":    (Descriptors.NumHDonors, "Lipinski 1997 Adv Drug Deliv Rev 23:3"),
-                    "hba":    (Descriptors.NumHAcceptors, "Lipinski 1997 Adv Drug Deliv Rev 23:3"),
+                    "mw_da":  (Descriptors.MolWt, ""),
+                    "logp":   (Descriptors.MolLogP, ""),
+                    "tpsa":   (Descriptors.TPSA, ""),
+                    "hbd":    (Descriptors.NumHDonors, ""),
+                    "hba":    (Descriptors.NumHAcceptors, ""),
                 }
                 fn, ref = rdkit_map[prop_lower]
                 val = fn(mol)
@@ -250,47 +250,34 @@ def resolve_property(drug_name: str, property_name: str,
         # property → { molecule_class: (value, unit, reference) }
         "half_life_days": {
             "small_molecule": (0.25, "days",
-                "Smith DA et al (2018) Pharmacological Reviews 70:583 — "
                 "median t½ across 1,200 oral small molecules ≈ 6 h"),
             "biologic":       (21.0, "days",
-                "Wang W et al (2008) Clin Pharmacol Ther 84:548 — "
                 "IgG mAb population mean t½ ≈ 21 d via FcRn recycling"),
             "peptide":        (0.02, "days",
-                "Diao L & Meibohm B (2013) Clin Pharmacokinet 52:855 — "
                 "linear peptides mean t½ ≈ 30 min before pegylation"),
-            "antibody":       (21.0, "days",
-                "Wang W et al (2008) Clin Pharmacol Ther 84:548"),
-            "monoclonal_antibody": (21.0, "days",
-                "Wang W et al (2008) Clin Pharmacol Ther 84:548"),
+            "antibody":       (21.0, "days", ""),
+            "monoclonal_antibody": (21.0, "days", ""),
         },
         "mw_da": {
-            "small_molecule": (350.0, "Da",
-                "Lipinski CA (1997) Adv Drug Deliv Rev 23:3 — Rule of 5 mean ≈350"),
-            "biologic":       (150000.0, "Da",
-                "Reichert JM (2017) MAbs 9:167 — IgG mean MW ≈150 kDa"),
-            "peptide":        (3000.0, "Da",
-                "Lau JL & Dunn MK (2018) Bioorg Med Chem 26:2700"),
+            "small_molecule": (350.0, "Da", "Rule of 5 mean ≈350"),
+            "biologic":       (150000.0, "Da", "IgG mean MW ≈150 kDa"),
+            "peptide":        (3000.0, "Da", ""),
         },
         "logp": {
             "small_molecule": (2.5, "dimensionless",
-                "Leeson PD & Springthorpe B (2007) Nat Rev Drug Discov 6:881 — "
                 "median cLogP across oral drugs ≈ 2.5"),
             "biologic":       (-1.5, "dimensionless",
                 "Hydrophilic by default — biologics are surface-charged"),
-            "peptide":        (-0.5, "dimensionless",
-                "Davies MN et al (2008) J Mol Recognit 21:73"),
+            "peptide":        (-0.5, "dimensionless", ""),
         },
         "tpsa": {
-            "small_molecule": (90.0, "Å²",
-                "Veber DF et al (2002) J Med Chem 45:2615 — TPSA threshold ≈ 90 Å²"),
+            "small_molecule": (90.0, "Å²", "TPSA threshold ≈ 90 Å²"),
         },
         "hbd": {
-            "small_molecule": (2.0, "count",
-                "Lipinski CA (1997) — typical HBD ≤ 5"),
+            "small_molecule": (2.0, "count", "typical HBD ≤ 5"),
         },
         "hba": {
-            "small_molecule": (5.0, "count",
-                "Lipinski CA (1997) — typical HBA ≤ 10"),
+            "small_molecule": (5.0, "count", "typical HBA ≤ 10"),
         },
     }
     

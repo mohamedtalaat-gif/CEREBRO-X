@@ -223,9 +223,7 @@ def resolve_drug_pka_acidic(name: str = "", smiles: str = "",
                 source="cerebro_value_resolver:bordwell_hammett_born",
                 method="First-principles pKa via Bordwell-Hammett-Born hybrid"
                         " (NO hardcoded molecule-specific values)",
-                reference="Reich HJ (2020) Bordwell pKa Tables; "
-                           "Bordwell FG (1988) Acc Chem Res 21:456; "
-                           "Hammett LP (1937) JACS 59:96; Born M (1920) Z Phys 1:45",
+                reference="",
                 live_db_misses=db_misses,
                 extra={"acidic_bond_type": label,
                         "canonical_groups_found": canonical_found,
@@ -294,8 +292,7 @@ def resolve_drug_pka_basic(name: str = "", smiles: str = "",
                 value=v, tier=7,
                 source="cerebro_value_resolver:bordwell_hammett_born",
                 method="First-principles pKa via Bordwell-Hammett-Born hybrid",
-                reference="Reich HJ (2020) Bordwell pKa Tables; "
-                           "Bordwell FG (1988) Acc Chem Res 21:456",
+                reference="",
                 live_db_misses=db_misses,
                 extra={"basic_bond_type": label,
                         "canonical_groups_found": canonical_found,
@@ -373,8 +370,7 @@ def resolve_drug_microspecies(name: str = "", smiles: str = "",
         value=fractions, tier=src_tier,
         source="cerebro_value_resolver:hh_microspeciation",
         method=fractions.get("method", "?"),
-        reference="Bjerrum N (1923) Z Physik Chem 106:219; "
-                   "Pagliara A et al (1997) J Med Chem 40:1972",
+        reference="",
         live_db_misses=(pka_a_rec.get("live_db_misses",[])
                           + pka_b_rec.get("live_db_misses",[])),
         extra={"pH": pH,

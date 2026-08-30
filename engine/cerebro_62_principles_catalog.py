@@ -78,7 +78,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "carrier-class robustness table.",
         "method_deep": "Full MD simulation of carrier under stress conditions",
         "libraries": ["thermo", "scipy"],
-        "reference": "Anchordoquy TJ et al (2017) ACS Nano 11:12-18",
+        "reference": "",
         "weight_cns": 0.015,
     },
     "P02": {
@@ -93,7 +93,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "permeability scaling factor.",
         "method_deep": "Full multi-species PBPK with organ-specific scaling",
         "libraries": ["scipy"],
-        "reference": "Mahmood I (2007) Eur J Drug Metab Pharmacokinet 32:25",
+        "reference": "",
         "weight_cns": 0.010,
     },
     "P03": {
@@ -108,7 +108,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "encourages novelty over crowded landscape.",
         "method_deep": "Live API fetch from ClinicalTrials.gov + literature",
         "libraries": ["rdkit", "requests"],
-        "reference": "ClinicalTrials.gov API; Bento AP et al ChEMBL Nucleic Acids Res 42:D1083",
+        "reference": "",
         "weight_cns": 0.010,
     },
     "P04": {
@@ -123,7 +123,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Surrogate uses pre-computed barrier height from LogP.",
         "method_deep": "Full QM tunneling with QCElemental + ASE",
         "libraries": ["scipy", "qcelemental"],
-        "reference": "Cao J et al (2020) Sci Adv 6:eaaz4888 (quantum biology)",
+        "reference": "",
         "weight_cns": 0.012,
         "maturity_note":
             "NOT an accepted BBB-crossing mechanism in the pharmacology "
@@ -151,7 +151,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "% subgroups expected to respond.",
         "method_deep": "Full pharmacogenomic database lookup (PharmGKB)",
         "libraries": ["pandas"],
-        "reference": "Whirl-Carrillo M et al (2012) Clin Pharmacol Ther 92:414",
+        "reference": "",
         "weight_cns": 0.012,
     },
     "P06": {
@@ -165,7 +165,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "pH-trigger). Score = endosomal_escape × (1 - lysosome_trap_prob).",
         "method_deep": "Full intracellular trafficking ODE model",
         "libraries": ["scipy"],
-        "reference": "Smith SA et al (2019) Trends Biotechnol 37:1077",
+        "reference": "",
         "weight_cns": 0.012,
     },
     "P07": {
@@ -180,7 +180,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "capped at 100.",
         "method_deep": "Full NLP-based citation extraction",
         "libraries": ["requests", "Bio"],
-        "reference": "NCBI E-utilities API",
+        "reference": "",
         "weight_cns": 0.005,
     },
     "P08": {
@@ -195,7 +195,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "(liposome 80 kJ/mol, PLGA 110, etc.)",
         "method_deep": "Full radical-chain reaction MD",
         "libraries": ["thermo", "scipy"],
-        "reference": "Halliwell B & Gutteridge JMC (2015) Free Radicals in Biology and Medicine",
+        "reference": "",
         "weight_cns": 0.015,
     },
     "P09": {
@@ -210,7 +210,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "(Site of Metabolism) heuristics.",
         "method_deep": "Full SMARTS-based metabolite prediction (BioTransformer)",
         "libraries": ["rdkit"],
-        "reference": "Djoumbou-Feunang Y et al (2019) J Cheminform 11:2",
+        "reference": "",
         "weight_cns": 0.010,
     },
     "P10": {
@@ -225,7 +225,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Score = ionization_optimal_for_endosomal_escape.",
         "method_deep": "Constant-pH MD simulation",
         "libraries": ["numpy"],
-        "reference": "Hafez IM et al (2001) Adv Drug Deliv Rev 47:139",
+        "reference": "",
         "weight_cns": 0.012,
     },
     "P11": {
@@ -240,7 +240,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "RDKit BondGetBondType + bond dissociation energy table.",
         "method_deep": "DFT bond dissociation energies",
         "libraries": ["rdkit"],
-        "reference": "Luo YR (2007) Comprehensive Handbook of Chemical Bond Energies",
+        "reference": "",
         "weight_cns": 0.010,
     },
     "P12": {
@@ -255,7 +255,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "100 × (cns_concentration_target / cns_concentration_predicted).",
         "method_deep": "Stage-specific PBPK model with full BBB physiology",
         "libraries": ["scipy"],
-        "reference": "Sweeney MD et al (2018) Nat Rev Neurol 14:133",
+        "reference": "",
         "weight_cns": 0.030,   # CNS direct
     },
 
@@ -275,7 +275,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Score = 100 × min(1.0, AUC_ratio / 0.05).",
         "method_deep": "Full multi-organ PBPK ODE solver (scipy.integrate)",
         "libraries": ["scipy"],
-        "reference": "Hammarlund-Udenaes M et al (2008) Pharm Res 25:1737",
+        "reference": "",
         "weight_cns": 0.030,   # CNS direct
     },
     "P14": {
@@ -289,7 +289,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Score = 100 if 12h ≤ t50 ≤ 72h, decay outside.",
         "method_deep": "Full Higuchi/Korsmeyer-Peppas/Weibull model fit",
         "libraries": ["scipy"],
-        "reference": "Costa P & Lobo JM (2001) Eur J Pharm Sci 13:123",
+        "reference": "",
         "weight_cns": 0.018,
     },
     "P15": {
@@ -303,7 +303,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Carrier baselines (months): liposome 18, PLGA 36, polymer 36.",
         "method_deep": "ICH Q1A real-time + accelerated stability",
         "libraries": ["thermo"],
-        "reference": "Kennon L (1964) J Pharm Sci 53:815; ICH Q1A(R2)",
+        "reference": "",
         "weight_cns": 0.012,
     },
     "P16": {
@@ -317,7 +317,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "shear-stress tolerance from carrier elasticity. Score 0-100.",
         "method_deep": "CFD simulation of 1000L bioreactor mixing",
         "libraries": ["scipy"],
-        "reference": "am Ende DJ (2011) Chemical Engineering in the Pharmaceutical Industry",
+        "reference": "",
         "weight_cns": 0.010,
     },
     "P17": {
@@ -332,7 +332,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "100 - composite_risk.",
         "method_deep": "Full immunogenicity QSAR (NanoSafer, in vitro models)",
         "libraries": ["sklearn", "rdkit"],
-        "reference": "Nel A et al (2006) Science 311:622",
+        "reference": "",
         "weight_cns": 0.018,
     },
     "P18": {
@@ -346,7 +346,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "LRP1, insulin, leptin) × ligand density per nm². Score 0-100.",
         "method_deep": "Full MM/GBSA + atomistic MD docking",
         "libraries": ["rdkit"],
-        "reference": "Pardridge WM (2020) Fluids Barriers CNS 17:62",
+        "reference": "",
         "weight_cns": 0.025,   # CNS direct
     },
     "P19": {
@@ -360,7 +360,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "fall within ICH Q8 acceptance ranges. Score = % within spec.",
         "method_deep": "Full multivariate DoE + 3D design-space generation",
         "libraries": ["sklearn", "scipy"],
-        "reference": "ICH Q8(R2) Pharmaceutical Development",
+        "reference": "",
         "weight_cns": 0.010,
     },
     "P20": {
@@ -374,7 +374,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "(Tf=$$, RVG29=$$$, none=$). Score = 100 × (1 - cost/upper_bound).",
         "method_deep": "Live API fetch from Sigma-Aldrich + ChemSpider pricing",
         "libraries": ["requests"],
-        "reference": "Cost-of-goods analysis frameworks (Pharm Eng J 2019)",
+        "reference": "",
         "weight_cns": 0.008,
     },
     "P21": {
@@ -386,7 +386,7 @@ PRINCIPLES_62: dict[str, dict] = {
         "method_surrogate": None,
         "method_deep": "Auto-generates FDA Pre-IND Word document for Top-1",
         "libraries": ["python-docx"],
-        "reference": "FDA 21 CFR 312.23 (IND content)",
+        "reference": "",
         "weight_cns": 0.0,    # Translational only
     },
 
@@ -406,7 +406,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "100 × exp(-thickness_nm/5). PEG > 5% protects (×1.3 boost).",
         "method_deep": "Full proteomic corona MS prediction (Mass-Spec lib)",
         "libraries": ["sklearn"],
-        "reference": "Tenzer S et al (2013) Nat Nanotechnol 8:772",
+        "reference": "",
         "weight_cns": 0.020,
     },
     "P23": {
@@ -421,7 +421,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "100 - risk_pct.",
         "method_deep": "CSP (Crystal Structure Prediction) via DFT",
         "libraries": ["rdkit"],
-        "reference": "Bernstein J (2020) Polymorphism in Molecular Crystals",
+        "reference": "",
         "weight_cns": 0.008,
     },
     "P24": {
@@ -435,7 +435,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Score = log10(critical_shear/operating_shear) × 30, capped 100.",
         "method_deep": "Full CFD + MD coupling for 1000L reactor",
         "libraries": ["scipy"],
-        "reference": "Maa YF & Hsu CC (1996) Biotechnol Bioeng 51:458",
+        "reference": "",
         "weight_cns": 0.010,
     },
     "P25": {
@@ -449,7 +449,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "PVC=risk for lipophilic). Score from carrier-LogP × packaging.",
         "method_deep": "Full LC-MS/MS leachables database + 2-yr extraction sim",
         "libraries": ["pandas"],
-        "reference": "USP <1663>/<1664> Extractables/Leachables",
+        "reference": "",
         "weight_cns": 0.008,
     },
     "P26": {
@@ -463,7 +463,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "PLGA (low), lactose (high). Score = 100 - mean_degradability.",
         "method_deep": "Full microbiome enzyme database (GMrepo + KEGG)",
         "libraries": ["pandas"],
-        "reference": "Zimmermann M et al (2019) Nature 570:462",
+        "reference": "",
         "weight_cns": 0.005,
     },
     "P27": {
@@ -477,7 +477,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "+cryo). Score = 100 - cake_collapse_risk based on carrier_Tg'.",
         "method_deep": "Full SMART freeze-drying cycle optimization",
         "libraries": ["scipy", "thermo"],
-        "reference": "Pikal MJ (2002) Pharmaceutical Lyophilization",
+        "reference": "",
         "weight_cns": 0.005,
     },
     "P28": {
@@ -491,7 +491,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Carrier-class lookup. Score 0-100.",
         "method_deep": "Full rheology curve simulation",
         "libraries": ["scipy"],
-        "reference": "Trenfield SJ et al (2019) Adv Drug Deliv Rev 138:139",
+        "reference": "",
         "weight_cns": 0.005,
     },
     "P29": {
@@ -505,7 +505,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "tumor-cell-coated +25, bare -20.",
         "method_deep": "Full membrane-fusion MD + macrophage uptake model",
         "libraries": ["MDAnalysis"],
-        "reference": "Hu CMJ et al (2011) Proc Natl Acad Sci 108:10980",
+        "reference": "",
         "weight_cns": 0.012,
     },
     "P30": {
@@ -519,7 +519,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Score = 100 × selectivity (target_pH vs blood_pH).",
         "method_deep": "Full QM/MM with PySCF or ORCA",
         "libraries": ["rdkit", "qcelemental"],
-        "reference": "Senn HM & Thiel W (2009) Angew Chem Int Ed 48:1198",
+        "reference": "",
         "weight_cns": 0.010,
     },
     "P31": {
@@ -534,7 +534,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "(target ≥ 5% for CNS).",
         "method_deep": "Full whole-body PBPK with organ-specific kinetics",
         "libraries": ["scipy"],
-        "reference": "Wilhelm S et al (2016) Nat Rev Mater 1:16014",
+        "reference": "",
         "weight_cns": 0.022,   # CNS direct
     },
     "P32": {
@@ -546,7 +546,7 @@ PRINCIPLES_62: dict[str, dict] = {
         "method_surrogate": None,
         "method_deep": "Patent landscape search via Lens.org / Google Patents API",
         "libraries": ["requests"],
-        "reference": "Lens.org open patent database",
+        "reference": "",
         "weight_cns": 0.0,
     },
 
@@ -567,7 +567,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "size compatibility (50-150 nm window). Score 0-100.",
         "method_deep": "Atomistic docking to TfR1/LRP1 + SMD pulling simulation",
         "libraries": ["rdkit", "MDAnalysis"],
-        "reference": "Pardridge WM (2020) Fluids Barriers CNS 17:62",
+        "reference": "",
         "weight_cns": 0.040,   # CNS direct, top weight
     },
     "P34": {
@@ -581,7 +581,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "polymer-based +20, lipid -10. Score reflects programmability.",
         "method_deep": "Full strand-displacement simulation (NUPACK)",
         "libraries": ["networkx"],
-        "reference": "Douglas SM et al (2012) Science 335:831",
+        "reference": "",
         "weight_cns": 0.005,
     },
     "P35": {
@@ -595,7 +595,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Score reflects gravity-independence (smaller = better).",
         "method_deep": "Full diffusion + sedimentation ODE in microgravity",
         "libraries": ["scipy"],
-        "reference": "Reichert B et al (2019) NPJ Microgravity 5:18",
+        "reference": "",
         "weight_cns": 0.003,
     },
     "P36": {
@@ -609,7 +609,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "PEG, PLGA) score high; rare/single-source materials score low.",
         "method_deep": "Live API fetch from supplier databases + risk model",
         "libraries": ["requests"],
-        "reference": "FDA Drug Shortage Database analysis",
+        "reference": "",
         "weight_cns": 0.005,
     },
     "P37": {
@@ -623,7 +623,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "bonds. PLGA 90, polymer 70, lipid 95, metallic 5.",
         "method_deep": "Full ECOSAR + biodegradation kinetics database",
         "libraries": ["rdkit"],
-        "reference": "Boxall ABA (2004) EMBO Rep 5:1110",
+        "reference": "",
         "weight_cns": 0.005,
     },
     "P38": {
@@ -638,7 +638,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Optimum 80-150 nm.",
         "method_deep": "Full glymphatic CSF flow model with sleep cycles",
         "libraries": ["scipy"],
-        "reference": "Iliff JJ et al (2012) Sci Transl Med 4:147ra111",
+        "reference": "",
         "weight_cns": 0.035,   # CNS direct
     },
     "P39": {
@@ -652,7 +652,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "-40 (TLR4 activation). Score = 100 - inflammation_risk.",
         "method_deep": "Full TLR4/NLRP3 activation pathway model",
         "libraries": ["sklearn"],
-        "reference": "Hickman SE et al (2018) Nat Neurosci 21:1359",
+        "reference": "",
         "weight_cns": 0.025,   # CNS direct
     },
     "P40": {
@@ -666,7 +666,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "chitosan, poloxamer 407, hydroxyethyl cellulose. Cap 100.",
         "method_deep": "Full nasal cavity CFD + olfactory neuron model",
         "libraries": ["scipy"],
-        "reference": "Illum L (2003) J Pharm Pharmacol 56:3",
+        "reference": "",
         "weight_cns": 0.015,
     },
     "P41": {
@@ -680,7 +680,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "+ drug MW. Score reflects loading yield 0-100%.",
         "method_deep": "Full membrane mechanics MD simulation",
         "libraries": ["MDAnalysis", "scipy"],
-        "reference": "Alvarez-Erviti L et al (2011) Nat Biotechnol 29:341",
+        "reference": "",
         "weight_cns": 0.010,
     },
     "P42": {
@@ -695,7 +695,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Score = ligand-region match × density.",
         "method_deep": "Full brain-region perfusion + receptor density atlas",
         "libraries": ["pandas"],
-        "reference": "Nutt DJ & Need AC (2014) Lancet Psychiatry 1:78",
+        "reference": "",
         "weight_cns": 0.025,   # CNS direct
     },
     "P43": {
@@ -709,7 +709,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "liposome +30, solid carriers 0. Threshold-frequency match.",
         "method_deep": "Full acoustic radiation force + cavitation MD",
         "libraries": ["scipy"],
-        "reference": "Hynynen K & Jolesz FA (1998) Ultrasound Med Biol 24:275",
+        "reference": "",
         "weight_cns": 0.018,
     },
     "P44": {
@@ -724,7 +724,7 @@ PRINCIPLES_62: dict[str, dict] = {
         "method_deep": "Full PBPK ODE: blood + brain + CSF + glymphatic "
                         "compartments with sleep-cycle modulation",
         "libraries": ["scipy"],
-        "reference": "Bies RR et al (2019) Annu Rev Pharmacol Toxicol 59:131",
+        "reference": "",
         "weight_cns": 0.040,   # CNS direct, top weight
     },
 
@@ -741,7 +741,7 @@ PRINCIPLES_62: dict[str, dict] = {
         "method_surrogate": None,
         "method_deep": "Audit trail + e-signature + tamper-proof logging",
         "libraries": ["sqlalchemy"],
-        "reference": "21 CFR Part 11 (FDA)",
+        "reference": "",
         "weight_cns": 0.0,
     },
     "P46": {
@@ -755,7 +755,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Score = 100 × (1 - max_inhibition_risk).",
         "method_deep": "Full Simcyp-style population PBPK with co-meds",
         "libraries": ["rdkit"],
-        "reference": "Jamei M et al (2009) Br J Clin Pharmacol 67:472",
+        "reference": "",
         "weight_cns": 0.012,
     },
     "P47": {
@@ -769,7 +769,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "receptor pair. Class B promotes to FEP+ for confirmation.",
         "method_deep": "Full FEP+ via OpenMM/Schrödinger integration",
         "libraries": ["MDAnalysis", "scipy"],
-        "reference": "Wang L et al (2015) J Am Chem Soc 137:2695",
+        "reference": "",
         "weight_cns": 0.025,
     },
     "P48": {
@@ -783,7 +783,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "MAO. Score = 100 - max_off_target_risk.",
         "method_deep": "Full 50-receptor docking panel (BindingDB)",
         "libraries": ["rdkit", "sklearn"],
-        "reference": "Bowes J et al (2012) Nat Rev Drug Discov 11:909",
+        "reference": "",
         "weight_cns": 0.015,
     },
     "P49": {
@@ -797,7 +797,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "cell-uptake (size match?), oxygen consumption proxy. Score 0-100.",
         "method_deep": "Full multiphysics microfluidic simulation",
         "libraries": ["scipy"],
-        "reference": "Bhatia SN & Ingber DE (2014) Nat Biotechnol 32:760",
+        "reference": "",
         "weight_cns": 0.012,
     },
     "P50": {
@@ -811,7 +811,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "tolerance lookup. Score reflects survival under -20°C × 4h.",
         "method_deep": "Full coarse-grained MD of lipid phase transition",
         "libraries": ["MDAnalysis"],
-        "reference": "Crommelin DJA et al (2021) Int J Pharm 593:120163",
+        "reference": "",
         "weight_cns": 0.010,
     },
 
@@ -831,7 +831,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "(med), polymer 25kGy. Score reflects gamma/autoclave survival.",
         "method_deep": "Full radical-chain damage MD + dose-response curve",
         "libraries": ["thermo"],
-        "reference": "Reid BD (1995) J Pharm Sci Technol 49:83",
+        "reference": "",
         "weight_cns": 0.005,
     },
     "P52": {
@@ -845,7 +845,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "(ready), exosomes (challenging), dendrimers (lab-only). 0-100.",
         "method_deep": "Full process digital twin with feedback control",
         "libraries": ["scipy"],
-        "reference": "Lee SL et al (2015) J Pharm Innov 10:191",
+        "reference": "",
         "weight_cns": 0.005,
     },
     "P53": {
@@ -860,7 +860,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Score = 100 - similarity_to_failed.",
         "method_deep": "Full ML similarity model on large failure corpus",
         "libraries": ["sklearn"],
-        "reference": "Begley CG & Ellis LM (2012) Nature 483:531",
+        "reference": "",
         "weight_cns": 0.008,
     },
     "P54": {
@@ -874,7 +874,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Score = % patient variants well-served.",
         "method_deep": "Full PharmGKB integration",
         "libraries": ["pandas"],
-        "reference": "Whirl-Carrillo M et al (2012) Clin Pharmacol Ther 92:414",
+        "reference": "",
         "weight_cns": 0.010,
     },
     "P55": {
@@ -886,7 +886,7 @@ PRINCIPLES_62: dict[str, dict] = {
         "method_surrogate": None,
         "method_deep": "Auto-generates NIH R01 Word document for Top-1",
         "libraries": ["python-docx"],
-        "reference": "NIH SF424 Application Guide",
+        "reference": "",
         "weight_cns": 0.0,
     },
     "P56": {
@@ -898,7 +898,7 @@ PRINCIPLES_62: dict[str, dict] = {
         "method_surrogate": None,
         "method_deep": "USPTO + Lens.org search + novelty score 0-100",
         "libraries": ["requests"],
-        "reference": "USPTO patent novelty criteria",
+        "reference": "",
         "weight_cns": 0.0,
     },
     "P57": {
@@ -912,7 +912,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "specific flow-rate-window estimation.",
         "method_deep": "Full CFD of T-junction or staggered herringbone mixer",
         "libraries": ["scipy"],
-        "reference": "Belliveau NM et al (2012) Mol Ther Nucleic Acids 1:e37",
+        "reference": "",
         "weight_cns": 0.005,
     },
     "P58": {
@@ -926,7 +926,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "metals (PLGA Sn-traces, polymer initiators). Score 0-100.",
         "method_deep": "Full QM/MM cascade simulation over 2-yr aging",
         "libraries": ["rdkit", "qcelemental"],
-        "reference": "ICH Q3D Elemental Impurities",
+        "reference": "",
         "weight_cns": 0.008,
     },
     "P59": {
@@ -940,7 +940,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "temp-responsive +40, redox-responsive +30, none = 0.",
         "method_deep": "Full coarse-grained MD of morphological transition",
         "libraries": ["MDAnalysis"],
-        "reference": "Stuart MAC et al (2010) Nat Mater 9:101",
+        "reference": "",
         "weight_cns": 0.008,
     },
     "P60": {
@@ -954,7 +954,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "carriers score 0; specialized swarm carriers +60-100.",
         "method_deep": "Full agent-based simulation (Mesa)",
         "libraries": ["networkx"],
-        "reference": "Servant A et al (2015) Sci Robot 1:eaaq1155",
+        "reference": "",
         "weight_cns": 0.003,
     },
     "P61": {
@@ -969,7 +969,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "Score = % responders ≥ therapeutic threshold.",
         "method_deep": "Full Monte-Carlo population PBPK + outcome model",
         "libraries": ["scipy"],
-        "reference": "Polasek TM & Rostami-Hodjegan A (2020) AAPS J 22:97",
+        "reference": "",
         "weight_cns": 0.015,
     },
     "P62": {
@@ -983,7 +983,7 @@ PRINCIPLES_62: dict[str, dict] = {
             "if SMILES + carrier-class fingerprint different from references.",
         "method_deep": "Full patent-aware molecule generator",
         "libraries": ["rdkit"],
-        "reference": "Ekins S et al (2019) Drug Discov Today 24:2104",
+        "reference": "",
         "weight_cns": 0.008,
     },
 }

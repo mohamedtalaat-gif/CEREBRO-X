@@ -66,8 +66,7 @@ def _build_lipid_resolver(category: str, prop_key: str, unit: str,
                                   source="cerebro_value_resolver:lipid_class_table",
                                   method=f"Carrier-class typical {prop_key} for "
                                           f"{k} lipid (Israelachvili tables)",
-                                  reference="Israelachvili JN (2011) Intermolecular "
-                                             "& Surface Forces 3rd ed (Academic Press)",
+                                  reference="",
                                   live_db_misses=db_misses,
                                   extra={"carrier": carrier, "lipid_type": k,
                                           "unit": unit})
@@ -75,7 +74,7 @@ def _build_lipid_resolver(category: str, prop_key: str, unit: str,
         return _resolved(value=t7_default, tier=7,
                           source="cerebro_value_resolver:generic_lipid",
                           method=f"Generic lipid {prop_key} median",
-                          reference="Israelachvili JN (2011)",
+                          reference="",
                           live_db_misses=db_misses,
                           extra={"confidence":"LOW", "unit": unit})
     resolver.__name__ = f"resolve_{category}"

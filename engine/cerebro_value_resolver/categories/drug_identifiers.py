@@ -289,7 +289,7 @@ def resolve_drug_smiles(name: str = "", smiles: str = "",
                 value=canonical, tier=3,
                 source="rdkit.MolToSmiles(canonical=True)",
                 method="RDKit input validation + canonicalization",
-                reference="Weininger D (1988) J Chem Inf Comput Sci 28:31",
+                reference="",
                 live_db_misses=[])
         # SMILES provided but unparseable → continue to live DBs as if name
         db_misses.append("user_SMILES_unparseable")
@@ -320,7 +320,7 @@ def resolve_drug_smiles(name: str = "", smiles: str = "",
                 return _resolved(
                     value=canonical, tier=5, source="thermo.Chemical",
                     method="thermo library name→SMILES (cached PubChem proxy)",
-                    reference="thermo (Bell, 2018) https://github.com/CalebBell/thermo",
+                    reference="",
                     live_db_misses=db_misses)
         except Exception:
             pass
