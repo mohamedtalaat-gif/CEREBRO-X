@@ -120,11 +120,23 @@ def _save(fig, path: Path, dpi: int = 300):
 def fig01_concentration_time_multipanel(df_pk: pd.DataFrame,
                                          drug_name: str,
                                          out_dir: Path) -> Path | None:
-    """Multi-panel PK/PD: linear + log + derivative."""
+    """Multi-panel PK/PD: linear + log + derivative.
+
+    Column lookup used to only match "Concentration_pct"/"Concentration_
+    ugL" (lowercase p), while the real column emitted by
+    AnalyticsEngine.simulate_pkpd (src/core/pipeline.py) is
+    "Concentration_Pct" (capital P) -- same case-mismatch bug already
+    found and fixed in fig13_pbbm_diagnostic_plots and
+    visualization_3d.py elsewhere in this codebase, just missed here.
+    The mismatch meant this figure -- the first one registered in the
+    master figure list -- silently returned None on every real pipeline
+    run.
+    """
     if df_pk is None or df_pk.empty:
         return None
     t_col = "Day" if "Day" in df_pk.columns else "Hour"
-    c_col = next((c for c in ["Concentration_pct","Concentration_ugL"]
+    c_col = next((c for c in ["Concentration_pct", "Concentration_Pct",
+                               "Concentration_ugL"]
                   if c in df_pk.columns), None)
     if not c_col:
         return None

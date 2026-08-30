@@ -1173,6 +1173,29 @@ class TestDDSMetricsLegacyAliasBackfill:
         assert weak["BBB_Enhanced_Pct"] != strong["BBB_Enhanced_Pct"]
 
 
+class TestFig01ConcentrationMultipanelMatchesRealColumnName:
+    """fig01_concentration_time_multipanel (src/viz/advanced_viz.py) --
+    the first figure in the master figure list -- had the same
+    lowercase-only column lookup bug already found and fixed in
+    fig13_pbbm_diagnostic_plots and visualization_3d.py elsewhere in this
+    codebase: it only matched "Concentration_pct"/"Concentration_ugL"
+    (lowercase p), while AnalyticsEngine.simulate_pkpd's real output
+    column is "Concentration_Pct" (capital P, src/core/pipeline.py). The
+    case mismatch meant this figure silently returned None on every real
+    pipeline run."""
+
+    def test_matches_real_pipeline_column_name_concentration_Pct(self, tmp_path):
+        import pandas as pd
+        from src.viz.advanced_viz import fig01_concentration_time_multipanel
+        df_pk = pd.DataFrame({
+            "Day": list(range(10)),
+            "Concentration_Pct": [100 * (0.9 ** i) for i in range(10)],
+        })
+        out = fig01_concentration_time_multipanel(df_pk, "TEST_DRUG_X", tmp_path)
+        assert out is not None
+        assert out.exists()
+
+
 class TestPbbmDiagnosticPlotsHonestLabeling:
     """fig13_pbbm_diagnostic_plots (src/viz/advanced_viz.py) used to label
     itself a "Visual Predictive Check" (VPC) and "Goodness-of-Fit" (GOF)
