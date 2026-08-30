@@ -552,14 +552,24 @@ anim4.reset();
 def make_v05_biodist(drug_name: str, science: dict, top_dds: dict, out_dir: Path) -> Path:
     """V05: Biodistribution organ map animation."""
     bd = science.get("biodistribution_map", {}) or {}
-    organs = bd.get("organs") or {
-        "Brain (Target)": float(top_dds.get("CNS_Bioavailability_Pct",12) or 12),
-        "Liver":          float(top_dds.get("Off_Target_Liver_pct",25) or 25),
-        "Spleen":         max(2, 25*(1-float(top_dds.get("Stealth_Index",0.5) or 0.5))),
-        "Lung":           3,
-        "Kidney":         5,
-        "Blood":          max(1, 50 - float(top_dds.get("CNS_Bioavailability_Pct",12) or 12) - 25),
-    }
+    organs = bd.get("organs")
+    if not organs:
+        cns_ba  = float(top_dds.get("CNS_Bioavailability_Pct",12) or 12)
+        liver   = float(top_dds.get("Off_Target_Liver_pct",25) or 25)
+        spleen  = max(2.0, 25*(1-float(top_dds.get("Stealth_Index",0.5) or 0.5)))
+        lung    = 3.0
+        kidney  = 5.0
+        blood   = max(1.0, 100.0 - cns_ba - liver - spleen - lung - kidney)
+        total   = cns_ba + liver + spleen + lung + kidney + blood
+        factor  = 100.0 / max(total, 1)
+        organs = {
+            "Brain (Target)": round(cns_ba * factor, 1),
+            "Liver":          round(liver  * factor, 1),
+            "Spleen":         round(spleen * factor, 1),
+            "Lung":           round(lung   * factor, 1),
+            "Kidney":         round(kidney * factor, 1),
+            "Blood":          round(blood  * factor, 1),
+        }
     organ_list = [(k, round(float(v), 1)) for k,v in organs.items()][:7]
     org_colors = ["#C9A84C","#F57C00","#7C4DFF","#C62828","#0D6E6E","#888","#0D6E6E"]
     ratio = bd.get("CNS_vs_offtarget_ratio","?")

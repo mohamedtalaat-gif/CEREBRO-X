@@ -325,9 +325,12 @@ def make_video_biodistrib(top_dds: dict, drug_name: str,
     stealth = float(top_dds.get("Stealth_Index", 0.5))
     carrier = str(top_dds.get("Carrier_Type","DDS"))
 
+    spleen = max(2.0, 30-stealth*20)
+    lung, kidney, other = 3.0, 5.0, 5.0
+    blood = max(1.0, 100.0 - cns - liver - spleen - lung - kidney - other)
     organs = {"Brain\n(Target)": cns, "Liver": liver,
-              "Spleen": max(2, 30-stealth*20), "Lung": 3, "Kidney": 5,
-              "Blood": max(1, 50-cns-liver), "Other": 5}
+              "Spleen": spleen, "Lung": lung, "Kidney": kidney,
+              "Blood": blood, "Other": other}
     org_colors = {"Brain\n(Target)": C["blue"], "Liver": C["orange"],
                   "Spleen": C["purple"], "Lung": C["teal"],
                   "Kidney": C["green"], "Blood": C["red"], "Other": C["sub"]}
@@ -344,15 +347,21 @@ def make_video_biodistrib(top_dds: dict, drug_name: str,
         fig.subplots_adjust(left=0.05, right=0.95, top=0.88, bottom=0.08)
 
         axes[0].set_facecolor(C["bg"])
-        _pie_r = axes[0].pie(
+        # ax.pie()'s return type isn't stable across matplotlib versions:
+        # older versions return a plain (wedges, texts[, autotexts]) tuple,
+        # newer ones (matplotlib >= 3.11 here) return a PieContainer that
+        # supports indexing/unpacking but not len() -- so len(_pie_r) used
+        # to raise TypeError on every single call, meaning this video was
+        # never actually produced on this environment's matplotlib version.
+        # Star-unpacking works against both return shapes.
+        _pie_wedges, _pie_txts, *_pie_rest = axes[0].pie(
             vals, labels=list(organs.keys()),
             colors=[org_colors[k] for k in organs],
             autopct="%1.1f%%" if t>0.5 else None,
             wedgeprops={"edgecolor":C["bg"],"linewidth":2},
             explode=[0.12 if k == "Brain\n(Target)" else 0 for k in organs],
         )
-        _pie_txts = _pie_r[1] if len(_pie_r) > 1 else []
-        _pie_apct = _pie_r[2] if len(_pie_r) > 2 else []
+        _pie_apct = _pie_rest[0] if _pie_rest else []
         for _t in _pie_txts: _t.set_color(C["text"]); _t.set_fontsize(9)
         for _a in _pie_apct: _a.set_color("white"); _a.set_fontsize(8)
         axes[0].set_title("Organ Biodistribution (%dose)", color=C["gold"], fontweight="bold")

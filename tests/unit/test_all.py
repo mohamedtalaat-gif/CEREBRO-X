@@ -1388,6 +1388,95 @@ class TestH23BiodistributionOrganSharesSumTo100:
         assert sum(vals) == pytest.approx(100.0, abs=0.2)
 
 
+class TestV05BiodistCanvasOrganSharesSumTo100:
+    """The same residual-against-hardcoded-subtotal bug as
+    TestH23BiodistributionOrganSharesSumTo100 above, in a second,
+    independent copy of the biodistribution fallback: make_v05_biodist
+    (src/viz/cerebro_canvas_engine.py), used whenever
+    science["biodistribution_map"] has no "organs" key (e.g. the real
+    SupplementModules.biodistribution_map call failed). "Blood" was
+    computed as max(1, 50 - CNS_Bioavailability_Pct - 25) -- against
+    hardcoded stand-ins for Liver (literal 25 twice) and ignoring Spleen/
+    Lung/Kidney entirely, none of which fed back into the residual -- and
+    the six shares were never renormalized, so they didn't actually sum
+    to 100%. Fixed the same way as h23: Blood now absorbs whatever is
+    left after the real Liver/Spleen/Lung/Kidney/Brain shares, then the
+    whole dict is renormalized to sum to exactly 100%."""
+
+    def test_fallback_organ_shares_sum_to_100_percent(self):
+        from src.viz.cerebro_canvas_engine import make_v05_biodist
+        top_dds = {"CNS_Bioavailability_Pct": 10, "Off_Target_Liver_pct": 40,
+                   "Stealth_Index": 0.1, "size_nm": 250}
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as td:
+            out = make_v05_biodist("TEST_DRUG_X", {}, top_dds, Path(td))
+            html = out.read_text(encoding="utf-8")
+        import re
+        m = re.search(r"const organs5=(\[.*?\]);", html)
+        assert m, "could not find the organ data array in the generated canvas HTML"
+        import json as _json
+        pairs = _json.loads(m.group(1))
+        vals = [v for _, v in pairs]
+        assert sum(vals) == pytest.approx(100.0, abs=0.2)
+        assert all(v >= 0 for v in vals)
+
+
+class TestVideoEngineV2BiodistribBloodUsesRealSiblings:
+    """Two independent bugs in make_video_biodistrib
+    (src/viz/cerebro_video_engine_v2.py), both found while adding this
+    test:
+
+    1. A crash, unrelated to the organ-share bug below: `ax.pie()`'s
+       return type isn't stable across matplotlib versions. On this
+       environment's installed matplotlib (3.11.1), it returns a
+       PieContainer object that supports indexing/unpacking but not
+       len() -- so `len(_pie_r) > 1` raised TypeError on literally every
+       call, meaning V05_Biodist was never produced (the crash was
+       silently swallowed by run_all_videos's try/except). Fixed with a
+       star-unpack (`wedges, texts, *rest = ax.pie(...)`) that works
+       against both the old plain-tuple return and the new PieContainer.
+
+    2. A third, independent copy of the same "Blood" residual bug found
+       in h23_biodistribution_animated and make_v05_biodist: computed as
+       max(1, 50-cns-liver), ignoring the real Spleen/Lung/Kidney/Other
+       values in the same dict literal. Unlike the other two copies,
+       this function renormalizes every animation frame's shares to sum
+       to 100% (vals = [v/total*100 ...]), so a "does it sum to 100%"
+       test can't catch this one -- the renormalization masks it. What
+       the bad formula actually breaks is Blood's *share relative to its
+       real siblings*: for CNS=10, Liver=40, Stealth=0.1 (so real
+       Spleen=28, Lung=3, Kidney=5, Other=5), the old formula gave
+       Blood=max(1,0)=1, a raw total of 92, so Blood rendered as ~1.1% of
+       the pie -- while the physically correct remainder after every
+       other organ is accounted for is 100-10-40-28-3-5-5=9, i.e. Blood
+       should render as 9%. Fixed the same way as the other two copies:
+       Blood absorbs whatever is left after the real sibling values."""
+
+    def test_blood_share_reflects_the_real_remainder_not_a_hardcoded_subtotal(self, monkeypatch, tmp_path):
+        import matplotlib.axes
+
+        from src.viz import cerebro_video_engine_v2 as v2
+        monkeypatch.setattr(v2, "_write_video", lambda frames, out, fps=20: True)
+        captured = []
+        orig_pie = matplotlib.axes.Axes.pie
+
+        def fake_pie(self, vals, **kwargs):
+            captured.append(list(vals))
+            return orig_pie(self, vals, **kwargs)
+        monkeypatch.setattr(matplotlib.axes.Axes, "pie", fake_pie)
+
+        top_dds = {"CNS_Bioavailability_Pct": 10, "Off_Target_Liver_pct": 40,
+                   "Stealth_Index": 0.1}
+        out = v2.make_video_biodistrib(top_dds, "TEST_DRUG_X", tmp_path, fps=5, n=3)
+        assert out is not None
+        assert captured, "Axes.pie was never called"
+        last_vals = captured[-1]
+        assert sum(last_vals) == pytest.approx(100.0, abs=0.5)
+        blood_pct = last_vals[5]  # dict order: Brain, Liver, Spleen, Lung, Kidney, Blood, Other
+        assert blood_pct == pytest.approx(9.0, abs=1.5)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 6. COMPLIANCE
 # ═════════════════════════════════════════════════════════════════════════════
