@@ -37,7 +37,7 @@ import logging
 import math
 from typing import Any
 
-from cerebro_resolved_bundles import b_value
+from cerebro_resolved_bundles import b_tier, b_value
 
 log = logging.getLogger("CEREBRO-DEEP")
 
@@ -175,21 +175,41 @@ def _failed(reason: str) -> dict:
 # ──────────────────────────────────────────────────────────────────────────
 def deep_P02(drug_bundle: dict, dds_bundle: dict,
               combo_bundle: dict, surrogate: dict) -> dict:
-    """Multi-species allometric scaling with parameter-specific exponents."""
+    """Allometric scaling context for the resolved clinical half-life.
+
+    This pipeline has no real preclinical (animal) PK measurement
+    anywhere -- drug_bundle's pk_halflife resolves through live human
+    clinical databases (OpenFDA/ChEMBL), a human population-PK
+    regression (Lombardo 2018, fit over ~1k oral drugs), or a human
+    class-median default (see cerebro_value_resolver/categories/
+    pk_clinical.py) -- never an animal value. A prior version of this
+    function treated that already-human-relevant number as if it were
+    raw mouse data and multiplied it by (70kg/25g)^0.25 ~= 7.3x, then
+    narrated the inflated result as "Predicted human t1/2 ... scaled
+    from Xh mouse" -- a fabricated number and a false species-scaling
+    story, since no mouse measurement was ever involved. Reports the
+    resolved half-life directly instead, and shows the Mahmood 2007
+    exponents as the theoretical scaling factors that would apply to a
+    genuine animal-to-human extrapolation if this pipeline ever gains a
+    real preclinical PK data source -- not as something already applied
+    here.
+    """
     d = _bundle_drug_specs(drug_bundle)
     mw = float(d["mw"])
     thalf_h = float(d["thalf_d"]) * 24
+    pk_tier = b_tier(drug_bundle, "pk_halflife")
+    is_human_clinical = pk_tier <= 2
 
     EXPONENTS = {"clearance": 0.75, "volume": 1.0, "half_life": 0.25}
     BW_h, BW_m = 70_000, 25
     ratio = BW_h / BW_m
-    thalf_h_predicted = thalf_h * (ratio ** EXPONENTS["half_life"])
     cl_scale = ratio ** EXPONENTS["clearance"]
     v_scale  = ratio ** EXPONENTS["volume"]
+    hl_scale = ratio ** EXPONENTS["half_life"]
 
     drug_type = d["drug_type"]
     if drug_type == "small_molecule":
-        score, conf = 90, "HIGH"
+        score, conf = (90, "HIGH") if is_human_clinical else (70, "MODERATE")
     elif drug_type in ("biologic_protein","monoclonal_antibody",
                           "fusion_protein","peptide","protein"):
         score, conf = 65, "LOW"
@@ -197,24 +217,33 @@ def deep_P02(drug_bundle: dict, dds_bundle: dict,
         score, conf = 75, "MODERATE"
 
     return {
-        "validated": True,
-        "value": round(thalf_h_predicted, 2),
+        "validated": pk_tier <= 6,
+        "value": round(thalf_h, 2),
         "score": score,
-        "method": ("Multi-parameter allometric scaling (Mahmood 2007): "
-                   "half-life ∝ BW^0.25, clearance ∝ BW^0.75, volume ∝ BW^1.0"),
+        "method": ("Resolved clinical half-life (bundle tier "
+                   f"{pk_tier}); Mahmood 2007 exponents shown for "
+                   "reference only (half-life ~ BW^0.25, clearance ~ "
+                   "BW^0.75, volume ~ BW^1.0) -- not applied, since no "
+                   "animal PK value exists in this pipeline to scale from."),
         "reference": "Mahmood I (2007) Eur J Drug Metab Pharmacokinet 32:25",
         "confidence": conf,
         "improvement_over_surrogate":
             f"Surrogate score {surrogate.get('score','?')} → "
-            f"Deep: parameter-specific scaling per Mahmood 2007",
-        "narrative": (f"Predicted human t½ = {thalf_h_predicted:.1f}h "
-                      f"(scaled from {thalf_h:.1f}h mouse), "
-                      f"clearance scales by {cl_scale:.1f}×, "
-                      f"volume by {v_scale:.1f}×. Drug type: {drug_type}."),
-        "raw": {"mw": mw, "thalf_mouse_h": round(thalf_h, 2),
-                "thalf_human_h": round(thalf_h_predicted, 2),
-                "clearance_scale": round(cl_scale, 2),
-                "volume_scale": round(v_scale, 2),
+            f"Deep: confirms the resolved half-life's provenance tier "
+            f"rather than re-scaling it.",
+        "narrative": (f"Clinical t½ = {thalf_h:.1f}h "
+                      f"({'human clinical source' if is_human_clinical else 'population regression / class estimate'}, "
+                      f"bundle tier {pk_tier}). Reference allometric exponents "
+                      f"(Mahmood 2007) for a genuine animal-to-human "
+                      f"extrapolation, if one were available: clearance "
+                      f"~{cl_scale:.1f}×, volume ~{v_scale:.1f}×, "
+                      f"half-life ~{hl_scale:.1f}× per 70kg/25g body-weight "
+                      f"ratio. Drug type: {drug_type}."),
+        "raw": {"mw": mw, "thalf_h": round(thalf_h, 2),
+                "pk_halflife_tier": pk_tier,
+                "reference_clearance_scale": round(cl_scale, 2),
+                "reference_volume_scale": round(v_scale, 2),
+                "reference_halflife_scale": round(hl_scale, 2),
                 "drug_type": drug_type},
         "_provenance": _collect_provenance(
             drug_bundle, dds_bundle, combo_bundle,

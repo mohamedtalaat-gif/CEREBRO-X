@@ -3443,26 +3443,48 @@ def _combo_bundle(dds_row=None):
 
 
 class TestDeepP02AllometricScaling:
-    """Cross-species PK scaling — Mahmood 2007 parameter-specific exponents."""
+    """This pipeline has no real preclinical (animal) PK data source
+    anywhere -- pk_halflife always resolves to a human-relevant value
+    (live clinical DB, human population regression, or human class
+    median). deep_P02 used to treat that value as raw mouse data and
+    multiply it by (70kg/25g)^0.25 ~= 7.3x, reporting the inflated
+    number as "Predicted human t1/2 ... scaled from Xh mouse" -- a
+    fabricated figure and a false species-scaling story, since no mouse
+    measurement was ever involved anywhere in this codebase. Fixed to
+    report the resolved half-life directly and show the Mahmood 2007
+    exponents as reference-only figures, not an applied conversion."""
 
-    def test_half_life_scaling_matches_published_formula(self):
+    def test_reported_half_life_is_the_resolved_value_not_rescaled(self):
         import src.path_resolver  # noqa: F401
         from cerebro_62_deep_engine import deep_P02
 
-        drug = _drug_bundle(drug_mw={"value": 350.0}, pk_halflife={"value": 0.5})
+        drug = _drug_bundle(drug_mw={"value": 350.0},
+                             pk_halflife={"value": 0.5, "tier": 1})
         r = deep_P02(drug, _dds_bundle(), _combo_bundle(), {"score": 50})
 
-        ratio = 70_000 / 25
-        expected_thalf_h = (0.5 * 24) * (ratio ** 0.25)
-        assert r["value"] == round(expected_thalf_h, 2)
+        # 0.5 days = 12h -- the value CEREBRO-X already resolved as this
+        # drug's clinical half-life, with no (70kg/25g)^0.25 ~7.3x
+        # allometric inflation applied on top of it.
+        assert r["value"] == round(0.5 * 24, 2)
         assert r["validated"] is True
+        assert "mouse" not in r["narrative"].lower()
+        assert "thalf_mouse_h" not in r["raw"]
 
-    def test_confidence_depends_on_drug_type(self):
+    def test_confidence_depends_on_drug_type_and_pk_source_tier(self):
         import src.path_resolver  # noqa: F401
         from cerebro_62_deep_engine import deep_P02
 
-        small_mol = deep_P02(_drug_bundle(), _dds_bundle(), _combo_bundle(), {})
-        assert (small_mol["score"], small_mol["confidence"]) == (90, "HIGH")
+        # Tier 1 = live human clinical database -> HIGH confidence.
+        clinical = deep_P02(
+            _drug_bundle(pk_halflife={"value": 0.5, "tier": 1}),
+            _dds_bundle(), _combo_bundle(), {})
+        assert (clinical["score"], clinical["confidence"]) == (90, "HIGH")
+
+        # Tier 7 = class-median fallback, no real source -> only MODERATE.
+        fallback = deep_P02(
+            _drug_bundle(pk_halflife={"value": 0.5, "tier": 7}),
+            _dds_bundle(), _combo_bundle(), {})
+        assert (fallback["score"], fallback["confidence"]) == (70, "MODERATE")
 
         mab = deep_P02(
             _drug_bundle(_meta={"drug_type": "monoclonal_antibody", "name": "x",
