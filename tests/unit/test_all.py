@@ -5911,7 +5911,23 @@ class TestModulePathShims:
 
         import src.dds.enterprise_infra as mod
         for stale_name in ("Drug", "MLCore", "DrugInput", "async_pipeline",
-                           "feature_engineering", "compute_affinity"):
+                           "feature_engineering", "compute_affinity",
+                           # A second, unrelated legacy fragment sat at the
+                           # very top of this same file (before the "0.
+                           # ANCHOR" section): get_data_from_excel() read a
+                           # cwd-relative "CEREBRO_Input_Template.xlsx" (not
+                           # SCRIPT_DIR-anchored like everything else here)
+                           # and auto_fix_config() wrote a stripped-down,
+                           # drug-name-only config/dds_config.yaml in a
+                           # schema the real excel_to_yaml() pipeline
+                           # doesn't produce or expect. Both were dead (zero
+                           # callers anywhere in the codebase) but a live
+                           # landmine: running this file directly instead of
+                           # run.py silently clobbered the real config the
+                           # live pipeline reads. This is the actual origin
+                           # of the stale "drug: {name: Unknown_Drug}"
+                           # config/dds_config.yaml found checked into the repo.
+                           "get_data_from_excel", "auto_fix_config"):
             assert not hasattr(mod, stale_name), (
                 f"{stale_name} from the removed prototype script still exists")
 

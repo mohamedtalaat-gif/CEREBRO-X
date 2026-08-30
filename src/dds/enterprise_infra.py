@@ -33,62 +33,6 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-
-def get_data_from_excel():
-    """Reads the drug name directly from the Excel file."""
-    excel_path = Path("CEREBRO_Input_Template.xlsx")
-    
-    if not excel_path.exists():
-        print("❌ Excel file not found! Using a default fallback name.")
-        return "Unknown_Drug"
-    
-    try:
-        # Read the drug input sheet
-        df_drug = pd.read_excel(excel_path, sheet_name="1_Drug_Input")
-        
-        # Find the row where Field == 'Drug Name' and extract 'Your Input'
-        drug_name = df_drug.loc[df_drug['Field'] == 'Drug Name', 'Your Input'].values[0]
-        
-        return str(drug_name).strip()
-    except Exception as e:
-        print(f"⚠️ Error reading the Excel file: {e}")
-        return "UNKNOWN_DRUG"
-
-def auto_fix_config():
-    """Forces the system to use new Excel data and updates the YAML Config."""
-    base_dir = Path(os.path.dirname(os.path.abspath(__file__)))
-    config_dir = base_dir / "config"
-    config_file = config_dir / "dds_config.yaml"
-    
-    if not config_dir.exists():
-        config_dir.mkdir(parents=True)
-        
-    # 1. Fetch the new name from Excel (Single Source of Truth)
-    drug_name = get_data_from_excel() 
-    
-    # 2. Build config and force the system to run fresh
-    new_config = {
-        "drug": {
-            "name": drug_name 
-        },
-        "formulation_settings": {
-            "input_excel": "CEREBRO_Input_Template.xlsx",
-            "force_refresh": True,  # Flag to tell the system to ignore old cache
-            "target_tissue": "CNS",
-            "sim_iterations": 100
-        }
-    }
-    
-    # 3. Save the file (this is what the pipeline reads while running)
-    with open(config_file, "w", encoding="utf-8") as f:
-        yaml.dump(new_config, f, default_flow_style=False)
-        
-    print(f"✅ Successfully linked! Current drug in the system: {drug_name}")
-    print("🚀 Old results will be ignored. The pipeline will process the new Excel data.")
-
-if __name__ == "__main__":
-    auto_fix_config()
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 0.  ANCHOR
 # ─────────────────────────────────────────────────────────────────────────────
