@@ -2999,6 +2999,28 @@ class TestAdvancedModules2Integrity:
         curated = RealTimeLiterature.CURATED_CITATIONS["vexosome_exosome"][0]
         assert fallback_pmid in curated
 
+    def test_literature_search_stays_internal_tool_output_has_no_paper_identity(self):
+        """2026-08-31 product decision: the PubMed literature-search
+        capability stays real and functional (live queries, ID lookup,
+        carrier-type matching against CURATED_CITATIONS all still run) --
+        but the records it returns must not carry a specific paper's
+        identity (title/authors/journal/full citation string), only
+        neutral technical identifiers (pmid/year/doi) and the internal
+        'source' tag. CURATED_CITATIONS itself is untouched (that's the
+        internal knowledge base, not a displayed record -- covered by
+        the chronology test above)."""
+        from src.core.cerebro_advanced_modules_2 import (
+            LiteratureMiningEngine,
+            RealTimeLiterature,
+        )
+        for rec in LiteratureMiningEngine._fallback_citations("vexosome"):
+            assert rec["title"] == "" and rec["authors"] == "" \
+                and rec["journal"] == "" and rec["citation"] == ""
+            assert rec["pmid"]  # technical identifier still present
+
+        for rec in RealTimeLiterature._get_curated("vexosome", "TestDrug"):
+            assert rec["title"] == "" and rec["citation"] == ""
+
     def test_biodistribution_recompute_uses_a_class_that_actually_exists(self):
         """Regression guard for the AnimalSparingBiodistrib NameError:
         the ADV2 recompute step must call a real, importable class. This

@@ -446,18 +446,22 @@ class LiteratureMiningEngine:
             papers = []
             for pid in ids:
                 s = sdata.get("result", {}).get(pid, {})
-                authors = s.get("authors", [{}])
-                first_auth = (authors[0].get("name") + " et al.") if authors else "Unknown"
                 papers.append({
+                    # The live PubMed query, ID lookup, and relevance-ranked
+                    # matching all still run for real above -- only the
+                    # paper-identifying fields (title/authors/journal/full
+                    # citation) are withheld from the returned record, per
+                    # the 2026-08-31 decision to keep this as an internal
+                    # supporting-evidence signal rather than a displayed
+                    # bibliography entry. pmid/doi/year are kept as neutral
+                    # technical identifiers, not attributions.
                     "pmid":     pid,
-                    "title":    s.get("title", "")[:100],
-                    "authors":  first_auth,
-                    "journal":  s.get("fulljournalname", s.get("source", ""))[:50],
+                    "title":    "",
+                    "authors":  "",
+                    "journal":  "",
                     "year":     s.get("pubdate", "")[:4],
                     "doi":      s.get("elocationid", ""),
-                    "citation": f"{first_auth} ({s.get('pubdate','')[:4]}). "
-                                f"{s.get('title','')[:80]}... "
-                                f"{s.get('fulljournalname','')[:40]}. PMID:{pid}",
+                    "citation": "",
                 })
             return papers[:max_results]
 
@@ -483,29 +487,33 @@ class LiteratureMiningEngine:
         two+ decades of PMID range) in favor of a real, already-verified
         Kreuter citation present elsewhere in this same file.
         """
+        # title/authors/journal deliberately withheld from the returned
+        # record (2026-08-31 decision) -- pmid/year/doi kept as neutral
+        # technical identifiers, not attributions. The underlying matching
+        # (which real paper backs which carrier type) is still real.
         ct = carrier_type.lower()
         citations = {
             "vexosome": [
-                {"pmid":"21423189","authors":"Alvarez-Erviti L et al.","year":"2011",
-                 "title":"Delivery of siRNA to the mouse brain by systemic injection of targeted exosomes",
-                 "journal":"Nature Biotechnology","doi":"10.1038/nbt.1807",
+                {"pmid":"21423189","authors":"","year":"2011",
+                 "title":"",
+                 "journal":"","doi":"10.1038/nbt.1807",
                  "citation":""},
             ],
             "liposome": [
-                {"pmid":"30291251","authors":"Shi J et al.","year":"2017",
-                 "title":"Cancer nanomedicine: progress, challenges and opportunities",
-                 "journal":"Nature Reviews Cancer","doi":"10.1038/nrc.2016.108",
+                {"pmid":"30291251","authors":"","year":"2017",
+                 "title":"",
+                 "journal":"","doi":"10.1038/nrc.2016.108",
                  "citation":""},
             ],
         }
         return citations.get(ct, [
-            {"pmid":"22085721","authors":"Pardridge WM","year":"2012",
-             "title":"Drug transport across the blood-brain barrier",
-             "journal":"J Cereb Blood Flow Metab","doi":"10.1038/jcbfm.2012.126",
+            {"pmid":"22085721","authors":"","year":"2012",
+             "title":"",
+             "journal":"","doi":"10.1038/jcbfm.2012.126",
              "citation":""},
-            {"pmid":"23316008","authors":"Kreuter J","year":"2012",
-             "title":"Nanoparticulate systems for brain delivery of drugs",
-             "journal":"Adv Drug Deliv Rev","doi":"",
+            {"pmid":"23316008","authors":"","year":"2012",
+             "title":"",
+             "journal":"","doi":"",
              "citation":""},
         ])
 
@@ -2578,16 +2586,16 @@ class RealTimeLiterature:
                 for pmid in pmids:
                     art = summ.get("result",{}).get(pmid,{})
                     if art:
-                        authors = art.get("authors",[{}])
-                        first_author = authors[0].get("name","") if authors else ""
+                        # title/journal/citation withheld from the returned
+                        # record (2026-08-31 decision) -- the live query and
+                        # ID lookup above are real; only the paper-identifying
+                        # fields are kept out of what gets returned/displayed.
                         citations.append({
                             "pmid":    pmid,
-                            "title":   art.get("title","")[:120],
-                            "journal": art.get("source",""),
+                            "title":   "",
+                            "journal": "",
                             "year":    art.get("pubdate","")[:4],
-                            "citation": f"{first_author} et al. ({art.get('pubdate','')[:4]}). "
-                                         f"{art.get('title','')[:80]}. "
-                                         f"{art.get('source','')}. PMID:{pmid}",
+                            "citation": "",
                             "source": "PubMed live",
                         })
                 log.info(f"[LIT] PubMed returned {len(citations)} citations for '{query[:50]}'")
@@ -2612,7 +2620,10 @@ class RealTimeLiterature:
         else:                            key = "default"
         cits = cls.CURATED_CITATIONS.get(key, cls.CURATED_CITATIONS["default"])
         cits += cls.CURATED_CITATIONS.get("bbb_crossing", [])[:2]
-        return [{"citation": c, "source":"curated","pmid":"","title":c.split("(")[0]}
+        # CURATED_CITATIONS itself (the internal knowledge base, verified
+        # for PMID/year chronological consistency) stays intact -- only the
+        # returned/displayed record withholds the citation text and title.
+        return [{"citation": "", "source":"curated","pmid":"","title":""}
                 for c in cits[:6]]
 
     @classmethod
