@@ -162,7 +162,7 @@ def _failed(reason: str) -> dict:
     return {
         "validated": False, "value": 0, "score": 0,
         "method": "(deep computation skipped)",
-        "reference": "—", "confidence": "FAILED",
+        "reference": "", "confidence": "FAILED",
         "improvement_over_surrogate": "—",
         "narrative": f"Deep function failed: {reason}",
         "raw": {"error": reason},
@@ -225,7 +225,7 @@ def deep_P02(drug_bundle: dict, dds_bundle: dict,
                    "reference only (half-life ~ BW^0.25, clearance ~ "
                    "BW^0.75, volume ~ BW^1.0) -- not applied, since no "
                    "animal PK value exists in this pipeline to scale from."),
-        "reference": "Mahmood I (2007) Eur J Drug Metab Pharmacokinet 32:25",
+        "reference": "",
         "confidence": conf,
         "improvement_over_surrogate":
             f"Surrogate score {surrogate.get('score','?')} → "
@@ -305,7 +305,7 @@ def deep_P13(drug_bundle: dict, dds_bundle: dict,
         "method": ("3-compartment PBPK ODE (scipy.integrate.odeint): "
                    "blood ⇌ brain ⇌ peripheral, 24h time course. "
                    "k_bb_in derived from bundle bbb_permeability."),
-        "reference": "Hammarlund-Udenaes M et al (2008) Pharm Res 25:1737",
+        "reference": "",
         "confidence": "HIGH" if validated else "MODERATE",
         "improvement_over_surrogate":
             "Surrogate: lookup proxy. Deep: full ODE solution with AUC integration.",
@@ -381,7 +381,7 @@ def deep_P44(drug_bundle: dict, dds_bundle: dict,
         "method": ("4-compartment CNS-PBPK ODE with glymphatic clearance: "
                    "Blood ⇌ Brain_ECF → CSF → Blood. Stokes-Einstein "
                    "size-dependent k_glymph."),
-        "reference": "Bies RR et al (2019) Annu Rev Pharmacol Toxicol 59:131",
+        "reference": "",
         "confidence": "HIGH" if validated else "MODERATE",
         "improvement_over_surrogate":
             "Surrogate: AUC×24h proxy. Deep: full 4-compartment ODE with "
@@ -439,8 +439,7 @@ def deep_P38(drug_bundle: dict, dds_bundle: dict,
         "method": ("Stokes-Einstein D = k_B·T/(6πηr) at 37°C, "
                    "η_CSF = 7×10⁻⁴ Pa·s. Brain residence scaled to "
                    "50-nm reference (6h)."),
-        "reference": "Iliff JJ et al (2012) Sci Transl Med 4:147ra111; "
-                      "Stokes GG (1851); Einstein A (1905)",
+        "reference": "",
         "confidence": "HIGH",
         "improvement_over_surrogate":
             "Surrogate: triangular size-window. "
@@ -496,7 +495,7 @@ def deep_P47(drug_bundle: dict, dds_bundle: dict,
         dg = max(-20, min(-1, dg))
         docking = {"docking_method": "LIE approximation (real_docking_engine import failed)",
                    "delta_G_kcal_mol": round(dg, 2), "confidence": "LOW — LIE approximation only",
-                   "reference": "Aqvist 1994 (LIE)"}
+                   "reference": ""}
 
     dg_total = float(docking["delta_G_kcal_mol"])
     score = min(100.0, abs(dg_total) * 11)
@@ -539,7 +538,7 @@ def deep_P18(drug_bundle: dict, dds_bundle: dict,
         return {
             "validated": False, "value": 0, "score": 0,
             "method": "No surface ligand → no active targeting",
-            "reference": "Pardridge WM (2020) Fluids Barriers CNS 17:62",
+            "reference": "",
             "confidence": "HIGH",
             "improvement_over_surrogate": "Confirmed bare surface — no MM/GBSA needed",
             "narrative": "DDS has no surface ligand. Active targeting bypassed.",
@@ -569,7 +568,7 @@ def deep_P18(drug_bundle: dict, dds_bundle: dict,
         "score": round(score, 2),
         "method": ("MM/GBSA-style ΔG estimate from validated ligand-receptor "
                    "Kd database. Full atomistic docking deferred to GROMACS HPC."),
-        "reference": "Pardridge WM (2020) Fluids Barriers CNS 17:62",
+        "reference": "",
         "confidence": "HIGH" if validated else "MODERATE",
         "improvement_over_surrogate":
             f"Surrogate: lookup score {surrogate.get('score','?')}. "
@@ -621,7 +620,7 @@ def deep_P31(drug_bundle: dict, dds_bundle: dict,
         "score": round(score, 2),
         "method": ("7-organ whole-body distribution with size + charge + "
                    "ligand-status modifiers."),
-        "reference": "Wilhelm S et al (2016) Nat Rev Mater 1:16014",
+        "reference": "",
         "confidence": "MODERATE",
         "improvement_over_surrogate":
             "Surrogate: simple proxy. Deep: 7-organ distribution model.",

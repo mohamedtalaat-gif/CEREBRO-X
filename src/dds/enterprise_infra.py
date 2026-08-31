@@ -389,7 +389,7 @@ class ImputerEngine:
                     "Any column with > 20% imputed values should be flagged "
                     "for wet-lab measurement rather than relying on ML inference.",
                 "theoretical_science":
-                    "IterativeImputer (Buuren & Groothuis-Oudshoorn 2011): "
+                    "IterativeImputer: "
                     "models each feature as a function of all others via "
                     "ExtraTreesRegressor. Iterates until convergence (max 10 rounds). "
                     "Initial strategy: column median (robust to outliers).\n\n"
@@ -398,9 +398,9 @@ class ImputerEngine:
                     "Why not fillna(mean)? Mean ignores inter-feature correlations "
                     "(e.g. LogP and encapsulation_efficiency are correlated).",
                 "practical_science":
-                    "Validated approach: van Buuren MICE (Multiple Imputation by "
+                    "Validated approach: MICE (Multiple Imputation by "
                     "Chained Equations) is the gold standard in clinical trials "
-                    "for handling missing biomarker data (FDA Guidance 2019).",
+                    "for handling missing biomarker data.",
                 "methodology":
                     "1. Drop rows with missing CORE fields (Strict Rejection).\n"
                     "2. Identify secondary columns with NaN.\n"
@@ -705,7 +705,7 @@ class DDSEngine:
                 "off_target_liver_pct < 30 AND carpa_risk_index < 0.35 "
                 "are shortlisted for wet-lab vexosome preparation.",
             "theoretical_science":
-                "BBB Engineering Score formula (Pardridge 2012 framework):\n"
+                "BBB Engineering Score formula:\n"
                 "  Score = 50 (baseline)\n"
                 "         + size_bonus (max +20 for 60–100 nm)\n"
                 "         + zeta_bonus (max +15 for ±5–15 mV)\n"
@@ -722,10 +722,9 @@ class DDSEngine:
                 "Zeta ±5–15 mV: stable yet avoids macrophage opsonisation. "
                 "PEG 2–7 mol%: stealth shield without blocking ligand-receptor docking.",
             "practical_science":
-                "Reference benchmarks: ApoE-seeded LNPs achieve ~2% CSF penetration "
-                "(Kauffman et al. 2015). PHP.eB AAV achieves ~0.98 CNS tropism "
-                "(Deverman et al. 2016). RVG-vexosomes: ~8× improvement vs. naked "
-                "antibody (Ye et al. 2020).",
+                "Reference benchmarks: ApoE-seeded LNPs achieve ~2% CSF penetration. "
+                "PHP.eB AAV achieves ~0.98 CNS tropism. "
+                "RVG-vexosomes: ~8× improvement vs. naked antibody.",
             "methodology":
                 "1. Parse dds_config.yaml → 100-row DataFrame.\n"
                 "2. Cascade API enrichment for drug MW/LogP/HL.\n"

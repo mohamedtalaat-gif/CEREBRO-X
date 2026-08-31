@@ -62,7 +62,7 @@ def _make_static_figures(df_ml, df_dds, df_pk, trial_dir: Path) -> None:
         _write_fig_doc(figs / "01_BBB_Score_Ranking.png",
             "BBB Engineering Score ranking for top-20 DDS formulations.",
             "Formulations with score > 75 are candidates for in-vitro TEER validation.",
-            "BBB Engineering Score = Pardridge 2012 multi-parameter function of "
+            "BBB Engineering Score = multi-parameter function of "
             "size (60–100nm optimal), zeta (±5–15mV), PEGylation (2–7mol%), "
             "surface ligand affinity, encapsulation efficiency, P-gp escape, "
             "CARPA risk, and liver off-target penalty.")
@@ -89,7 +89,7 @@ def _make_static_figures(df_ml, df_dds, df_pk, trial_dir: Path) -> None:
             "Brain drug concentration kinetics for all candidates.",
             "Candidate with longest time above 50% threshold requires fewest re-doses.",
             "C(t) = C₀·e^(−kt), k=ln2/t½, C₀=100·(150kDa/MW_Da). "
-            "One-compartment first-order model (Rowland & Tozer 2011).")
+            "One-compartment first-order model.")
 
     # ── 3. ADMET overview ─────────────────────────────────────────────────
     if df_ml is not None and not df_ml.empty and "ADMET_Overall_Flag" in df_ml.columns:
@@ -428,7 +428,7 @@ def _generate_merged_pdf(df_ml, df_dds, df_pk, metrics: dict,
     story.append(Paragraph("Scientific Methodology", h1_s))
     sci_paras = [
         ("BBB Engineering Score",
-         "Computed from Pardridge 2012 multi-parameter framework. Baseline 50. "
+         "Computed from a multi-parameter framework. Baseline 50. "
          "Size bonus: up to +20 for 60–100 nm (optimal caveolae-mediated transcytosis). "
          "Zeta bonus: up to +15 for ±5–15 mV (Debye stability without opsonisation). "
          "PEG bonus: up to +10 for 2–7 mol% (stealth without blocking ligand–receptor docking). "
@@ -457,8 +457,7 @@ def _generate_merged_pdf(df_ml, df_dds, df_pk, metrics: dict,
         ("PK/PD Model",
          "One-compartment first-order model: C(t) = C₀·e^(−kt), "
          "k = ln2/t½, C₀ = 100·(150kDa/MW_Da). "
-         "Time range 0–60 days, 500 points. "
-         "Reference: van Dyck et al. NEJM 2023 (lecanemab CSF PK)."),
+         "Time range 0–60 days, 500 points."),
         ("Trial Versioning",
          "Each new or modified Excel file is hashed (SHA-256). "
          "Unknown hash → new Trial_N directory. All outputs are isolated. "

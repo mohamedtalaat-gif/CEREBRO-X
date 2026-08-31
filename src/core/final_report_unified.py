@@ -250,7 +250,7 @@ class UnifiedPDFReport:
             ["LogP",                    _safe(mp.get("LogP"), ".2f"),             "ADMET predictor"],
             ["Half-life (days)",        _safe(mp.get("Half_Life_Days"), ".3f"),   "PubMed NLP"],
             ["Protein Binding (%)",     _safe(mp.get("Protein_Binding_pct"), ".1f"), "Calculated"],
-            ["BBB Penetration (%)",     _safe(mp.get("BBB_permeability_pct"), ".2f"), "Pardridge 2012"],
+            ["BBB Penetration (%)",     _safe(mp.get("BBB_permeability_pct"), ".2f"), "BBB model"],
             ["Molecule Class",          mp.get("molecule_class","N/A"),           "Input / inferred"],
             ["Aqueous Solubility",      mp.get("logSw","N/A"),                    "ADMET"],
             ["P-gp Substrate",          str(mp.get("Pgp_Substrate","Unknown")),   "QSAR panel"],
@@ -372,8 +372,7 @@ class UnifiedPDFReport:
         story.append(Paragraph(
             "Physiologically Based Pharmacokinetic model solved with scipy Radau ODE integrator "
             "(stiff system). Compartments: Plasma, BBB endothelium, Brain ISF, Brain cells, "
-            "CSF, Peripheral. All parameters from molecular data — not estimated. "
-            "Reference: Pardridge 2012; Bhatt 2013.", body))
+            "CSF, Peripheral. All parameters from molecular data — not estimated.", body))
         story.append(Spacer(1, 0.2*cm))
 
         if pbpk and not pbpk.get("error"):
@@ -404,7 +403,7 @@ class UnifiedPDFReport:
                 _kp_brain   = pbpk.get("Kp_brain", 0)
                 _t_half     = pbpk.get("t_half_h", 0)
                 _bbb_pct    = pbpk.get("BBB_permeability_pct", 0)
-                _model_note = "6-compartment ODE (Radau stiff solver) | Pardridge 2012"
+                _model_note = "6-compartment ODE (Radau stiff solver)"
 
             pbpk_data = [
                 ["PK Metric", "Value", "Compartment", "Source"],
@@ -510,8 +509,7 @@ class UnifiedPDFReport:
             story.append(Paragraph(
                 f"DLVO potential energy V_total = {_safe(top_dds.get('DLVO_V_total_kT'),'.1f')} kT "
                 f"({'STABLE ✓' if dlvo_stable else 'UNSTABLE ✗ — REFORMULATE'}) | "
-                f"Threshold: >25 kT prevents aggregation in blood. "
-                f"Reference: Verwey & Overbeek 1948; Derjaguin 1987.", body))
+                f"Threshold: >25 kT prevents aggregation in blood.", body))
             dlvo_data = [
                 ["Parameter", "Value", "Equation", "Significance"],
                 ["DLVO V_total (kT)",    _safe(top_dds.get("DLVO_V_total_kT"),".1f"),    "V_vdW + V_EDL",   ">25kT = stable"],
@@ -672,8 +670,7 @@ class UnifiedPDFReport:
         story.append(Paragraph(
             "Monte Carlo simulation of Phase 1 trial. Patient covariates: age, weight, "
             "CYP3A4 genotype, renal function, BBB integrity by age. "
-            "Pharmacokinetics computed per-patient from PBPK model. "
-            "Reference: FDA PBPK guidance 2018; Lalonde 2007.", body))
+            "Pharmacokinetics computed per-patient from PBPK model.", body))
 
         if synth and not synth.get("error"):
             dec = synth.get("go_no_go","?")
@@ -734,7 +731,7 @@ class UnifiedPDFReport:
                 ["Tg' (cryo.",       f"{lyophi.get('Tg_prime_C','?')}°C",          "Formulation-specific"],
                 ["Primary drying T", f"{lyophi.get('T_primary_drying_C','?')}°C",  "Must be < Tg'"],
                 ["Primary P",        f"{lyophi.get('P_primary_mbar','?')} mbar",    "0.5×P_ice"],
-                ["Primary time",     f"{lyophi.get('t_primary_drying_h','?')} h",   "Pikal 2002 model"],
+                ["Primary time",     f"{lyophi.get('t_primary_drying_h','?')} h",   "Sublimation model"],
                 ["Secondary T",      f"{lyophi.get('T_secondary_drying_C','?')}°C", "+25°C"],
                 ["Cycle total",      f"{lyophi.get('total_cycle_h','?')} h",         "Include ramp time"],
                 ["Cake collapse",    lyophi.get("cake_collapse_risk",""), "Must say OK"],

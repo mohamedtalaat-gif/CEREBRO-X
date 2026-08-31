@@ -489,7 +489,7 @@ _build_descriptor_resolver(
     rdkit_key="LogP", thermo_key="logP",
     tier7_fn=ghose_crippen_logp_atomic,
     default_value=2.5,
-    reference_t3="Wildman SA & Crippen GM (1999) J Chem Inf Comput Sci 39:868",
+    reference_t3="",
     unit="dimensionless")
 
 _build_descriptor_resolver(
@@ -508,7 +508,7 @@ _build_descriptor_resolver(
     rdkit_key="TPSA_A2", thermo_key=None,
     tier7_fn=_t7_tpsa,
     default_value=60.0,
-    reference_t3="Ertl P et al (2000) J Med Chem 43:3714 (TPSA)",
+    reference_t3="",
     unit="Å²")
 
 _build_descriptor_resolver(
@@ -517,7 +517,7 @@ _build_descriptor_resolver(
     rdkit_key="HBD", thermo_key=None,
     tier7_fn=_t7_hbd,
     default_value=2.0,
-    reference_t3="Lipinski CA (1997) Adv Drug Deliv Rev 23:3 (Ro5 HBD count)",
+    reference_t3="",
     unit="count")
 
 _build_descriptor_resolver(
@@ -526,7 +526,7 @@ _build_descriptor_resolver(
     rdkit_key="HBA", thermo_key=None,
     tier7_fn=_t7_hba,
     default_value=5.0,
-    reference_t3="Lipinski CA (1997) Adv Drug Deliv Rev 23:3 (Ro5 HBA count)",
+    reference_t3="",
     unit="count")
 
 _build_descriptor_resolver(
@@ -535,7 +535,7 @@ _build_descriptor_resolver(
     rdkit_key="RotBonds", thermo_key=None,
     tier7_fn=_t7_rotbonds,
     default_value=5.0,
-    reference_t3="Veber DF et al (2002) J Med Chem 45:2615 (RotBonds)",
+    reference_t3="",
     unit="count")
 
 _build_descriptor_resolver(

@@ -386,7 +386,7 @@ def h02_pbpk(drug_name: str, pbpk: dict, top_dds: dict) -> str:
     body = f"""
 <div class="card">
   <div class="title">H02 · PBPK-CNS Digital Twin — 6-Compartment Time Course</div>
-  <div class="subtitle">{drug_name} + {carrier} | Disease state: {state} | Radau ODE solver | Pardridge 2012</div>
+  <div class="subtitle">{drug_name} + {carrier} | Disease state: {state} | Radau ODE solver</div>
   <div class="grid3" style="margin-bottom:12px">
     <div class="metric"><div class="metric-val">{cmax:.4f}</div><div class="metric-lbl">Cmax Brain (µg/mL)</div></div>
     <div class="metric"><div class="metric-val">{tmax:.1f}h</div><div class="metric-lbl">t_max Brain</div></div>
@@ -1163,7 +1163,7 @@ def h24_cryo(cryo: dict, top_dds: dict, drug_name: str) -> str:
     body = f"""
 <div class="card">
   <div class="title">H24 · Cryo-Chain Thermal Excursion — {drug_name}</div>
-  <div class="subtitle">Lipid phase transition thermodynamics | Arrhenius leakage model | Koynova 1998</div>
+  <div class="subtitle">Lipid phase transition thermodynamics | Arrhenius leakage model</div>
   <div class="grid3" style="margin-bottom:12px">
     <div class="metric"><div class="metric-val" style="color:{dec_color}">{dec.split('--')[0].strip()}</div><div class="metric-lbl">Batch Decision</div></div>
     <div class="metric"><div class="metric-val">{ee_bef:.1f}% → {ee_aft:.1f}%</div><div class="metric-lbl">EE Before → After</div></div>
@@ -1409,7 +1409,7 @@ def h08_molecular_docking(top_dds: dict, science: dict, drug_name: str) -> str:
       <table>
         <thead><tr><th>Parameter</th><th>Value</th><th>Method</th></tr></thead>
         <tbody>
-          <tr><td>ΔG single ligand</td><td>{float(fep.get('dG_single_ligand_kcal',-12.5)):.2f} kcal/mol</td><td>LIE (Aqvist 1994)</td></tr>
+          <tr><td>ΔG single ligand</td><td>{float(fep.get('dG_single_ligand_kcal',-12.5)):.2f} kcal/mol</td><td>LIE approximation</td></tr>
           <tr><td>ΔG avidity</td><td>{dG:.2f} kcal/mol</td><td>Bell cooperative binding</td></tr>
           <tr><td>Receptors engaged</td><td>{float(fep.get('n_receptors_engaged',50)):.0f}</td><td>Geometric model</td></tr>
           <tr><td>Kd class</td><td>{Kd_class}</td><td>Equilibrium binding</td></tr>

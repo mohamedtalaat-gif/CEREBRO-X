@@ -351,8 +351,7 @@ class QuantumChemEngine:
                 "Gap > 4 eV = stable. Gap < 2 eV = potentially reactive.",
                 "HOMO-LUMO theory: Koopmans theorem links orbital energies to "
                 "ionisation potential and electron affinity. "
-                "DFT B3LYP/6-31G* is the standard for druglike molecules "
-                "(Becke 1993, Lee-Yang-Parr correlation). "
+                "DFT B3LYP/6-31G* is the standard for druglike molecules. "
                 "xTB GFN2 is 100–1000× faster with ~10% error vs DFT.",
                 "1. SMILES → 3D geometry (RDKit MMFF94).\n"
                 "2. PySCF B3LYP/6-31G* → exact MO energies.\n"
@@ -632,8 +631,7 @@ class ThermodynamicsEngine:
                 "solubility, and bioavailability. BCS classification determines "
                 "whether carrier is needed.",
                 "Thermo library pulls from DIPPR (Design Institute for Physical Properties) "
-                "database. Yalkowsky equation: logS ≈ 0.5 - 0.01(Tm°C - 25) - logP "
-                "(Yalkowsky & Valvani, J Pharm Sci 1980). "
+                "database. Yalkowsky equation: logS ≈ 0.5 - 0.01(Tm°C - 25) - logP. "
                 "BCS (Biopharmaceutical Classification System): "
                 "Class I (high sol + high perm), II (low sol + high perm), "
                 "III (high sol + low perm), IV (low sol + low perm).",
@@ -830,8 +828,7 @@ class MultiCompartmentPKEngine:
                 "ODEs:\n"
                 "  dCp/dt = -(CLtot/Vd)·Cp + (Q_bbb/Vb)·Cb - (Q_bbb/Vd)·Cp\n"
                 "  dCb/dt = (Q_bbb/Vd)·Cp - (Q_bbb/Vb)·Cb - (CLb/Vb)·Cb\n"
-                "LogBB = log10(AUC_brain/AUC_plasma). Target > -1 for CNS drugs. "
-                "Reference: Rowland & Tozer, Clinical Pharmacokinetics (2011).",
+                "LogBB = log10(AUC_brain/AUC_plasma). Target > -1 for CNS drugs.",
                 "1. scipy.integrate.solve_ivp RK45 (rel_tol=1e-6, abs_tol=1e-9).\n"
                 "2. PK parameters derived from MW, t½, BBB%, LogP.\n"
                 "3. Trapezoidal AUC integration.\n"
@@ -1012,12 +1009,12 @@ class BiophysicsEngine:
                 "Colloidal stability (V_total > 25kT) prevents aggregation in blood. "
                 "Negative transcytosis ΔG confirms receptor-mediated uptake is energetically "
                 "favourable — directly predicts BBB crossing efficiency.",
-                "DLVO theory (Derjaguin-Landau-Verwey-Overbeek 1941-1948):\n"
+                "DLVO theory:\n"
                 "V_total = V_vdW + V_EDL\n"
                 "V_vdW = -A·R/(12h)  (London dispersion attraction)\n"
                 "V_EDL = 64πε₀εᵣR(kT/e)²γ²exp(-κh)  (electrostatic repulsion)\n"
                 "Debye length κ⁻¹ = 0.78 nm at physiological I=150mM.\n"
-                "Bell model transcytosis: ΔG = E_deform - E_bonds (Bell 1978).",
+                "Bell model transcytosis: ΔG = E_deform - E_bonds.",
                 "1. DLVO: van der Waals + electrostatic double layer energies.\n"
                 "2. Debye-Hückel screening at 150 mM ionic strength.\n"
                 "3. Bell model: ligand bonds vs. membrane bending.\n"
@@ -1182,11 +1179,7 @@ class PBPKEngine:
                 "composition data and drug-ionization-class handling this\n"
                 "simplified version omits).\n"
                 "dC_tissue/dt = Q/V · (Cblood - Ctissue/Kp)\n"
-                "Blood flow values from ICRP 2002 Reference Man.\n"
-                "References: Poulin & Theil, J Pharm Sci 91:129 (2002) and\n"
-                "Rodgers & Rowland, J Pharm Sci 95:1113 (2006) — cited as the\n"
-                "tissue-partition literature this model approximates, not as\n"
-                "an exact implementation of either method.",
+                "Blood flow values from ICRP Reference Man.",
                 "1. solve_ivp RK45 (scipy).\n"
                 "2. Kp = 10^(slope·logP) per organ.\n"
                 "3. 7 compartments: blood, lung, liver, kidney, muscle, fat, brain.\n"

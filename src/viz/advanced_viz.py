@@ -568,7 +568,7 @@ def fig05_drug_dds_network(df_dds: pd.DataFrame,
     _doc(out, f"Drug–DDS interaction network for {drug_name}.",
          "Visualises relationships between drug, carrier classes, and formulations. "
          "Thick edges = higher BBB score. Gold nodes = viable formulations.",
-         "Spring-layout (Fruchterman-Reingold 1991). "
+         "Spring-layout force-directed graph. "
          "Edge weight ∝ BBB Engineering Score.",
          "Drug node (dark) connects to carrier classes (teal). "
          "Gold nodes = ready for in-vitro testing (BBB ≥ 75).")
@@ -1236,7 +1236,7 @@ def fig14_shap_xai(df_ml: pd.DataFrame | None,
     _doc(out, f"SHAP XAI feature importance for {drug_name}.",
          "Explains which molecular/formulation properties most influence the ML model. "
          "Enables informed drug delivery system optimisation.",
-         "SHAP (SHapley Additive exPlanations, Lundberg & Lee 2017). "
+         "SHAP (SHapley Additive exPlanations). "
          "Each SHAP value = contribution of one feature to one prediction. "
          "Mean |SHAP| = overall feature importance.",
          "Large bar = high feature influence. "
@@ -1415,8 +1415,8 @@ def fig16_dimensionality_reduction(df_dds: pd.DataFrame,
          "Reveals natural clusters among 100 formulations based on all parameters. "
          "Clusters = groups with similar BBB scores → guide carrier class selection.",
          "PCA: linear projection maximising variance. "
-         "t-SNE: non-linear, preserves local structure (Maaten & Hinton 2008). "
-         "UMAP: preserves global + local topology (McInnes 2018).",
+         "t-SNE: non-linear, preserves local structure. "
+         "UMAP: preserves global + local topology.",
          "Colour = BBB score. Clusters of high BBB (yellow/green) = top design space. "
          "PCA arrows show which features drive separation.")
     return out

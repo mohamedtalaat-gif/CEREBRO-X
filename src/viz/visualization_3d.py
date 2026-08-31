@@ -203,7 +203,7 @@ def fig01_bbb_ranking(df_dds: pd.DataFrame, output_dir: Path,
         f"BBB Engineering Score ranking: top {top_n}/{len(df_dds)} DDS formulations for {drug_name}.",
         "Identifies optimal carrier architectures. Scores > 75 with ADMET=OK proceed "
         "to in-vitro BBB TEER assay validation.",
-        "BBB Engineering Score (Pardridge 2012 framework): composite of size optimality "
+        "BBB Engineering Score: composite of size optimality "
         "(60–100 nm for caveolae transcytosis), zeta stability (±5–15 mV), PEGylation "
         "stealth (2–7 mol%), surface ligand receptor affinity (RVG +20, ApoE3 +22), "
         "ligand density Goldilocks (0.5–1.5/nm²), EE ≥ 80%, P-gp escape, Tm safety, "
@@ -297,7 +297,7 @@ def fig02_pkpd_kinetics(df_pk: pd.DataFrame, output_dir: Path,
         f"Two-compartment CNS PK/PD kinetics for {drug_name}.",
         "Brain concentration over time is the primary efficacy predictor. "
         "Time above therapeutic threshold determines dosing interval.",
-        "Two-compartment CNS model (Rowland & Tozer 2011):\n"
+        "Two-compartment CNS model:\n"
         "C(t) = A·e^(−αt) + B·e^(−βt)\n"
         "where α (fast) = distribution phase, β (slow) = elimination phase.\n"
         "LogBB = log10(AUC_brain / AUC_plasma). Target > -1 for CNS drugs.",
@@ -459,7 +459,7 @@ def fig04_dlvo_stability(df_bio: pd.DataFrame, output_dir: Path,
         "Negative transcytosis ΔG (green bars) confirms receptor-mediated BBB entry.",
         "DLVO: V_total = V_vdW (London attraction) + V_EDL (electrostatic repulsion). "
         "Stable if V_total > 25 kT. Debye length κ⁻¹ = 0.78 nm at I=150 mM. "
-        "Bell model: ΔG = E_membrane_deform - n_bonds·G_bond (Bell 1978). "
+        "Bell model: ΔG = E_membrane_deform - n_bonds·G_bond. "
         "Negative ΔG → thermodynamically spontaneous uptake.",
         "Left: scatter (size, zeta) coloured by kT stability.\n"
         "Right: bar chart of transcytosis ΔG per formulation.\n"
@@ -841,8 +841,7 @@ class BioSchematicEngine:
             "(investors, clinicians, regulators) and publications.",
             "RVG29/Angiopep-2 surface ligand binds nAChR/LRP1 on endothelial cells. "
             "Receptor-mediated endocytosis → vesicle formation → transcytosis across "
-            "BBB → exocytosis on abluminal side → drug release into brain parenchyma. "
-            "Reference: Ye et al., J Control Release (2020).",
+            "BBB → exocytosis on abluminal side → drug release into brain parenchyma.",
             "Pure matplotlib: FancyBboxPatch, Circle, annotate arrows.\n"
             "No external tools (BioRender, Inkscape, etc.) required.",
             "Orange = blood vessel. Blue bar = endothelial cells. Light blue = brain. "

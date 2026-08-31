@@ -489,24 +489,24 @@ class LiteratureMiningEngine:
                 {"pmid":"21423189","authors":"Alvarez-Erviti L et al.","year":"2011",
                  "title":"Delivery of siRNA to the mouse brain by systemic injection of targeted exosomes",
                  "journal":"Nature Biotechnology","doi":"10.1038/nbt.1807",
-                 "citation":"Alvarez-Erviti L et al. (2011). Delivery of siRNA... Nat Biotechnol. PMID:21423189"},
+                 "citation":""},
             ],
             "liposome": [
                 {"pmid":"30291251","authors":"Shi J et al.","year":"2017",
                  "title":"Cancer nanomedicine: progress, challenges and opportunities",
                  "journal":"Nature Reviews Cancer","doi":"10.1038/nrc.2016.108",
-                 "citation":"Shi J et al. (2017). Cancer nanomedicine... Nat Rev Cancer. PMID:30291251"},
+                 "citation":""},
             ],
         }
         return citations.get(ct, [
             {"pmid":"22085721","authors":"Pardridge WM","year":"2012",
              "title":"Drug transport across the blood-brain barrier",
              "journal":"J Cereb Blood Flow Metab","doi":"10.1038/jcbfm.2012.126",
-             "citation":"Pardridge WM (2012). Drug transport across the BBB. JCBFM. PMID:22085721"},
+             "citation":""},
             {"pmid":"23316008","authors":"Kreuter J","year":"2012",
              "title":"Nanoparticulate systems for brain delivery of drugs",
              "journal":"Adv Drug Deliv Rev","doi":"",
-             "citation":"Kreuter J (2012). Nanoparticulate systems for brain delivery of drugs. Adv Drug Deliv Rev 64 Suppl:213-22. PMID:23316008"},
+             "citation":""},
         ])
 
 

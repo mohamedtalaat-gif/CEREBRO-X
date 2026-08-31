@@ -305,7 +305,7 @@ class PBBMEngine:
             "Eh_liver":     round(Eh, 4),
             "CLh_int_L_h":  round(CLh_int, 4),
             "segment_abs":  segment_abs,
-            "model":        "ACAT (Yu & Amidon 1999)",
+            "model":        "ACAT",
             "_imputed":     [],
         }
         log.info(f"  [PBBM/ACAT] fa={fa_total:.3f} Fh={Fh:.3f} F={F_oral:.3f}")
@@ -596,7 +596,7 @@ class NCAEngine:
             "Vd_z":          Vd_z,
             "R2_terminal":   round(R2_term, 4) if R2_term else None,
             "n_terminal_pts":int(valid.sum()) if 'valid' in dir() else n_terminal_pts,
-            "method":        "Linear-log trapezoidal NCA (FDA 2003)",
+            "method":        "Linear-log trapezoidal NCA",
         }
 
     @classmethod
@@ -1486,7 +1486,7 @@ class FormulationAdvisor:
             "DDI_fold_change": round(fold_change, 2),
             "DDI_risk":        risk_level,
             "fm_CYP":          fm_cyp,
-            "model":           "Ito-Sugiyama_static (FDA 2020 guidance)",
+            "model":           "Ito-Sugiyama_static",
             "recommendation":  (
                 "Flag for in vitro DDI study" if risk_level == "HIGH" else
                 "Monitor in Phase 1" if risk_level == "MODERATE" else
@@ -1526,7 +1526,7 @@ class FormulationAdvisor:
         rationale = []
         if inferred_class == "I":
             biowaiver = True
-            rationale.append("BCS Class I: high sol + high perm — biowaiver eligible (FDA 2000)")
+            rationale.append("BCS Class I: high sol + high perm — biowaiver eligible")
         elif inferred_class == "III" and dissolution_pct_15min and dissolution_pct_15min >= 85:
             biowaiver = True
             rationale.append("BCS Class III + rapid dissolution ≥85% in 15 min — ICH M9 waiver")
@@ -1540,7 +1540,7 @@ class FormulationAdvisor:
             "biowaiver_eligible":     biowaiver,
             "rationale":              "; ".join(rationale),
             "dissolution_85pct_15min":dissolution_pct_15min,
-            "regulatory_reference":   "FDA BCS Guidance 2000; ICH M9 2021",
+            "regulatory_reference":   "",
         }
 
     @staticmethod
@@ -1588,7 +1588,7 @@ class FormulationAdvisor:
                 "Hepatic safety monitoring mandatory in clinical trials"
                 if dili_class in ("vMost-DILI","Most-DILI")
                 else "Standard hepatic monitoring"),
-            "references":     "Chen 2016 DILIrank; Lammert 2008; FDA DILI Guidance 2009",
+            "references":     "",
         }
 
 

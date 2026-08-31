@@ -493,7 +493,7 @@ def make_c02_bbb_crossing(drug_bundle: dict, dds_bundle: dict,
       <em>Mechanism:</em> {nrv["mechanism_detail"]}<br/>
       <em>Barrier challenge:</em> {nrv["barrier_challenge"]}<br/>
       <em>Delivery strategy:</em> {nrv["delivery_strategy"]}<br/>
-      <em>Ligand uptake:</em> {li["mechanism"]} · {li["literature"]}<br/>
+      <em>Ligand uptake:</em> {li["mechanism"]}<br/>
       <em>Clinical analogs:</em> {nrv["clinical_example"]}
     </div>
   </div>
