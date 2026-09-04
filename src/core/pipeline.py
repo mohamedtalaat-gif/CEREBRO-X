@@ -139,7 +139,10 @@ OUTPUT_ROOT = Path(SCRIPT_DIR) / "outputs"
 PATHS: dict[str, Path] = {
     "data":        OUTPUT_ROOT / "data",
     "models":      OUTPUT_ROOT / "models",
-    "figures":     OUTPUT_ROOT / "figures",
+    # Default before pipeline_runner.py rebinds PATHS to a trial dir — kept
+    # under media/ so a standalone run (no runner) still joins the project's
+    # single media folder instead of a stray top-level figures/.
+    "figures":     OUTPUT_ROOT / "media" / "figures",
     "results":     OUTPUT_ROOT / "results",
     "reports":     OUTPUT_ROOT / "reports",
     "deliverable": OUTPUT_ROOT / "deliverable",
@@ -430,14 +433,32 @@ class CascadeDataEngine:
 
     @staticmethod
     def _try_uniprot(drug: str) -> dict | None:
+        # UniProt is a PROTEIN database: a free-text query for a small-
+        # molecule drug name can match an unrelated protein whose own
+        # description merely mentions the drug (e.g. its target enzyme).
+        # Confirmed live: query="galantamine" (a ~287 Da small molecule)
+        # top-hits P22303, "Acetylcholinesterase" -- galantamine's target,
+        # not galantamine itself -- with molWeight=67796, which this tier
+        # used to accept unconditionally as the drug's own MW. Require the
+        # drug name to actually appear in the matched entry's own protein
+        # name before trusting it; this still accepts genuine self-matches
+        # (a real antibody/peptide drug curated under its own name).
         if not cb_allow("uniprot"): return None
         try:
             r = requests.get(
-                f"https://rest.uniprot.org/uniprotkb/search?query={drug}&format=json&size=1",
+                f"https://rest.uniprot.org/uniprotkb/search?query={drug}"
+                f"&fields=accession,protein_name,sequence&format=json&size=1",
                 timeout=6)
             r.raise_for_status()
             res = r.json().get("results",[])
             if res:
+                name = (res[0].get("proteinDescription",{})
+                                .get("recommendedName",{})
+                                .get("fullName",{}).get("value","")).lower()
+                if drug.lower() not in name:
+                    log.debug(f"    UniProt({drug}): top hit is "
+                              f"'{name or '?'}' -- not a match, skipping")
+                    return None
                 mw = res[0].get("sequence",{}).get("molWeight",0)
                 if mw and mw > 0:
                     cb_ok("uniprot"); _prom_inc("uniprot","success")
@@ -561,34 +582,54 @@ class CascadeDataEngine:
             return api_result
 
         # ── TIER 7: Embedded library partial hit (HL known, MW unknown) ────────
-        if hl_0:
-            log.info(f"  [{drug}] Tier-7 partial (HL only from embedded): HL={hl_0}d")
+        # Only return here if MW is ALSO genuinely known. This used to
+        # return unconditionally on hl_0 alone, filling MW with a bare
+        # "or 400.0" -- a literal fabricated placeholder mislabeled with
+        # _source="EmbeddedClinicalLibrary_PartialHit" as if it were real
+        # data. Confirmed live: two unrelated large biologics (Lecanemab,
+        # a ~148 kDa mAb; Nusinersen, a ~7.5 kDa oligonucleotide) both got
+        # the identical fake "MW_Da": 400.0. If MW is missing, keep the
+        # real hl_0 and fall through to Tier 9, which can recover a real
+        # computed MW via the resolver instead of inventing one.
+        partial_hl = None
+        if hl_0 and mw_0:
+            log.info(f"  [{drug}] Tier-7 hit (embedded library): HL={hl_0}d MW={mw_0}")
             return {
-                "MW_Da":          mw_0 or 400.0,   # generic fallback MW
+                "MW_Da":          mw_0,
                 "LogP":           -0.7,
                 "Half_Life_Days": hl_0,
                 "_source":        "EmbeddedClinicalLibrary_PartialHit",
                 "_doi":           "FDA_label+Literature",
                 "_tier":          7,
             }
+        elif hl_0:
+            partial_hl = (hl_0, "EmbeddedClinicalLibrary_PartialHit", "FDA_label+Literature")
 
         # ── TIER 8: cerebro_clinical_data_engine (DailyMed→OpenFDA→PubMed→Alignment)
+        # Same fix as Tier 7: only return here if MW is also genuinely
+        # known (from mw_0 or the clinical engine itself); a bare
+        # "or 400.0" used to fabricate MW while _source claimed whatever
+        # source actually only supplied the half-life.
         try:
             from cerebro_clinical_data_engine import fetch_clinical_pk
             pk = fetch_clinical_pk(drug, drug_mw=mw_0, drug_logp=-0.7)
             if pk.get("Half_Life_Days"):
                 log.info(f"  [{drug}] HL={pk['Half_Life_Days']}d from clinical engine "
                          f"({pk.get('_source','?')})")
-                return {
-                    "MW_Da":          mw_0 or pk.get("MW_Da") or 400.0,
-                    "LogP":           -0.7,
-                    "Half_Life_Days": pk["Half_Life_Days"],
-                    "_source":        pk.get("_source","ClinicalEngine"),
-                    "_doi":           pk.get("_doi",""),
-                    "_alignment_flag":pk.get("_alignment_flag", False),
-                    "_missing_pk_reason": pk.get("_missing_pk_reason",""),
-                    "_tier":          8,
-                }
+                mw_known = mw_0 or pk.get("MW_Da")
+                if mw_known:
+                    return {
+                        "MW_Da":          mw_known,
+                        "LogP":           -0.7,
+                        "Half_Life_Days": pk["Half_Life_Days"],
+                        "_source":        pk.get("_source","ClinicalEngine"),
+                        "_doi":           pk.get("_doi",""),
+                        "_alignment_flag":pk.get("_alignment_flag", False),
+                        "_missing_pk_reason": pk.get("_missing_pk_reason",""),
+                        "_tier":          8,
+                    }
+                partial_hl = (pk["Half_Life_Days"], pk.get("_source","ClinicalEngine"),
+                              pk.get("_doi",""))
         except ImportError:
             pass
         except Exception as _e:
@@ -601,10 +642,28 @@ class CascadeDataEngine:
         # the structure if any public DB has it (PubChem/ChEMBL/RxNorm/CAS/
         # Wikidata/UniChem) and then RDKit gives true MW. The pk_halflife
         # cascade (10 tiers) finishes with class-typical mean.
+        #
+        # If Tier 7/8 already found a real (non-fabricated) half-life but
+        # no MW, use that real HL instead of re-deriving one from the
+        # resolver -- it's genuine sourced data, worth keeping.
         try:
             from cerebro_value_resolver import resolve_value
             mw_rec = resolve_value("drug_mw", name=drug)
             mw_v   = mw_rec.get("value")
+            if mw_v is not None and partial_hl is not None:
+                hl_v, hl_source, hl_doi = partial_hl
+                log.info(f"  [{drug}] Tier-9 MW + Tier-7/8 HL: "
+                          f"MW={mw_v:.1f} (T{mw_rec.get('tier')}, "
+                          f"{mw_rec.get('source')}); HL={hl_v}d ({hl_source})")
+                return {
+                    "MW_Da":          float(mw_v),
+                    "LogP":           -0.7,
+                    "Half_Life_Days": float(hl_v),
+                    "_source":        hl_source,
+                    "_doi":           hl_doi,
+                    "_tier":          7.5,
+                    "_mw_source":     f"resolver:T{mw_rec.get('tier')}",
+                }
             hl_rec = resolve_value("pk_halflife", name=drug, mw_Da=mw_v)
             hl_v   = hl_rec.get("value")
             if mw_v is not None and hl_v is not None:
@@ -672,13 +731,22 @@ class CascadeDataEngine:
 
             if not mw or not hl:
                 _log_missing(drug, f"MW={mw}, HL={hl} — all sources exhausted"); continue
+            # fetch_drug's Tier 7.5 path (real HL from one source, MW from
+            # the resolver instead of a fabricated placeholder) sets
+            # _mw_source separately from _source (which describes where
+            # the HALF-LIFE came from). A single _source field would
+            # otherwise misattribute the whole row -- including a MW that
+            # source never provided -- to it. Show both when they differ.
+            _src, _mw_src = data.get("_source",""), data.get("_mw_source")
+            _source_label = (f"{_src}(HL)+{_mw_src}(MW)"
+                              if _mw_src and _mw_src != _src else _src)
             records.append({
                 "Drug": drug.capitalize(),
                 "MW_Da": round(mw, 2),
                 "LogP":  round(logp, 3),
                 "Half_Life_Days": round(hl, 2),
                 "Docking_Affinity_kcal": round(-8.5+(logp*0.3)-(mw/180_000), 3),
-                "_source": data.get("_source",""),
+                "_source": _source_label,
                 "_doi":    data.get("_doi",""),
                 "_fetched_at": datetime.utcnow().isoformat(),
             })
@@ -1495,7 +1563,7 @@ class VisualisationEngine:
 class ReportingEngine:
 
     @staticmethod
-    def generate_master_report(df_mab, df_aav, df_ml, metrics):
+    def generate_master_report(df_mab, df_aav, df_ml, metrics, df_dds=None):
         log.info("Generating master report …")
         aff=next((c for c in ["Docking_Affinity_kcal","Binding_Affinity_kcal",
                                "Estimated_Affinity_kcal"] if c in df_ml.columns),None)
@@ -1514,12 +1582,35 @@ class ReportingEngine:
             ml_score=round(best.get("ML_Success_Probability",0),2)
         else:
             best=pd.Series({"Drug":"N/A"}); days_eff=ml_score=0
-        best_aav=(df_aav.loc[df_aav["CNS_Tropism"].idxmax()] if not df_aav.empty
-                  else pd.Series({"Serotype":"N/A","CNS_Tropism":0,"Capsid_Mass_Da":0}))
+        # This report's "delivery vector" was always the best-CNS-tropism
+        # row of a generic AAV serotype reference table, regardless of what
+        # this drug's trial actually ranked -- for the majority of drugs
+        # here, whose real top DDS pick is a liposome/PLGA/SLN/micelle
+        # nanoparticle, that meant reporting an AAV serotype (with its own
+        # real capsid mass etc.) that was never evaluated for this drug at
+        # all. Use the drug's own top-ranked DDS formulation instead,
+        # falling back to the AAV reference table only when no real DDS
+        # ranking is available (e.g. a bare ML-only run).
+        if df_dds is not None and not df_dds.empty and "Carrier_Type" in df_dds.columns:
+            _top_dds = df_dds.iloc[0]
+            _dds_score_col = ("Principle_Composite_Score"
+                                if "Principle_Composite_Score" in df_dds.columns
+                                else "BBB_Engineering_Score")
+            delivery_vector = str(_top_dds.get("Formulation_Name","N/A"))
+            dds_carrier      = str(_top_dds.get("Carrier_Type","N/A"))
+            dds_score        = _top_dds.get(_dds_score_col, "N/A")
+            dds_score_label  = _dds_score_col.replace("_"," ")
+        else:
+            best_aav=(df_aav.loc[df_aav["CNS_Tropism"].idxmax()] if not df_aav.empty
+                      else pd.Series({"Serotype":"N/A","CNS_Tropism":0,"Capsid_Mass_Da":0}))
+            delivery_vector = str(best_aav.get("Serotype","N/A"))
+            dds_carrier      = "AAV serotype (reference table — no DDS ranking available)"
+            dds_score        = best_aav.get("CNS_Tropism","N/A")
+            dds_score_label  = "CNS Tropism"
         config={"Project":"CEREBRO-X","Version":"22.1",
                 "Generated":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "Lead_Payload":str(best.get("Drug","N/A")),
-                "Delivery_Vector":str(best_aav.get("Serotype","N/A")),
+                "Delivery_Vector":delivery_vector,
                 "ML_Success_Score":ml_score,"Days_Above_50pct":days_eff,
                 "Model_R2":round(metrics.get("r2",0),4),
                 "Model_CV_R2":round(metrics.get("cv_r2",0),4)}
@@ -1528,7 +1619,7 @@ class ReportingEngine:
         write_doc(cp, {
             "overview": "Machine-readable JSON with final pipeline recommendations.",
             "significance": "API integration point for lab-management / regulatory systems.",
-            "strategic_decision": "Lead_Payload + Delivery_Vector = final vexosome formulation.",
+            "strategic_decision": "Lead_Payload + Delivery_Vector = the drug's own top-ranked DDS formulation (or, absent a DDS ranking, the reference AAV serotype with highest CNS tropism).",
             "methodology": "Best-row selection. json.dump indent=4.",
             "computational_architecture": "Python json · pandas idxmin/idxmax.",
         })
@@ -1562,9 +1653,9 @@ Generated  : {config["Generated"]}
 
 3. DELIVERY VECTOR PROFILE
 {"─"*70}
-   AAV Serotype      : {best_aav.get("Serotype","N/A")}
-   CNS Tropism       : {best_aav.get("CNS_Tropism","N/A")}
-   Capsid Mass       : {best_aav.get("Capsid_Mass_Da","N/A")} Da
+   Top DDS Formulation : {delivery_vector}
+   Carrier Type        : {dds_carrier}
+   {dds_score_label:19s} : {dds_score}
 
 4. PIPELINE MODULES EXECUTED
 {"─"*70}
@@ -1596,7 +1687,7 @@ Generated  : {config["Generated"]}
    outputs/
    +-- data/          CSV datasets (cascade-validated)
    +-- models/        Ensemble .pkl, GNN .pt, SHAP, feature importance
-   +-- figures/       All PNG charts
+   +-- media/figures/ All PNG charts
    +-- results/       PK/PD kinetics, encapsulation, ADMET
    +-- reports/       This report, ML metrics, candidate ranking
    +-- deliverable/   project_config.json

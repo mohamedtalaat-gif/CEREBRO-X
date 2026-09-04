@@ -680,13 +680,26 @@ class CascadeNameEngine:
 
     @staticmethod
     def _try_uniprot(name: str) -> dict | None:
+        # Same fix as CascadeDataEngine._try_uniprot in src/core/pipeline.py:
+        # UniProt is a protein database, so a free-text drug-name query can
+        # match an unrelated protein that merely mentions the drug (e.g.
+        # its target enzyme) -- confirmed live for "galantamine" matching
+        # acetylcholinesterase (P22303, MW=67796 Da, vs. galantamine's real
+        # ~287 Da). Require the query name to appear in the matched
+        # entry's own protein name before trusting its molWeight.
         try:
             r = requests.get(
                 f"https://rest.uniprot.org/uniprotkb/search"
-                f"?query={name}&format=json&size=1", timeout=6)
+                f"?query={name}&fields=accession,protein_name,sequence"
+                f"&format=json&size=1", timeout=6)
             r.raise_for_status()
             res = r.json().get("results",[])
             if res:
+                pname = (res[0].get("proteinDescription",{})
+                                 .get("recommendedName",{})
+                                 .get("fullName",{}).get("value","")).lower()
+                if name.lower() not in pname:
+                    return None
                 mw = res[0].get("sequence",{}).get("molWeight",0)
                 uid = res[0].get("primaryAccession","")
                 if mw and mw > 0:
