@@ -67,6 +67,27 @@ def _sev_color(sev: str):
             "LOW":      colors.Color(*GREEN)}.get(sev.upper(), colors.grey)
 
 
+def _n_modules_completed(science_results: dict) -> int:
+    # cerebro_science_modules.py's base modules leave a key in the dict
+    # on failure too (results[key] = {} / []) so plain len(science_results)
+    # is a fixed constant equal to the number of wired-up module slots --
+    # it can never go down even when every module fails for a given drug.
+    # cerebro_advanced_modules_2.py's modules instead mark failure with a
+    # non-empty {"error": ...} dict, which a truthiness check alone would
+    # still count as "complete". A module only really completed if its
+    # value is non-empty and, when it's a dict, carries no "error" key.
+    if not science_results:
+        return 0
+    n = 0
+    for v in science_results.values():
+        if not v:
+            continue
+        if isinstance(v, dict) and "error" in v:
+            continue
+        n += 1
+    return n
+
+
 class UnifiedPDFReport:
     """Generates the single unified CEREBRO-X PDF report."""
 
@@ -144,9 +165,33 @@ class UnifiedPDFReport:
                  textColor=colors.grey, spaceAfter=2)
         warn = S("W",  fontSize=8.5, fontName="Helvetica-Bold",
                  textColor=RED_RL, spaceAfter=3)
+        # reportlab Table cells given plain strings don't wrap -- text
+        # wider than its column's colWidth just overflows visually into
+        # the next column instead of breaking to a second line. Confirmed
+        # on the 62-Principle Scoreboard: "MODERATE" in the narrow
+        # "Conf." column rendered as "MODERATB", its tail overlapping the
+        # next column's "BW^0.75..." text, and the "Method" column's
+        # text was silently cut off at the page edge. Wrapping cell text
+        # in a Paragraph (a Flowable) instead of a bare string makes
+        # reportlab wrap it within the cell and grow the row instead.
+        cell = S("Cell", fontSize=8, fontName="Helvetica",
+                 textColor=colors.HexColor("#222222"), leading=9.5)
 
         # ── Helper: table factory ─────────────────────────────────────────────
         def tbl(data, col_widths, hdr_bg=None):
+            from xml.sax.saxutils import escape as _esc
+            # Wrap every data-row string cell in a Paragraph so it wraps
+            # inside its column instead of overflowing into the next one
+            # (see the comment on `cell` above) -- applies to every table
+            # built through this one shared factory, not just the one
+            # table where the overflow happened to be caught visually.
+            # Header row (row 0) is left alone: those labels are short,
+            # fixed, and already correctly bold/white via TableStyle
+            # below, which a Paragraph's own style would override.
+            data = [row if i == 0 else
+                    [Paragraph(_esc(str(v)), cell) if isinstance(v, str) else v
+                     for v in row]
+                    for i, row in enumerate(data)]
             t = Table(data, colWidths=col_widths, repeatRows=1)
             bg = hdr_bg or NAVY
             style = TableStyle([
@@ -211,7 +256,13 @@ class UnifiedPDFReport:
         carrier = top_dds.get("Carrier_Type", "DDS") if top_dds else "N/A"
         ligand  = top_dds.get("Surface_Ligand", "N/A") if top_dds else "N/A"
         bbb_enh = _safe(top_dds.get("BBB_Enhanced_Pct"), ".1f") if top_dds else "N/A"
-        composite = _safe(top_dds.get("Composite_Score") or top_dds.get("BBB_Engineering_Score"), ".1f") if top_dds else "N/A"
+        # df_dds's real column is Principle_Composite_Score --
+        # "Composite_Score" never exists on it, so this always fell all
+        # the way through to the BBB_Engineering_Score fallback, showing
+        # e.g. 100.0 as the cover page's headline "Composite Score" when
+        # the real, drug-differentiated Principle_Composite_Score (e.g.
+        # 84.35) was sitting right there under a different name.
+        composite = _safe(top_dds.get("Principle_Composite_Score") or top_dds.get("BBB_Engineering_Score"), ".1f") if top_dds else "N/A"
 
         cover_data = [
             ["Field", "Value"],
@@ -226,7 +277,7 @@ class UnifiedPDFReport:
             ["Disease Indication", mol_profile.get("indication", "CNS")],
             ["Report Generated",   datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")],
             ["Created by",         "Muhammad Talaat | CEREBRO-X"],
-            ["Modules Completed",  f"{len(science_results)}/62 science modules"],
+            ["Modules Completed",  f"{_n_modules_completed(science_results)}/62 science modules"],
         ]
         story.append(tbl(cover_data, [6*cm, 10.5*cm], NAVY))
         story.append(Spacer(1, 0.5*cm))
@@ -272,13 +323,20 @@ class UnifiedPDFReport:
             for p in problems:
                 sev = str(p.get("severity",""))
                 sev_c = _sev_color(sev)
+                # This table is built standalone (not via the shared tbl()
+                # factory above) so it needs its own Paragraph wrap for the
+                # same reason: a bare string longer than its 13cm-wide
+                # value column would overflow past the page edge instead
+                # of breaking to a second line, and these value strings
+                # run up to 120 chars.
+                from xml.sax.saxutils import escape as _esc
                 data = [
                     [Paragraph(f'<b>[{sev}] {p.get("problem","")}</b>', body), ""],
-                    ["Evidence:",    str(p.get("evidence",""))[:100]],
-                    ["Without DDS:", str(p.get("without_dds",""))[:100]],
-                    ["With DDS:",    str(p.get("with_dds",""))[:100]],
-                    ["DDS Solution:",str(p.get("dds_solution",""))[:80]],
-                    ["Scientific basis:", str(p.get("why",""))[:120]],
+                    ["Evidence:",    Paragraph(_esc(str(p.get("evidence",""))[:100]), cell)],
+                    ["Without DDS:", Paragraph(_esc(str(p.get("without_dds",""))[:100]), cell)],
+                    ["With DDS:",    Paragraph(_esc(str(p.get("with_dds",""))[:100]), cell)],
+                    ["DDS Solution:",Paragraph(_esc(str(p.get("dds_solution",""))[:80]), cell)],
+                    ["Scientific basis:", Paragraph(_esc(str(p.get("why",""))[:120]), cell)],
                 ]
                 pt = Table(data, colWidths=[3.5*cm, 13*cm])
                 pt.setStyle(TableStyle([
@@ -313,7 +371,7 @@ class UnifiedPDFReport:
         story.append(Spacer(1, 0.2*cm))
 
         if df_dds is not None and not df_dds.empty:
-            score_col = ("Composite_Score" if "Composite_Score" in df_dds.columns
+            score_col = ("Principle_Composite_Score" if "Principle_Composite_Score" in df_dds.columns
                           else "BBB_Engineering_Score")
             top10 = df_dds.nlargest(min(10, len(df_dds)), score_col)
             dds_display_cols = [
@@ -348,7 +406,7 @@ class UnifiedPDFReport:
             story.append(Paragraph("2a. Recommended DDS — Detailed Profile", h2))
             top_detail = [
                 ["Parameter", "Value", "Biophysical Meaning"],
-                ["Composite Score",        _safe(top_dds.get("Composite_Score") or top_dds.get("BBB_Engineering_Score"), ".1f"), "Overall Drug+DDS suitability (0-100)"],
+                ["Composite Score",        _safe(top_dds.get("Principle_Composite_Score") or top_dds.get("BBB_Engineering_Score"), ".1f"), "Overall Drug+DDS suitability (0-100)"],
                 ["BBB Enhancement",        _safe(top_dds.get("BBB_Enhanced_Pct"),".1f") + "%",  "% of dose crossing BBB via receptor transcytosis"],
                 ["CNS Bioavailability",    _safe(top_dds.get("CNS_Bioavailability_Pct"),".1f") + "%", "% dose reaching brain as free drug"],
                 ["DLVO Stability",         _safe(top_dds.get("DLVO_V_total_kT"),".1f") + " kT",  ">25kT = colloidally stable in blood"],
@@ -637,7 +695,7 @@ class UnifiedPDFReport:
                 f"WKB tunneling probability = {qt.get('tunneling_prob','N/A')} | "
                 f"Barrier = {_safe(qt.get('barrier_kcal_mol'),'.2f')} kcal/mol | "
                 f"Classical prob = {qt.get('classical_prob','N/A')} | "
-                f"{qt.get('interpretation',''[:80])}", body))
+                f"{(qt.get('interpretation','') or '')[:80]}", body))
 
         # 9d: Lyosomal Trafficking
         lyso = science_results.get("lysosomal_trafficking", {})
@@ -719,7 +777,7 @@ class UnifiedPDFReport:
             for meth, res in (sterile.get("sterilization_methods",{}) or {}).items():
                 meth_data.append([meth.replace("_"," "),
                                     "YES ✓" if res.get("survives") else "NO ✗",
-                                    str(res.get("detail",""))[:60]])
+                                    str(res.get("detail",""))])
             story.append(tbl(meth_data, [5.5*cm, 3*cm, 8*cm], TEAL))
             story.append(Spacer(1, 0.2*cm))
 
@@ -791,8 +849,9 @@ class UnifiedPDFReport:
                 m_data = [["Material", "Risk", "Source", "HHI Index", "Mitigation"]]
                 for m in mat_rows:
                     m_data.append([m.get("material",""),m.get("risk_level",""),
-                                    m.get("source","")[:30],str(m.get("HHI_index","")),
-                                    m.get("mitigation","")[:40]])
+                                    m.get("source",""),
+                                    str(m.get("HHI_index","")),
+                                    m.get("mitigation","")])
                 story.append(tbl(m_data, [4*cm, 3*cm, 4.5*cm, 2.5*cm, 2.5*cm], TEAL))
 
         # Pharmacovigilance
@@ -1145,6 +1204,7 @@ class UnifiedPDFReport:
               f"Score {sc.get('supply_chain_score',0):.0f}/100" if sc else ""],
             ["OVERALL DECISION",        go_dec, _decision_evidence],
         ]
+        # Same reportlab wrap fix as the other tables in this file: the
         story.append(tbl(decision_data, [6*cm, 3.5*cm, 7*cm], NAVY))
 
         story.append(Spacer(1, 0.5*cm))

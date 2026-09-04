@@ -389,7 +389,12 @@ def _to_pdf_supplementary(drug_b: dict, dds_b: dict,
                 m = (rec.get("_computational_method", "") or "")
                 # Truncate to 200 chars wrapped
                 m = m.replace("\n", " ").strip()[:280]
-                row.append(Paragraph(m, small))
+                # _computational_method strings are free-text and can
+                # contain '<', '>', '&' (e.g. inequality comparisons) --
+                # Paragraph parses its text as mini-XML, so unescaped
+                # markup characters can corrupt or truncate the cell.
+                from xml.sax.saxutils import escape as _esc
+                row.append(Paragraph(_esc(m), small))
             rows.append(row)
 
         tbl = Table(rows, colWidths=col_widths, repeatRows=1)

@@ -675,7 +675,10 @@ class AnimationEngine:
     """
 
     def __init__(self, output_dir: Path):
-        self.out = Path(output_dir) / "figures"
+        # "figures" joins the project's single media/ folder alongside
+        # videos/canvas_videos/schematics, not a standalone top-level
+        # folder.
+        self.out = Path(output_dir) / "media" / "figures"
         self.out.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
@@ -953,7 +956,7 @@ def collect_results_as_json(output_root: Path) -> dict:
     }
 
     # ── Figures (PNG + GIF → Base64) ────────────────────────────────────────
-    figs_dir = output_root / "figures"
+    figs_dir = output_root / "media" / "figures"
     if figs_dir.exists():
         for ext in ("*.png", "*.gif", "*.mp4"):
             for fp in figs_dir.glob(ext):
@@ -1058,7 +1061,14 @@ def generate_pdf_report(results_json: dict,
     cfg = results_json.get("project_config", {})
     if cfg:
         story.append(Paragraph("Executive Summary", h1_style))
-        tdata = [[k, str(v)] for k, v in cfg.items()]
+        # project_config values come from an arbitrary JSON file on disk
+        # (json.loads(cfg.read_text()) above) so they're unbounded free
+        # text -- a bare string longer than the 10cm value column would
+        # overflow past the page edge instead of wrapping, and one
+        # containing '<'/'>'/'&' would corrupt the cell if later wrapped
+        # naively in a Paragraph. Escape and wrap it now.
+        from xml.sax.saxutils import escape as _esc
+        tdata = [[k, Paragraph(_esc(str(v)), body_style)] for k, v in cfg.items()]
         t = Table(tdata, colWidths=[7*cm, 10*cm])
         t.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0f2040")),
@@ -1114,7 +1124,9 @@ def generate_pdf_report(results_json: dict,
         story.append(Paragraph("Top 10 DDS Formulations", h1_style))
         if top10:
             keys = list(top10[0].keys())[:6]  # first 6 columns
-            tdata = [keys] + [[str(r.get(k,"")) for k in keys] for r in top10[:10]]
+            from xml.sax.saxutils import escape as _esc
+            tdata = [keys] + [[Paragraph(_esc(str(r.get(k,""))), body_style)
+                                for k in keys] for r in top10[:10]]
             t = Table(tdata, repeatRows=1)
             t.setStyle(TableStyle([
                 ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0f2040")),

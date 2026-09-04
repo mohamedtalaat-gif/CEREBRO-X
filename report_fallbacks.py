@@ -232,8 +232,21 @@ def _generate_merged_pdf(df_ml, df_dds, df_pk, metrics: dict,
     bold_s   = ParagraphStyle("Bo", parent=styles["Normal"],
                                fontSize=10, fontName="Helvetica-Bold",
                                textColor=C_NAVY, spaceAfter=4)
+    cell_s   = ParagraphStyle("Cell", parent=styles["Normal"],
+                               fontSize=8, leading=9.5)
 
     def tbl(data, col_widths=None, header_bg=C_NAVY):
+        # Same fix as src/core/final_report_unified.py's tbl(): plain
+        # string cells don't wrap in a reportlab Table -- text wider
+        # than its column overflows into the next column instead of
+        # breaking to a second line. Wrap data-row strings in a
+        # Paragraph so they wrap in place. Header row left alone (short,
+        # fixed labels, already styled bold/white below).
+        from xml.sax.saxutils import escape as _esc
+        data = [row if i == 0 else
+                [Paragraph(_esc(str(v)), cell_s) if isinstance(v, str) else v
+                 for v in row]
+                for i, row in enumerate(data)]
         t = Table(data, colWidths=col_widths, repeatRows=1)
         t.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,0), header_bg),
@@ -597,8 +610,8 @@ def _write_trial_doc(trial_dir: Path, excel_path: Path,
            f"  dds_analysis/formulation_ranking.csv  — all {n_forms} systems ranked\n"
            f"  dds_analysis/top10_formulations.csv   — shortlist\n"
            f"  dds_config.yaml                        — converted from Excel\n"
-           f"  figures/*.png                          — static visualisations\n"
-           f"  CEREBRO_X_Report_{drug_name}.pdf       — merged decision report\n"
+           f"  media/figures/*.png                    — static visualisations\n"
+           f"  CEREBRO_X_Final_Report_{drug_name}.pdf — merged decision report\n"
            f"  trial_index.db                         — (root) trial registry\n\n"
            f"{'─'*70}\n  REPRODUCIBILITY\n{'─'*70}\n"
            f"  To reproduce this exact trial:\n"

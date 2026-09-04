@@ -65,12 +65,13 @@ _TIER_FILL = {
     4:  "FFEB9C",   # RDKit
     5:  "FFC7CE",   # Analog matching
     6:  "FFC7CE",   # Class-mean fallback (needs override)
+    98: "D9D9D9",   # Present but unaudited -- provenance genuinely unknown
     99: "A0A0A0",   # Unknown
 }
 _TIER_LABELS = {
     0: "Researcher",  1: "Live API",   2: "Library",
     3: "PubMed",      4: "RDKit",      5: "Analog",
-    6: "Class-mean",  99: "Unknown",
+    6: "Class-mean",  98: "Unaudited", 99: "Unknown",
 }
 
 # Property catalog: every field the pipeline tries to resolve.
@@ -96,7 +97,7 @@ _PROPERTY_CATALOG = [
     ("TPSA_A2",           "TPSA",                      "Å²",        "small_molecule"),
     ("HBD",               "H-Bond Donors",             "count",     "small_molecule"),
     ("HBA",               "H-Bond Acceptors",          "count",     "small_molecule"),
-    ("Rotatable_Bonds",   "Rotatable Bonds",           "count",     "small_molecule"),
+    ("RotBonds",          "Rotatable Bonds",           "count",     "small_molecule"),
     ("pI",                "Isoelectric Point",         "pH",        "biologic"),
     ("Instability_Index", "Instability Index",         "",          "biologic"),
     ("UniProt_ID",        "UniProt ID",                "",          "biologic"),
@@ -110,6 +111,22 @@ _PROPERTY_CATALOG = [
 # ──────────────────────────────────────────────────────────────────────────
 # Data extraction helpers
 # ──────────────────────────────────────────────────────────────────────────
+def _property_applies(expected_class: str | None, molecule_class: str | None) -> bool:
+    """True if a _PROPERTY_CATALOG row's expected_class matches this drug's
+    molecule_class (None means the property applies to every class). Shared
+    by the Overview tier-coverage table and the per-drug Properties sheet so
+    both count the same "applicable" property set -- they previously used
+    two independent copies of this check that could (and did) drift apart,
+    with the Overview counting inapplicable properties as "T99 Unknown"
+    that the per-drug sheet correctly never showed in the first place.
+    """
+    if not expected_class:
+        return True
+    mc = (molecule_class or "small_molecule").lower()
+    return expected_class == mc or (
+        expected_class == "biologic" and mc in ("biologic", "monoclonal_antibody", "antibody", "mab"))
+
+
 def _get_tier_info(mol_profile: dict, prop_key: str) -> dict:
     """
     Extract tier / confidence / source for a property from mol_profile.
@@ -122,14 +139,23 @@ def _get_tier_info(mol_profile: dict, prop_key: str) -> dict:
     audit = mol_profile.get("_source_audit", {}) or {}
     if prop_key in audit and isinstance(audit[prop_key], dict):
         return audit[prop_key]
-    # Fallback inference
+    # A value present with no _source_audit entry does NOT mean it was
+    # resolved via a live API call -- _source_audit is only populated for
+    # the handful of properties the resolver actually touches (MW_Da,
+    # LogP, Half_Life_Days, TPSA_A2, HBD, HBA -- see molecule_engine.py).
+    # Every other catalog property that happens to have a value here
+    # could have come from anywhere (Excel input, an upstream default,
+    # a computation with no audit hook). Claiming "Tier 1 / Live API /
+    # 90% confidence" for it is a fabricated provenance claim -- exactly
+    # what this workbook's own stated mission (full, citable provenance)
+    # forbids. Label it honestly as present-but-unaudited instead.
     val = mol_profile.get(prop_key)
     if val is not None and val != 0 and val != "":
         return {
-            "_tier": 1,
-            "_confidence_score": 90,
-            "_confidence": "HIGH (inferred — direct API result)",
-            "_source": "Live API (engine-resolved)",
+            "_tier": 98,
+            "_confidence_score": None,
+            "_confidence": "UNKNOWN — value present, provenance not audited",
+            "_source": "unaudited (no _source_audit entry)",
             "_reference": "",
             "_doi": None, "_disclaimer": None, "_overridable": False,
         }
@@ -213,8 +239,8 @@ def write_completed_excel(drug_results: list[dict],
     ws["A5"].font = Font(bold=True, size=12)
     hdrs = ["#", "Drug", "Total props",
             "T0 Researcher", "T1 API", "T2 Library", "T3 PubMed",
-            "T4 RDKit", "T5 Analog", "T6 Class-mean", "T99 Unknown",
-            "Top DDS", "Top BBB Score"]
+            "T4 RDKit", "T5 Analog", "T6 Class-mean", "T98 Unaudited",
+            "T99 Unknown", "Top DDS", "Top BBB Score"]
     for j, h in enumerate(hdrs, 1):
         c = ws.cell(6, j, h)
         c.font = Font(bold=True, color="FFFFFF", size=10)
@@ -224,8 +250,17 @@ def write_completed_excel(drug_results: list[dict],
     for i, dr in enumerate(drug_results, 1):
         mp = dr.get("mol_profile", {}) or {}
         audit = mp.get("_source_audit", {}) or {}
-        tier_counts = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 99:0}
-        for prop_key, _, _, _ in _PROPERTY_CATALOG:
+        tier_counts = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 98:0, 99:0}
+        # Only count properties actually applicable to this drug's molecule
+        # class -- matching the same filter _write_drug_properties_sheet
+        # applies, so "Total props" and the T* breakdown here describe the
+        # same property set the per-drug sheet shows, instead of always
+        # showing the full 25-row catalog and inflating T99/T98 with
+        # properties (e.g. FASTA, pI for a small molecule) that were never
+        # applicable in the first place.
+        applicable = [pk for pk, _, _, ec in _PROPERTY_CATALOG
+                      if _property_applies(ec, mp.get("molecule_class"))]
+        for prop_key in applicable:
             info = _get_tier_info(mp, prop_key)
             tier_counts[info.get("_tier", 99)] = tier_counts.get(info.get("_tier", 99), 0) + 1
         # Top DDS info
@@ -236,10 +271,10 @@ def write_completed_excel(drug_results: list[dict],
             top_name = str(top.get("Formulation_Name") or top.get("Formulation_ID") or "—")
             top_score = round(float(top.get("BBB_Engineering_Score", 0) or 0), 2)
 
-        row = [i, dr["drug_name"], len(_PROPERTY_CATALOG),
+        row = [i, dr["drug_name"], len(applicable),
                tier_counts[0], tier_counts[1], tier_counts[2], tier_counts[3],
-               tier_counts[4], tier_counts[5], tier_counts[6], tier_counts[99],
-               top_name, top_score]
+               tier_counts[4], tier_counts[5], tier_counts[6], tier_counts[98],
+               tier_counts[99], top_name, top_score]
         for j, v in enumerate(row, 1):
             c = ws.cell(6+i, j, v)
             c.alignment = Alignment(horizontal="center")
@@ -337,11 +372,8 @@ def _write_drug_properties_sheet(wb, idx: int, dr: dict) -> None:
     row = 5
     for prop_key, display_name, unit, expected_class in _PROPERTY_CATALOG:
         # Skip class-specific properties for wrong class
-        if expected_class:
-            mc = (mp.get("molecule_class") or "small_molecule").lower()
-            if expected_class != mc and not (
-                expected_class == "biologic" and mc in ("biologic","monoclonal_antibody","antibody","mab")):
-                continue
+        if not _property_applies(expected_class, mp.get("molecule_class")):
+            continue
 
         val = mp.get(prop_key)
         info = _get_tier_info(mp, prop_key)
