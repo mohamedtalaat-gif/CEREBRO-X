@@ -185,15 +185,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test]
     if: github.event_name == 'push'
-    # GITHUB_TOKEN can't create a brand-new GHCR package on a personal
-    # (non-org) account's first-ever push to a given image name, even
-    # with packages: write declared here — GHCR ties that first creation
-    # to account-level settings that require a real PAT once, not the
-    # ephemeral workflow token. Not fatal: docker compose builds every
-    # image locally from the Dockerfiles in this repo regardless of
-    # whether a prebuilt image ever reaches the registry, so a failure
-    # here shouldn't red-X the whole pipeline over a convenience step.
-    continue-on-error: true
 
     permissions:
       contents: read
@@ -215,7 +206,18 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN can't create a brand-new GHCR package on a
+          # personal (non-org) account's first-ever push to a given
+          # image name — confirmed live: "denied: permission_denied:
+          # write_package" on both images, even with packages: write
+          # explicitly declared on this job and the repo's default
+          # workflow permissions set to write. GHCR ties first-time
+          # package creation on personal accounts to a real PAT, not
+          # the ephemeral workflow token. GHCR_PAT is a classic PAT
+          # scoped to write:packages only, stored as a repo secret —
+          # never logged, never exposed to pull_request-triggered runs
+          # (this job only runs on push, which forks can't trigger).
+          password: ${{ secrets.GHCR_PAT }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

@@ -11,8 +11,10 @@
 **Status:** Research prototype, under active development — NOT production-ready
 and NOT clinically or experimentally validated. Of the 3 drugs run through
 the pipeline so far (see [Validation snapshot](#validation-snapshot-3-drug-benchmark-phase-5)
-below), 2 scored MARGINAL and 1 scored FAILED on the pipeline's own internal
-scoring — no drug has produced a clean PASS yet. A full engineering and
+below), all 3 scored CONDITIONAL GO on the pipeline's own internal scoring —
+each flagged a real, named failure mode (colloidal instability and/or a
+failed synthetic clinical trial) and none has produced an unconditional GO
+yet. A full engineering and
 scientific-integrity audit is in [AUDIT_REPORT.md](docs/AUDIT_REPORT.md); the
 Critical security/entrypoint/target-leakage findings there have been fixed
 and verified (see its changelog), but the model itself remains research-
