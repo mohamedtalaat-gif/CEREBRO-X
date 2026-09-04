@@ -1252,7 +1252,7 @@ class DDSComparisonEngine:
     """
 
     METRIC_EXPLANATIONS = {
-        "Composite_Score":         "Overall Drug+DDS suitability (0-100)",
+        "Principle_Composite_Score": "Overall Drug+DDS suitability (0-100)",
         "BBB_Engineering_Score":   "BBB crossing probability (Pardridge 2012 framework)",
         "CNS_Bioavailability_Pct": "% of dose reaching brain as free drug",
         "AUC_Brain_Day":           "Total drug exposure in brain (ug.h/mL)",
@@ -1310,13 +1310,19 @@ class DDSComparisonEngine:
                             "ID":      str(a.get("Formulation_ID")),
                             "Name":    str(a.get("Formulation_Name")),
                             "Carrier": str(a.get("Carrier_Type")),
-                            "Score":   float(a.get("Composite_Score", 0)),
+                            # df_dds's real column is Principle_Composite_
+                            # Score -- "Composite_Score" never exists, so
+                            # this always silently defaulted to 0.0 for
+                            # every formulation, in every drug (confirmed
+                            # live: outputs/*/dds_analysis/formulation_
+                            # ranking.csv has no "Composite_Score" column).
+                            "Score":   float(a.get("Principle_Composite_Score", 0)),
                         },
                         "B": {
                             "ID":      str(b.get("Formulation_ID")),
                             "Name":    str(b.get("Formulation_Name")),
                             "Carrier": str(b.get("Carrier_Type")),
-                            "Score":   float(b.get("Composite_Score", 0)),
+                            "Score":   float(b.get("Principle_Composite_Score", 0)),
                         },
                         "metric_diffs": diffs[:8],
                         "verdict": (f"{a.get('Formulation_Name')} preferred for "
@@ -1358,7 +1364,7 @@ class DDSComparisonEngine:
                 "ID":         str(row.get("Formulation_ID")),
                 "Name":       str(row.get("Formulation_Name")),
                 "Carrier":    str(row.get("Carrier_Type")),
-                "Score":      float(row.get("Composite_Score", 0)),
+                "Score":      float(row.get("Principle_Composite_Score", 0)),
                 "Strengths":  strengths[:3],
                 "Weaknesses": weaknesses[:2],
             })
@@ -1418,8 +1424,17 @@ class AllometricScalingEngine:
         # Brain penetration often similar across species (normalized)
         bbb_nat = float(mol_profile.get("BBB_permeability_pct") or 5)
 
-        # Human dose prediction (mg/kg) from rat MTD (assume 10x safety margin)
-        rat_dose_mg_kg = 10.0  # typical
+        # Human dose prediction (mg/kg) from rat MTD (assume 10x safety margin).
+        # rat_dose_mg_kg is a generic literature-typical value, NOT derived
+        # from this drug's own toxicology data (no per-drug rat MTD source
+        # exists anywhere in this pipeline) -- unlike hl_days/bbb_nat above,
+        # which genuinely are drug-specific. That made
+        # predicted_human_dose_mg look like a per-drug result while its
+        # dose-determining input is identical for every drug (confirmed
+        # live: 4791.4 mg for multiple structurally different drugs).
+        # "confidence" already flags this as a rough estimate; dose_basis
+        # makes explicit which input is generic vs. drug-derived.
+        rat_dose_mg_kg = 10.0  # typical, not drug-specific
         human_dose_pred = rat_dose_mg_kg * (BW_human ** 0.75) / (BW_source ** 0.75) * 0.1
 
         return {
@@ -1433,6 +1448,10 @@ class AllometricScalingEngine:
             "CL_scaling_factor":        round(CL_scaled, 2),
             "V_scaling_factor":         round(V_scaled, 2),
             "predicted_human_dose_mg":  round(human_dose_pred * BW_human, 1),
+            "dose_basis":               (f"Assumes a generic rat MTD of {rat_dose_mg_kg} mg/kg "
+                                          "(literature-typical, not this drug's own toxicology "
+                                          "data) scaled by body-weight allometry -- identical "
+                                          "for every drug unless a real rat MTD is supplied."),
             "BBB_penetration_pct":      bbb_nat,
             "confidence":               "MODERATE (simple allometry; use PBPK for refinement)",
         }

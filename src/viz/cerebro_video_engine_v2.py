@@ -271,7 +271,15 @@ def make_video_ranking(df_data: list[dict], drug_name: str,
     out = out_dir / f"V04_DDS_Ranking_{drug_name}.mp4"
     if not df_data: return None
 
-    score_key = "Composite_Score" if any("Composite_Score" in d for d in df_data) else "BBB_Engineering_Score"
+    # df_data's real field is Principle_Composite_Score --
+    # "Composite_Score" never exists as a key, so this always fell
+    # through to BBB_Engineering_Score (same bug already fixed in
+    # final_report_unified.py, cerebro_science_modules.py,
+    # cerebro_advanced_modules_2.py, cerebro_html5_engine.py, and
+    # cerebro_canvas_engine.py).
+    score_key = ("Principle_Composite_Score"
+                 if any("Principle_Composite_Score" in d for d in df_data)
+                 else "BBB_Engineering_Score")
     top = sorted(df_data, key=lambda d: float(d.get(score_key,0) or 0), reverse=True)[:15]
     names  = [d.get("Formulation_Name","?")[:22] for d in top]
     scores = [float(d.get(score_key,0) or 0) for d in top]

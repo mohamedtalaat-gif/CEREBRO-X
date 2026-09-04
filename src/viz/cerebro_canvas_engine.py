@@ -465,9 +465,14 @@ def make_v04_ranking(drug_name: str, df_dds_data: list[dict], top_dds: dict, out
     """V04: DDS Ranking animated bar chart."""
     if not df_dds_data:
         return None
-    top15 = sorted(df_dds_data, key=lambda x: float(x.get("Composite_Score") or x.get("BBB_Engineering_Score") or 0), reverse=True)[:15]
+    # df_dds_data's real field is Principle_Composite_Score --
+    # "Composite_Score" never exists, so this always ranked and
+    # displayed BBB_Engineering_Score instead (same bug already fixed
+    # in final_report_unified.py, cerebro_science_modules.py,
+    # cerebro_advanced_modules_2.py, and cerebro_html5_engine.py).
+    top15 = sorted(df_dds_data, key=lambda x: float(x.get("Principle_Composite_Score") or x.get("BBB_Engineering_Score") or 0), reverse=True)[:15]
     names  = [d.get("Formulation_Name","?")[:18] for d in top15]
-    scores = [round(float(d.get("Composite_Score") or d.get("BBB_Engineering_Score") or 0), 1) for d in top15]
+    scores = [round(float(d.get("Principle_Composite_Score") or d.get("BBB_Engineering_Score") or 0), 1) for d in top15]
     bbb    = [round(float(d.get("BBB_Enhanced_Pct") or 0), 1) for d in top15]
     carrs  = [d.get("Carrier_Type","DDS") for d in top15]
     carrier_colors = {"Vexosome":"#C9A84C","Lipid Nanoparticle":"#0D6E6E",

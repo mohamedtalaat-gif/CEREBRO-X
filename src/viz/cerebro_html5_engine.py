@@ -594,7 +594,12 @@ def h07_shap(top_dds: dict, drug_name: str) -> str:
     resamples" claim already found and fixed in h20_bootstrap in this
     same file (see docs/AUDIT_REPORT.md).
     """
-    score = float(top_dds.get("Composite_Score") or top_dds.get("BBB_Engineering_Score") or 60)
+    # top_dds's real field is Principle_Composite_Score --
+    # "Composite_Score" never exists on it, so this always fell through
+    # to the BBB_Engineering_Score/60 fallbacks (same bug already fixed
+    # in final_report_unified.py, cerebro_science_modules.py, and
+    # cerebro_advanced_modules_2.py).
+    score = float(top_dds.get("Principle_Composite_Score") or top_dds.get("BBB_Engineering_Score") or 60)
     features = {
         "Surface_Ligand":      float(top_dds.get("BBB_Enhanced_Pct", 30)) * 0.25,
         "Size_nm":             max(-15, 25 - float(top_dds.get("size_nm", 80)) * 0.15),
@@ -1217,7 +1222,7 @@ def h25_multidrug(multi_results: list[dict] | None) -> str:
     if not multi_results or len(multi_results) < 2:
         return ""
 
-    metrics = ["BBB_Enhanced_Pct","CNS_Bioavailability_Pct","Composite_Score",
+    metrics = ["BBB_Enhanced_Pct","CNS_Bioavailability_Pct","Principle_Composite_Score",
                  "Endosomal_Escape_Eff","Stealth_Index"]
     fractional_metrics = {"Endosomal_Escape_Eff","Stealth_Index"}
     labels  = ["BBB Enh.(%)","CNS Bioavail.(%)","Composite Score",

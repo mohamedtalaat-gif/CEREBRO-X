@@ -120,7 +120,12 @@ class CompetitiveLandscape:
     def compare(cls, top_dds: dict, indication: str = "CNS") -> dict:
         trials = cls.fetch(indication)
         bbb_score = float(top_dds.get("BBB_Engineering_Score") or 60)
-        composite  = float(top_dds.get("Composite_Score") or 60)
+        # top_dds's real field is Principle_Composite_Score --
+        # "Composite_Score" never exists on it, so this silently
+        # defaulted to the literal 60.0 fallback for every drug,
+        # identically (confirmed live: our_composite_score = 60.0 for
+        # Rivastigmine, Donepezil, and Nusinersen alike).
+        composite  = float(top_dds.get("Principle_Composite_Score") or 60)
         carrier    = str(top_dds.get("Carrier_Type") or "DDS")
 
         competitive_assessment = (
