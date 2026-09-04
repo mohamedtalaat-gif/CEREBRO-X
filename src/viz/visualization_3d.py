@@ -105,6 +105,33 @@ CARRIER_COLOURS = {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# WHITE-PAGE AXES RESET  (see the long comment on the equivalent helper in
+# src/viz/advanced_viz.py for the full story — same brand module, same
+# global dark-theme rcParams, same "figures here are always saved onto a
+# forced-white canvas" mismatch. Every fig.savefig(...) call in this file
+# should call this immediately before saving, same as the other module.)
+# ─────────────────────────────────────────────────────────────────────────────
+def _fix_axes_for_white_bg(fig):
+    navy = "#0f2040"
+    for ax in fig.get_axes():
+        ax.set_facecolor("white")
+        ax.title.set_color(navy)
+        ax.xaxis.label.set_color(navy)
+        ax.yaxis.label.set_color(navy)
+        ax.tick_params(colors=navy)
+        for spine in ax.spines.values():
+            spine.set_color(navy)
+        legend = ax.get_legend()
+        if legend is not None:
+            legend.get_frame().set_facecolor("white")
+            legend.get_frame().set_edgecolor(navy)
+            for text in legend.get_texts():
+                text.set_color(navy)
+    for text in fig.texts:
+        text.set_color(navy)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # DOCUMENTATION WRITER
 # ─────────────────────────────────────────────────────────────────────────────
 def _doc(path: Path, overview: str, significance: str,
@@ -196,6 +223,7 @@ def fig01_bbb_ranking(df_dds: pd.DataFrame, output_dir: Path,
 
     plt.tight_layout()
     out = output_dir / "01_BBB_Score_Ranking.png"
+    _fix_axes_for_white_bg(fig)
     fig.savefig(out, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
@@ -290,6 +318,7 @@ def fig02_pkpd_kinetics(df_pk: pd.DataFrame, output_dir: Path,
 
     plt.tight_layout()
     out = output_dir / "02_PKPD_Kinetics.png"
+    _fix_axes_for_white_bg(fig)
     fig.savefig(out, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
@@ -368,6 +397,7 @@ def fig03_pbpk_heatmap(df_pbpk: pd.DataFrame, output_dir: Path,
 
     plt.tight_layout()
     out = output_dir / "03_PBPK_Organ_Distribution.png"
+    _fix_axes_for_white_bg(fig)
     fig.savefig(out, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
@@ -450,6 +480,7 @@ def fig04_dlvo_stability(df_bio: pd.DataFrame, output_dir: Path,
 
     plt.tight_layout()
     out = output_dir / "04_DLVO_Stability.png"
+    _fix_axes_for_white_bg(fig)
     fig.savefig(out, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
@@ -534,6 +565,7 @@ def fig05_3d_space(df_ml: pd.DataFrame, output_dir: Path,
 
     plt.tight_layout()
     out = output_dir / "05_3D_Performance_Space.png"
+    _fix_axes_for_white_bg(fig)
     fig.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
@@ -620,6 +652,7 @@ def fig06_formulation_heatmap(df_dds: pd.DataFrame, output_dir: Path,
 
     plt.tight_layout()
     out = output_dir / "06_Formulation_Heatmap.png"
+    _fix_axes_for_white_bg(fig)
     fig.savefig(out, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
@@ -681,6 +714,7 @@ def fig07_radar(df_ml: pd.DataFrame, output_dir: Path,
     plt.tight_layout()
 
     out = output_dir / "07_Radar_Fingerprint.png"
+    _fix_axes_for_white_bg(fig)
     fig.savefig(out, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 

@@ -107,6 +107,43 @@ def _doc(path: Path, overview: str, significance: str,
 
 
 def _save(fig, path: Path, dpi: int = 300):
+    # cerebro_brand.matplotlib_style() sets a dark "deep-space" theme
+    # (axes.facecolor, tick/label/title/text colors) globally via
+    # plt.rcParams.update(...) once at pipeline startup, for every
+    # matplotlib figure created afterward. But every static figure here
+    # is saved onto a forced-white canvas (facecolor="white" below,
+    # because these PNGs get embedded in white-page PDF/report output) --
+    # savefig's facecolor only overrides the OUTER canvas, it never
+    # touches each Axes' own (still dark) facecolor or the already-styled
+    # (still near-white) text. What actually shipped was dark-navy plot
+    # boxes with washed-out near-invisible text on a white page -- and in
+    # fig01_concentration_time_multipanel specifically, the data line
+    # color (C["blue"]) is the exact same hex as the axes background
+    # (VOID_PANEL), making it not just low-contrast but literally
+    # identical-color invisible. Reset every Axes (and any legend) to
+    # colors that work on the white page actually being saved to, right
+    # here -- the one point every static figure passes through, so this
+    # fixes all of them without touching each figure function. The video
+    # frame generator elsewhere in this file is a separate code path with
+    # its own genuinely dark output canvas and doesn't call this function,
+    # so it's unaffected.
+    navy = "#0f2040"
+    for ax in fig.get_axes():
+        ax.set_facecolor("white")
+        ax.title.set_color(navy)
+        ax.xaxis.label.set_color(navy)
+        ax.yaxis.label.set_color(navy)
+        ax.tick_params(colors=navy)
+        for spine in ax.spines.values():
+            spine.set_color(navy)
+        legend = ax.get_legend()
+        if legend is not None:
+            legend.get_frame().set_facecolor("white")
+            legend.get_frame().set_edgecolor(navy)
+            for text in legend.get_texts():
+                text.set_color(navy)
+    for text in fig.texts:  # fig.suptitle() lands here, not on any Axes
+        text.set_color(navy)
     fig.savefig(path, dpi=dpi, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     log.info(f"  [VIZ] → {path.name}")
@@ -227,13 +264,39 @@ def fig02_seaborn_dds_heatmap(df_dds: pd.DataFrame,
 
     # Clustermap (dendrogram)
     try:
-        sns.clustermap(df_dds[avail].head(30).T,
-                       cmap="YlOrRd", figsize=(14, 8),
-                       linewidths=0.3,
-                       col_cluster=True, row_cluster=True)
-        cluster_path = out_dir / f"02b_DDS_Clustermap_{drug_name}.png"
-        plt.savefig(cluster_path, dpi=200, bbox_inches="tight")
-        plt.close()
+        # avail mixes metrics on wildly different natural scales (zeta
+        # potential in mV, size in nm, several 0-100 percentages, a raw
+        # per-nm2 ligand density count) plotted on one shared linear
+        # color scale with no normalization. size_nm's ~50-200 range
+        # dominates that scale, so every other row (zeta_potential_mv,
+        # drug_loading_pct, pegylation_degree_mol_pct, CARPA_Risk_Index,
+        # ligand_density_per_nm2 -- all naturally much smaller) renders
+        # as a near-uniform pale color regardless of how much they
+        # actually vary formulation-to-formulation, defeating the point
+        # of a clustermap. z_score normalizes each row (metric) to
+        # mean 0 / std 1 across formulations before coloring, so every
+        # metric's real relative variation is visible on equal footing --
+        # but a metric that's genuinely constant across every candidate
+        # formulation (a real, common case: several of these are fixed
+        # per-carrier-class values, not formulation-tuned) has std=0,
+        # and z_score's (x-mean)/std divides by that zero, producing
+        # NaN/Inf that scipy's linkage() then rejects outright. The bare
+        # except below was silently swallowing that crash -- this chart
+        # could fail to generate at all for a real drug and nothing
+        # would show it. A constant metric can't be clustered on or
+        # normalized meaningfully anyway, so drop zero-variance rows
+        # before normalizing rather than crash on them.
+        cluster_df = df_dds[avail].head(30).T
+        varying = cluster_df.std(axis=1) > 0
+        cluster_df = cluster_df[varying]
+        if len(cluster_df) >= 2:
+            sns.clustermap(cluster_df,
+                           cmap="YlOrRd", figsize=(14, 8),
+                           linewidths=0.3, z_score=0,
+                           col_cluster=True, row_cluster=True)
+            cluster_path = out_dir / f"02b_DDS_Clustermap_{drug_name}.png"
+            plt.savefig(cluster_path, dpi=200, bbox_inches="tight")
+            plt.close()
     except Exception as _exc_bare:
         pass
 
@@ -1155,8 +1218,16 @@ def fig14_shap_xai(df_ml: pd.DataFrame | None,
         return None
 
     fig, axes = plt.subplots(1, 2, figsize=(15, 7))
-    fig.suptitle(f"XAI Feature Importance (SHAP) — {drug_name}",
-                 fontweight="bold", fontsize=12)
+    # AdvancedVizOrchestrator.run_all (the only real caller, pipeline_runner.py)
+    # never actually passes ml_model -- it's left at the default None -- so
+    # this always falls through to the Pearson-correlation substitute below,
+    # and the genuine shap.TreeExplainer/KernelExplainer branch never runs
+    # on any real pipeline run. The suptitle used to unconditionally say
+    # "(SHAP)" regardless of which branch actually executed, so a delivered
+    # chart titled "XAI Feature Importance (SHAP)" never actually contained
+    # a single real Shapley value. Set once the real branch actually
+    # completes successfully, so the title reflects what really ran.
+    used_real_shap = False
 
     try:
         import shap
@@ -1191,6 +1262,7 @@ def fig14_shap_xai(df_ml: pd.DataFrame | None,
             axes[1].set_title(f"SHAP Waterfall — {drug_name} (Sample 1)",
                                fontweight="bold")
             axes[1].set_xlabel("SHAP Value (impact on output)")
+            used_real_shap = True
 
         else:
             raise ValueError("No model")
@@ -1225,6 +1297,10 @@ def fig14_shap_xai(df_ml: pd.DataFrame | None,
                                    fontweight="bold")
                 axes[1].set_xlabel("Pearson |r|")
 
+    method_label = "SHAP" if used_real_shap else "Correlation-based"
+    fig.suptitle(f"XAI Feature Importance ({method_label}) — {drug_name}",
+                 fontweight="bold", fontsize=12)
+
     for ax in axes:
         ax.grid(True, axis="x", alpha=0.25)
         ax.spines["top"].set_visible(False)
@@ -1233,12 +1309,22 @@ def fig14_shap_xai(df_ml: pd.DataFrame | None,
     plt.tight_layout()
     out = out_dir / f"14_SHAP_XAI_{drug_name}.png"
     _save(fig, out)
-    _doc(out, f"SHAP XAI feature importance for {drug_name}.",
+    _doc(out, f"SHAP XAI feature importance for {drug_name}."
+         if used_real_shap else
+         f"Correlation-based feature importance for {drug_name} "
+         "(no trained model was available, so this falls back to "
+         "|Pearson r| rather than real SHAP values).",
          "Explains which molecular/formulation properties most influence the ML model. "
          "Enables informed drug delivery system optimisation.",
-         "SHAP (SHapley Additive exPlanations). "
-         "Each SHAP value = contribution of one feature to one prediction. "
-         "Mean |SHAP| = overall feature importance.",
+         ("SHAP (SHapley Additive exPlanations). "
+          "Each SHAP value = contribution of one feature to one prediction. "
+          "Mean |SHAP| = overall feature importance."
+          if used_real_shap else
+          "No trained model was available for this run, so this uses "
+          "absolute Pearson correlation with the target as a feature-"
+          "importance proxy instead of real Shapley values. Correlation "
+          "captures linear association only, not per-prediction "
+          "attribution or feature interactions the way SHAP does."),
          "Large bar = high feature influence. "
          "Teal bars (waterfall) = increase predicted score. "
          "Red bars = decrease score. Target the top features for formulation optimisation.")
@@ -1377,8 +1463,24 @@ def fig16_dimensionality_reduction(df_dds: pd.DataFrame,
     try:
         from sklearn.manifold import TSNE
         n_tsne = min(len(X_scaled), 100)
-        X_tsne = TSNE(n_components=2, random_state=42, perplexity=min(30, n_tsne//3),
-                       n_iter=500).fit_transform(X_scaled[:n_tsne])
+        # TSNE's n_iter kwarg was renamed to max_iter (deprecated in
+        # sklearn 1.5, removed entirely by 1.9 -- the version this
+        # pipeline actually installs within requirements.txt's pinned
+        # "scikit-learn>=1.4,<1.9" range) -- so n_iter=500 raised
+        # TypeError on every real pipeline run, this whole panel always
+        # showed "t-SNE unavailable" instead of a real plot, and the
+        # bare except below silently swallowed it rather than surfacing
+        # a real error. requirements.txt's floor (1.4) predates
+        # max_iter's introduction (1.5), so try the current kwarg first
+        # and fall back to the old one for that narrow floor case.
+        try:
+            X_tsne = TSNE(n_components=2, random_state=42,
+                          perplexity=min(30, n_tsne//3),
+                          max_iter=500).fit_transform(X_scaled[:n_tsne])
+        except TypeError:
+            X_tsne = TSNE(n_components=2, random_state=42,
+                          perplexity=min(30, n_tsne//3),
+                          n_iter=500).fit_transform(X_scaled[:n_tsne])
         sc2 = axes[1].scatter(X_tsne[:,0], X_tsne[:,1],
                                c=colour_vals[:n_tsne], cmap="viridis",
                                s=45, alpha=0.75, edgecolors="white", lw=0.5)
