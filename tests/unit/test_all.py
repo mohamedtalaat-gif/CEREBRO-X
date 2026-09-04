@@ -4705,7 +4705,7 @@ class TestMolecularGCNForwardPass:
         """A molecule's prediction must be identical whether it's run
         alone or padded alongside a larger molecule in the same batch —
         if the mask leaked into the mean pool, it wouldn't be."""
-        import torch
+        torch = pytest.importorskip("torch")
 
         from cerebro_molecular_gnn import MolecularGCN, _pad_batch, smiles_to_graph
         torch.manual_seed(0)
@@ -4725,7 +4725,7 @@ class TestMolecularGCNForwardPass:
         assert abs(solo_pred - batched_pred) < 1e-5
 
     def test_output_is_a_valid_probability(self):
-        import torch
+        torch = pytest.importorskip("torch")
 
         from cerebro_molecular_gnn import MolecularGCN, _pad_batch, smiles_to_graph
         model = MolecularGCN()
