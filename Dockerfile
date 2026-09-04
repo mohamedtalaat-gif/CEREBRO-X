@@ -15,7 +15,7 @@ FROM python:3.13-slim AS base
 LABEL org.opencontainers.image.title="CEREBRO-X"
 LABEL org.opencontainers.image.description="Computational pharmaceutical pipeline for CNS drug delivery system optimization"
 LABEL org.opencontainers.image.authors="Muhammad Talaat <mohamed.talaat@pharma.asu.edu.eg>"
-LABEL org.opencontainers.image.source="https://github.com/cerebro-x/cerebro-x"
+LABEL org.opencontainers.image.source="https://github.com/mohamedtalaat-gif/CEREBRO-X"
 LABEL org.opencontainers.image.licenses="Proprietary"
 LABEL org.cerebro.version="22.1"
 
@@ -35,6 +35,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# A single dead network read can otherwise abort a whole layer after minutes
+# of downloading, and -- combined with the "|| echo [BUILD-WARN]" fallbacks
+# below, which exist so one optional package can't sink the whole image --
+# that failure gets cached by Docker as a permanent "done" layer: every later
+# rebuild reuses it without ever retrying, even once the network recovers.
+# Longer timeouts and more retries make pip itself survive a flaky connection
+# instead of relying on this Dockerfile getting rebuilt with --no-cache.
+ENV PIP_DEFAULT_TIMEOUT=60 \
+    PIP_RETRIES=10
+
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # ── Layer 2: Scientific foundation (latest stable where safe) ──────────────
@@ -45,15 +55,36 @@ RUN pip install --no-cache-dir \
         "scikit-learn>=1.8" \
         "matplotlib>=3.10" \
         "seaborn>=0.13.2" \
-        "xgboost>=2.1" \
         "shap>=0.46"
+
+# xgboost installed separately with --no-deps: its Linux PyPI wheel declares
+# a hard dependency on nvidia-nccl-cu13 (a ~250MB CUDA library, only needed
+# for XGBoost's optional multi-GPU distributed-training path) even though
+# nothing in this codebase ever sets tree_method="gpu_hist" or a CUDA device
+# -- every XGBRegressor call here (src/core/pipeline.py, pipeline_patches.py)
+# is plain CPU usage. xgboost's actual runtime imports for CPU use are
+# numpy/scipy, both already installed above, so --no-deps is safe here and
+# avoids downloading/shipping a multi-hundred-MB library this project never
+# uses.
+RUN pip install --no-cache-dir --no-deps "xgboost>=2.1"
 
 # ── Layer 3: Cheminformatics & Bioinformatics (pinned for compatibility) ────
 RUN pip install --no-cache-dir rdkit==2024.9.4               || echo "[BUILD-WARN] rdkit"
-RUN pip install --no-cache-dir biopython==1.84                || echo "[BUILD-WARN] biopython"
+# biopython pinned to 1.88, not the older 1.84: 1.84 predates Python 3.13
+# wheel builds, so it silently fell back to a from-source build that never
+# ran (no network access to even fetch the sdist during a prior flaky
+# build) -- 1.88 ships a manylinux_aarch64 cp313 wheel and satisfies the
+# same >=1.83,<2.0 range requirements.txt already allows.
+RUN pip install --no-cache-dir biopython==1.88                || echo "[BUILD-WARN] biopython"
 RUN pip install --no-cache-dir chembl-webresource-client      || echo "[BUILD-WARN] chembl-webresource-client"
 RUN pip install --no-cache-dir pubchempy==1.0.4               || echo "[BUILD-WARN] pubchempy"
-RUN pip install --no-cache-dir MDAnalysis==2.7.0              || echo "[BUILD-WARN] MDAnalysis"
+# MDAnalysis pinned to 2.10.0, not the older 2.7.0: 2.7.0 hard-requires
+# numpy<2.0, which directly conflicts with this project's numpy>=2.0 and
+# can never install here regardless of network conditions. 2.10.0 requires
+# numpy>=1.26.0 (compatible) and, like shap above, has no prebuilt wheel
+# for linux/aarch64 + cp313 yet, so pip builds it from source using the
+# gcc/gfortran/openblas/lapack toolchain installed in Layer 1.
+RUN pip install --no-cache-dir MDAnalysis==2.10.0             || echo "[BUILD-WARN] MDAnalysis"
 
 # ── Layer 4: Phase 5 first-principles libraries (latest, conflict-free) ─────
 #    - thermo and chemicals are tightly coupled; let pip resolve latest compatible

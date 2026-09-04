@@ -50,7 +50,12 @@ MDAnalysis>=2.7,<3.0
 
 # ── First-principles computation libraries (cerebro_value_resolver Tier 5-7) ─
 mendeleev>=1.0,<2.0           # atomic properties: EN, ionization, polarizability
-thermo>=0.4.2,<0.5             # group-contribution Joback/Riedel/Antoine
+thermo>=0.6.1,<0.7             # group-contribution Joback/Riedel/Antoine
+                                # (>=0.6.1 required: 0.4.2-0.5.x's thermo/serialize.py
+                                # imports the removed chemicals.utils.PY37 constant,
+                                # so it ImportErrors against any current chemicals>=1.4;
+                                # 0.6.1 dropped that import — verified by reading its
+                                # published wheel's serialize.py source directly)
 chemicals>=1.3,<2.0            # Wilke-Chang, Hayduk-Laudie, LJ correlations
 pint>=0.23,<1.0                # SI ↔ CGS ↔ pharma unit conversions
 periodictable>=1.6,<2.0        # nuclear properties, isotope masses

@@ -83,9 +83,19 @@ def install_missing() -> None:
 
     def _pip_install(pkg: str, timeout: int = 60) -> bool:
         try:
+            # --upgrade matters here, not just for freshness: every caller of
+            # this function already found the package present but broken
+            # (_is_importable returned False for something __import__ raised
+            # on). Without --upgrade, `pip install pkg` sees the existing
+            # broken install already "satisfies" an unconstrained spec and
+            # no-ops -- silently leaving the package exactly as broken as
+            # before "fixing" it (this is exactly how thermo stayed on a
+            # version whose serialize.py imports a chemicals constant that
+            # newer chemicals releases removed, even after this function
+            # logged that it was reinstalling thermo).
             result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", pkg, "-q",
-                 "--break-system-packages"],
+                [sys.executable, "-m", "pip", "install", "--upgrade", pkg,
+                 "-q", "--break-system-packages"],
                 capture_output=True, timeout=timeout, check=False,
             )
             return result.returncode == 0
