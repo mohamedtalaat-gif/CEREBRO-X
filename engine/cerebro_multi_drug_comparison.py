@@ -188,6 +188,31 @@ def compare_drugs(drug_results: list[dict],
         return {"status": "skipped", "reason": "only_one_drug",
                 "drug_count": len(drug_results)}
 
+    # Every downstream dict in this function is keyed by drug_name
+    # (per_drug_metrics, winner_counts, score_sum, tier_coverage, ...)
+    # with no uniqueness check -- two entries sharing a name (a realistic
+    # ingestion mistake given this project's own documented history of
+    # Excel input mix-ups) would silently clobber each other: the second
+    # entry's data overwrites the first's with no warning, and the
+    # output still lists the name twice giving the false impression two
+    # independent drugs were compared. Disambiguate here (on a local
+    # copy -- the caller's own drug_results dicts are left untouched)
+    # rather than let one drug's real numbers silently vanish.
+    _seen: dict[str, int] = {}
+    _deduped = []
+    for d in drug_results:
+        name = d["drug_name"]
+        _seen[name] = _seen.get(name, 0) + 1
+        if _seen[name] > 1:
+            new_name = f"{name} (dup#{_seen[name]})"
+            log.warning(f"[COMPARISON] Duplicate drug_name '{name}' in "
+                        f"drug_results — renaming this entry to "
+                        f"'{new_name}' so neither dataset silently "
+                        f"overwrites the other")
+            d = {**d, "drug_name": new_name}
+        _deduped.append(d)
+    drug_results = _deduped
+
     drug_names = [d["drug_name"] for d in drug_results]
     log.info(f"[COMPARISON] Comparing {len(drug_names)} drugs: {drug_names}")
 
@@ -203,8 +228,17 @@ def compare_drugs(drug_results: list[dict],
             v = _to_float(mp.get(k))
             if v is not None:
                 flat[f"physchem.{k}"] = v
-        if "physchem.Docking_Affinity_kcal" in flat:
-            flat["physchem.Docking_Affinity_kcal_abs"] = abs(flat["physchem.Docking_Affinity_kcal"])
+        # Docking_Affinity_kcal (lower/more-negative = stronger binding =
+        # better, LOWER_IS_BETTER above) and its abs() (HIGHER_IS_BETTER)
+        # are monotonically equivalent for a negative raw value -- "raw
+        # is lower-is-better" and "abs is higher-is-better" agree on
+        # every comparison. Feeding both into per_drug_metrics used to
+        # double-count docking affinity's influence within the physchem
+        # weight bucket relative to every other physchem property (MW,
+        # LogP, TPSA, HBD, HBA, Half_Life_Days, LogBB), which are each
+        # counted once. _direction_for's own "_abs" handling stays
+        # generic (still tested directly), but nothing in this module
+        # should compute or feed the derived variant into scoring.
         # Add top-DDS metrics
         df_dds = d.get("df_dds")
         try:
@@ -227,13 +261,34 @@ def compare_drugs(drug_results: list[dict],
     winner_counts = {n: 0 for n in drug_names}
     score_sum     = {n: 0.0 for n in drug_names}
     weight_sum    = {n: 0.0 for n in drug_names}
+    # A drug's weighted average is normalized only against the ranked
+    # metrics IT actually has a value for -- a drug that's only
+    # comparable on one favorable metric can outscore a thoroughly-
+    # characterized drug that would have won convincingly if all its
+    # data had been comparable, with nothing in the report disclosing
+    # the coverage gap driving that result. Rather than silently
+    # changing the ranking math (a real methodology decision this
+    # module shouldn't make unilaterally), disclose how many ranked
+    # metrics each drug's score actually rests on, so a reader can
+    # judge a high score built on 2 metrics differently from one built
+    # on 40.
+    metrics_compared_count = {n: 0 for n in drug_names}
     ranked_count  = 0
     unranked_count = 0
+    # Metrics only one drug has a value for can't be *compared*, but
+    # silently `continue`-ing past them with no counter meant
+    # metrics_total never reconciled against metrics_ranked +
+    # metrics_unranked -- confirmed live: production JSON snapshots
+    # showed 115-131 of ~480 collected metrics vanishing with no trace
+    # anywhere in the report (not in per_principle, not counted anywhere),
+    # so a reader had no way to know they were ever computed at all.
+    single_drug_count = 0
 
     for metric in all_metrics:
         values = {n: per_drug_metrics[n][metric]
                   for n in drug_names if metric in per_drug_metrics[n]}
         if len(values) < 2:
+            single_drug_count += 1
             continue   # need ≥ 2 drugs with this metric to compare
 
         direction = _direction_for(metric)
@@ -263,6 +318,7 @@ def compare_drugs(drug_results: list[dict],
         for n, s in scores.items():
             score_sum[n]  += s * weight
             weight_sum[n] += weight
+            metrics_compared_count[n] += 1
 
         row = {"metric": metric, "direction": direction, "winner": winner}
         for n in drug_names:
@@ -277,6 +333,23 @@ def compare_drugs(drug_results: list[dict],
         avg = (score_sum[n] / ws) if ws > 0 else 0.0
         overall.append((n, round(avg, 2)))
     overall.sort(key=lambda kv: kv[1], reverse=True)
+
+    # Competition ranking ("1224" scheme): drugs with an identical
+    # weighted_score share the same rank instead of getting distinct
+    # ranks from a stable sort's arbitrary tie-break order. Without this,
+    # two drugs tied at weighted_score=100.0 were shown as an outright
+    # #1/#2 win/loss (confirmed live in production: Lecanemab rank 1,
+    # Temozolomide rank 2, both scored exactly 100.0) with the Excel
+    # writer then painting rank 1 green ("best") and, when n>1, the last
+    # rank red ("worst") -- crowning a winner and a loser out of a tie.
+    overall_ranks: list[int] = []
+    _prev_score = None
+    _prev_rank = 0
+    for i, (_n, s) in enumerate(overall, 1):
+        if s != _prev_score:
+            _prev_rank = i
+        overall_ranks.append(_prev_rank)
+        _prev_score = s
 
     # ─── Step 4: tier coverage per drug ────────────────────────────────
     tier_coverage = {d["drug_name"]: _tier_distribution(d.get("mol_profile", {}))
@@ -345,9 +418,14 @@ def compare_drugs(drug_results: list[dict],
         "metrics_total":      len(all_metrics),
         "metrics_ranked":     ranked_count,
         "metrics_unranked":   unranked_count,
+        # metrics_total == metrics_ranked + metrics_unranked +
+        # metrics_single_drug always -- see single_drug_count comment above.
+        "metrics_single_drug": single_drug_count,
         "winner_counts":      winner_counts,
         "overall_ranking":  [
-            {"rank": i+1, "drug": n, "weighted_score": s}
+            {"rank": overall_ranks[i], "drug": n, "weighted_score": s,
+             "tied": overall_ranks.count(overall_ranks[i]) > 1,
+             "metrics_compared": metrics_compared_count[n]}
             for i, (n, s) in enumerate(overall)
         ],
         "per_principle":  per_principle_table,
@@ -390,12 +468,15 @@ def _write_comparison_excel(summary: dict, output_path: Path) -> None:
     ws["A2"] = (f"Generated: {summary['generated_at']}  "
                 f"| Drugs: {summary['drug_count']}  "
                 f"| Metrics ranked: {summary['metrics_ranked']}  "
-                f"| Unranked (no direction): {summary['metrics_unranked']}")
+                f"| Unranked (no direction): {summary['metrics_unranked']}  "
+                f"| Single-drug only (not comparable, excluded): "
+                f"{summary.get('metrics_single_drug', 0)}  "
+                f"| Collected total: {summary['metrics_total']}")
     ws["A2"].font = Font(italic=True, color="9CA3AF")
 
     ws["A4"] = "Overall Weighted Ranking"
     ws["A4"].font = Font(bold=True, size=12)
-    hdrs = ["Rank", "Drug", "Weighted Score (0–100)", "Metrics Won"]
+    hdrs = ["Rank", "Drug", "Weighted Score (0–100)", "Metrics Won", "Metrics Compared"]
     for j, h in enumerate(hdrs, 1):
         c = ws.cell(5, j, h)
         c.font = Font(bold=True, color="FFFFFF")
@@ -403,20 +484,33 @@ def _write_comparison_excel(summary: dict, output_path: Path) -> None:
         c.alignment = Alignment(horizontal="center")
 
     n = len(summary["overall_ranking"])
+    ranks = [e["rank"] for e in summary["overall_ranking"]]
+    best_rank, worst_rank = (min(ranks), max(ranks)) if ranks else (None, None)
     for i, entry in enumerate(summary["overall_ranking"], 1):
         ws.cell(5+i, 1, entry["rank"])
         ws.cell(5+i, 2, entry["drug"])
         ws.cell(5+i, 3, entry["weighted_score"])
         ws.cell(5+i, 4, summary["winner_counts"][entry["drug"]])
-        if i == 1:
-            for j in range(1, 5):
+        # A high weighted score built on only a couple of comparable
+        # metrics isn't directly comparable to one built on dozens --
+        # this column discloses that coverage rather than letting the
+        # score alone imply a thoroughness it may not have (see the
+        # metrics_compared_count comment above).
+        ws.cell(5+i, 5, entry.get("metrics_compared", 0))
+        # Highlight every row sharing the top/bottom rank, not just the
+        # first/last by list position -- a tie at rank 1 must not paint
+        # only one of the tied drugs green while its equal-scoring peer
+        # gets no highlight at all (or, worse, gets painted red as
+        # "worst" purely because it sorted later).
+        if entry["rank"] == best_rank:
+            for j in range(1, 6):
                 ws.cell(5+i, j).fill = PatternFill("solid", fgColor="C6EFCE")
                 ws.cell(5+i, j).font = Font(bold=True)
-        elif i == n and n > 1:
-            for j in range(1, 5):
+        elif entry["rank"] == worst_rank and worst_rank != best_rank:
+            for j in range(1, 6):
                 ws.cell(5+i, j).fill = PatternFill("solid", fgColor="FFC7CE")
 
-    for j, w in enumerate([8, 26, 24, 16], 1):
+    for j, w in enumerate([8, 26, 24, 16, 18], 1):
         ws.column_dimensions[get_column_letter(j)].width = w
 
     # Note on weighting
@@ -426,7 +520,7 @@ def _write_comparison_excel(summary: dict, output_path: Path) -> None:
                              for k, v in PRINCIPLE_WEIGHTS.items() if k != "default")
     ws.cell(note_row+1, 1, weight_text).alignment = Alignment(wrap_text=True)
     ws.merge_cells(start_row=note_row+1, start_column=1,
-                    end_row=note_row+1, end_column=4)
+                    end_row=note_row+1, end_column=5)
 
     # ─── Sheet 2: Per-principle matrix ─────────────────────────────────
     ws2 = wb.create_sheet("Per_Principle")
@@ -817,8 +911,17 @@ def _write_cplus_deep_compare_sheet(wb, summary: dict) -> None:
     VERD = {"PASSED":"C6EFCE","MARGINAL":"FFEB9C","FAILED":"FFC7CE",
              "NOT RUN":"D9D9D9","NO DATA":"D9D9D9"}
     ranked = sorted(cplus, key=lambda c: c.get("deep_pct",0), reverse=True)
+    # Same competition-ranking fix as the Overview sheet's overall
+    # ranking: a positional "#{i}" label assigns distinct ordinals to
+    # drugs tied at the same deep_pct purely by stable-sort position,
+    # implying one beat the other when they scored identically.
+    _prev_pct, _prev_rank = None, 0
     for i, e in enumerate(ranked, 5):
-        ws.cell(i, 1, f"#{i-4}").alignment = Alignment(horizontal="center")
+        pct = e.get("deep_pct", 0)
+        if pct != _prev_pct:
+            _prev_rank = i - 4
+        _prev_pct = pct
+        ws.cell(i, 1, f"#{_prev_rank}").alignment = Alignment(horizontal="center")
         ws.cell(i, 2, e["drug"]).font = Font(bold=True)
         ws.cell(i, 3, e.get("top1_dds") or "—")
         v_cell = ws.cell(i, 4, e["deep_verdict"])
