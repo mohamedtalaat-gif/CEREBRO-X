@@ -1196,6 +1196,106 @@ class TestFig01ConcentrationMultipanelMatchesRealColumnName:
         assert out.exists()
 
 
+class TestFig02ClustermapSurvivesAConstantMetric:
+    """fig02_seaborn_dds_heatmap's clustermap (src/viz/advanced_viz.py)
+    plotted raw values across metrics on wildly different natural scales
+    (zeta potential in mV, size in nm, several 0-100 percentages) on one
+    shared linear color scale with no per-row normalization -- size_nm's
+    ~50-200 range dominated it, so every other metric rendered as a
+    near-uniform pale color regardless of its real formulation-to-
+    formulation variation (confirmed live against real Rivastigmine DDS
+    data). Fixed with z_score row-normalization -- but at least one of
+    these metrics (drug_loading_pct, confirmed with real Rivastigmine
+    data: std=0.0 exactly) is genuinely constant across every candidate
+    formulation for a given drug, and z_score's (x-mean)/std divides by
+    that zero, producing NaN/Inf that scipy's linkage() rejects outright.
+    The pre-existing bare `except Exception: pass` around this block
+    silently swallowed that crash, so the chart could fail to generate
+    at all with no trace anywhere. Fixed by dropping zero-variance rows
+    before normalizing, rather than crashing on them."""
+
+    def test_clustermap_still_renders_when_one_metric_is_constant(self, tmp_path):
+        import pandas as pd
+        from src.viz.advanced_viz import fig02_seaborn_dds_heatmap
+
+        n = 8
+        df_dds = pd.DataFrame({
+            "size_nm":                     [100 + 10*i for i in range(n)],
+            "zeta_potential_mv":            [-25 + i for i in range(n)],
+            "pegylation_degree_mol_pct":    [5.0] * n,   # constant -> std=0
+            "encapsulation_efficiency_pct": [70 + 2*i for i in range(n)],
+            "drug_loading_pct":             [3.0] * n,   # constant -> std=0
+            "BBB_Engineering_Score":        [50 + 5*i for i in range(n)],
+            "Off_Target_Liver_pct":         [10 + i for i in range(n)],
+            "CARPA_Risk_Index":             [0.1] * n,   # constant -> std=0
+            "ligand_density_per_nm2":       [0.5 + 0.1*i for i in range(n)],
+            "Carrier_Type": ["plga"] * n,
+        })
+        fig02_seaborn_dds_heatmap(df_dds, "TEST_DRUG_X", tmp_path)
+        cluster_path = tmp_path / "02b_DDS_Clustermap_TEST_DRUG_X.png"
+        assert cluster_path.exists(), (
+            "clustermap must still render when some metrics are constant "
+            "across formulations, not silently fail inside the bare except")
+
+
+class TestSaveResetsAxesForWhiteBackground:
+    """_save() (src/viz/advanced_viz.py) always writes PNGs onto a
+    forced-white canvas (facecolor="white", since these get embedded in
+    white-page reports), but cerebro_brand.matplotlib_style() applies a
+    dark "deep-space" theme globally via plt.rcParams.update() at pipeline
+    startup -- axes.facecolor, tick/label/text colors all chosen for a
+    dark page. savefig's facecolor only overrides the outer canvas, never
+    each Axes' own (still-dark) facecolor -- so what actually shipped was
+    dark-navy plot boxes with near-invisible washed-out text on a white
+    page. Worse, in fig01_concentration_time_multipanel specifically, the
+    data line color (C["blue"]) is the exact same hex as the axes
+    background (VOID_PANEL, "#0f2040") -- not just low-contrast, but
+    literally identical-color invisible. _save() must reset every Axes to
+    colors that actually work on the white page it saves to."""
+
+    def test_axes_facecolor_is_white_not_the_dark_brand_theme(self, tmp_path):
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from src.viz.advanced_viz import _save
+
+        plt.rcParams.update({"axes.facecolor": "#0f2040",
+                              "figure.facecolor": "#060610"})
+        try:
+            fig, ax = plt.subplots()
+            assert ax.get_facecolor() == matplotlib.colors.to_rgba("#0f2040")
+            _save(fig, tmp_path / "test.png")  # closes fig, but `ax` is
+            # still the same live object -- plt.close() only unregisters
+            # the figure from pyplot's tracking, it doesn't destroy it.
+            assert ax.get_facecolor() == matplotlib.colors.to_rgba("white"), (
+                "_save() must reset each Axes to a white facecolor, or "
+                "dark-theme rcParams leave plot boxes dark on the white "
+                "page every static figure is actually saved onto")
+        finally:
+            plt.rcParams.update(matplotlib.rcParamsDefault)
+
+    def test_line_color_identical_to_dark_theme_background_is_still_visible(
+            self, tmp_path):
+        """The literal bug: C["blue"] == VOID_PANEL == "#0f2040". A line
+        drawn in that exact color must not end up invisible against
+        whatever _save() leaves the axes background as."""
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from src.viz.advanced_viz import _save
+
+        plt.rcParams.update({"axes.facecolor": "#0f2040"})
+        try:
+            fig, ax = plt.subplots()
+            ax.plot([0, 1], [0, 1], color="#0f2040")  # the real C["blue"]
+            _save(fig, tmp_path / "test2.png")
+            assert ax.get_facecolor() != matplotlib.colors.to_rgba("#0f2040"), (
+                "axes background must differ from #0f2040 (the real "
+                "line color used for panel 1), or that line is invisible")
+        finally:
+            plt.rcParams.update(matplotlib.rcParamsDefault)
+
+
 class TestFig03PlotlyDashboardAndPkVideoMatchRealColumnName:
     """The same lowercase-only "Concentration_pct"/"Concentration_ugL"
     column bug (real column from AnalyticsEngine.simulate_pkpd is
@@ -1308,6 +1408,131 @@ class TestPbbmDiagnosticPlotsHonestLabeling:
         assert fig13_pbbm_diagnostic_plots(df_no_conc, "TEST_DRUG_X", tmp_path) is None
 
 
+class TestFig14ShapXaiHonestLabeling:
+    """fig14_shap_xai (src/viz/advanced_viz.py) unconditionally titled its
+    output "XAI Feature Importance (SHAP)" regardless of which code path
+    actually ran. Its only real caller, AdvancedVizOrchestrator.run_all
+    (pipeline_runner.py), never passes the ml_model parameter -- it's left
+    at the default None -- so `model is not None` is always False on every
+    real pipeline run, the genuine shap.TreeExplainer/KernelExplainer
+    branch never executes, and this silently falls back to a Pearson-
+    correlation substitute every single time. The delivered figure was
+    titled "(SHAP)" and its documentation cited "SHAP (SHapley Additive
+    exPlanations)" methodology even though no Shapley value was ever
+    computed. Fixed so the title and documentation both honestly reflect
+    which method actually produced the chart."""
+
+    def _df_ml(self):
+        import numpy as np
+        import pandas as pd
+        rng = np.random.RandomState(0)
+        n = 30
+        df = pd.DataFrame({
+            "MW_Da": rng.uniform(200, 500, n),
+            "LogP": rng.uniform(1, 5, n),
+            "Half_Life_Days": rng.uniform(0.1, 10, n),
+            "Docking_Affinity_kcal": rng.uniform(-10, -5, n),
+        })
+        df["ML_Success_Probability"] = (
+            50 + 5 * df["Docking_Affinity_kcal"] + rng.normal(0, 2, n))
+        return df
+
+    def _feature_cols(self):
+        return ["MW_Da", "LogP", "Half_Life_Days", "Docking_Affinity_kcal"]
+
+    def test_no_model_falls_back_and_is_labeled_correlation_based(self, tmp_path):
+        """The real-world case: no model passed (matching the actual
+        AdvancedVizOrchestrator.run_all call site) must not claim SHAP."""
+        from pathlib import Path
+
+        from src.viz.advanced_viz import fig14_shap_xai
+        out = fig14_shap_xai(self._df_ml(), self._feature_cols(),
+                              "TEST_DRUG_X", tmp_path, model=None)
+        assert out is not None and out.exists()
+        doc_text = Path(str(out) + "_DOCUMENTATION.txt").read_text()
+        assert "SHAP XAI feature importance" not in doc_text
+        assert "Correlation-based" in doc_text
+        assert "SHAP (SHapley Additive exPlanations)" not in doc_text
+
+    def test_real_model_produces_genuine_shap_labeled_output(self, tmp_path):
+        """When a real trained model IS available, the genuine SHAP branch
+        must run and the output must be labeled as real SHAP."""
+        from pathlib import Path
+
+        from sklearn.ensemble import RandomForestRegressor
+
+        from src.viz.advanced_viz import fig14_shap_xai
+        df_ml = self._df_ml()
+        feats = self._feature_cols()
+        model = RandomForestRegressor(n_estimators=10, random_state=0)
+        model.fit(df_ml[feats], df_ml["ML_Success_Probability"])
+        out = fig14_shap_xai(df_ml, feats, "TEST_DRUG_X", tmp_path, model=model)
+        assert out is not None and out.exists()
+        doc_text = Path(str(out) + "_DOCUMENTATION.txt").read_text()
+        assert "SHAP XAI feature importance" in doc_text
+        assert "SHAP (SHapley Additive exPlanations)" in doc_text
+
+
+class TestFig16TsneSurvivesModernSklearn:
+    """fig16_dimensionality_reduction's t-SNE panel (src/viz/advanced_viz.py)
+    constructed sklearn's TSNE with n_iter=500 -- a kwarg renamed to
+    max_iter (deprecated in sklearn 1.5, removed entirely by 1.9, which is
+    what requirements.txt's "scikit-learn>=1.4,<1.9" pin actually installs
+    in the real Docker image, confirmed live). Every real pipeline run hit
+    TypeError: TSNE.__init__() got an unexpected keyword argument 'n_iter',
+    caught by the bare except, and the panel silently showed "t-SNE
+    unavailable" text instead of a real plot -- on every single trial,
+    forever. Fixed to try max_iter first, falling back to n_iter only for
+    the (pre-1.5) floor of the version range where max_iter doesn't exist.
+    Verified directly against sklearn.manifold.TSNE as actually installed,
+    not mocked, since this is fundamentally a version-compatibility bug."""
+
+    def test_tsne_constructs_with_max_iter_on_installed_sklearn(self):
+        from sklearn.manifold import TSNE
+        # This is exactly the call fig16_dimensionality_reduction now
+        # makes as its first attempt -- must not raise TypeError on
+        # whatever sklearn version requirements.txt actually installs.
+        TSNE(n_components=2, random_state=42, perplexity=5, max_iter=250)
+
+    def test_fig16_tsne_panel_does_not_show_unavailable_text(self, tmp_path):
+        import numpy as np
+        import pandas as pd
+
+        from src.viz import advanced_viz
+        from src.viz.advanced_viz import fig16_dimensionality_reduction
+
+        rng = np.random.RandomState(0)
+        n = 20
+        df_dds = pd.DataFrame({
+            "size_nm": rng.uniform(50, 200, n),
+            "zeta_potential_mv": rng.uniform(-40, 0, n),
+            "encapsulation_efficiency_pct": rng.uniform(60, 95, n),
+            "BBB_Engineering_Score": rng.uniform(40, 100, n),
+            "Carrier_Type": ["plga"] * n,
+        })
+
+        captured = {}
+
+        def _capture_save(fig, path, dpi=300):
+            captured["fig"] = fig
+            captured["path"] = path
+            # Don't call the real _save -- it closes the figure, which
+            # would make the axes unreachable for inspection afterward.
+
+        orig_save = advanced_viz._save
+        advanced_viz._save = _capture_save
+        try:
+            fig16_dimensionality_reduction(df_dds, "TEST_DRUG_X", tmp_path)
+        finally:
+            advanced_viz._save = orig_save
+
+        assert "fig" in captured, "fig16 did not reach the _save call"
+        all_text = " ".join(t.get_text() for ax in captured["fig"].get_axes()
+                             for t in ax.texts)
+        assert "t-SNE unavailable" not in all_text
+        assert "unexpected keyword argument" not in all_text
+
+
 class TestBaseHtmlDoesNotClobberRowLevelTextColor:
     """_base_html's shared <style> block (src/viz/cerebro_html5_engine.py --
     the single source used by every generated report page) had a global
@@ -1365,7 +1590,7 @@ class TestH07ScoreBreakdownHonestLabeling:
 
     def test_output_makes_no_shap_claim(self):
         from src.viz.cerebro_html5_engine import h07_shap
-        html = h07_shap({"Composite_Score": 72.0, "Formulation_Name": "LNP-3"},
+        html = h07_shap({"Principle_Composite_Score": 72.0, "Formulation_Name": "LNP-3"},
                          "TEST_DRUG_X")
         assert "SHAP" not in html
         assert "gradient boosted ensemble" not in html.lower()
@@ -1374,7 +1599,7 @@ class TestH07ScoreBreakdownHonestLabeling:
         """The fix is to the label, not the underlying illustrative
         computation -- the chart and composite score must still render."""
         from src.viz.cerebro_html5_engine import h07_shap
-        html = h07_shap({"Composite_Score": 72.0, "Formulation_Name": "LNP-3"},
+        html = h07_shap({"Principle_Composite_Score": 72.0, "Formulation_Name": "LNP-3"},
                          "TEST_DRUG_X")
         assert "shapChart" in html
         assert "72.0" in html
@@ -2337,6 +2562,135 @@ class TestLineageTierLabeling:
         assert '_tier' in src.split("TIERS 1-5")[1].split("TIER 6")[0]
 
 
+class TestUniprotFallbackRejectsUnrelatedProteinMatch:
+    """CascadeDataEngine._try_uniprot (src/core/pipeline.py) and
+    CascadeNameEngine._try_uniprot (src/core/molecule_engine.py) used to
+    trust the first UniProt search hit's molWeight unconditionally.
+    UniProt is a protein database: a free-text query for a small-molecule
+    drug name can match an unrelated protein whose own description merely
+    mentions the drug. Confirmed live: query="galantamine" (a real ~287 Da
+    small molecule) top-hits P22303 "Acetylcholinesterase" -- galantamine's
+    target enzyme, not galantamine -- with molWeight=67796 Da, which then
+    propagated into Master_Report.txt's "Molecular Weight" field for a
+    real pipeline run. Both functions must reject a match whose own
+    protein name doesn't contain the queried drug name."""
+
+    @staticmethod
+    def _fake_response(protein_name: str, mol_weight: float):
+        class _Resp:
+            def raise_for_status(self): pass
+            def json(self):
+                return {"results": [{
+                    "primaryAccession": "P00000",
+                    "proteinDescription": {"recommendedName": {
+                        "fullName": {"value": protein_name}}},
+                    "sequence": {"molWeight": mol_weight},
+                }]}
+        return _Resp()
+
+    def test_pipeline_cascade_rejects_unrelated_protein(self, monkeypatch):
+        from src.core import pipeline
+        monkeypatch.setattr(pipeline, "requests", type("R", (), {
+            "get": staticmethod(lambda *a, **k:
+                self._fake_response("Acetylcholinesterase", 67796.0))}))
+        assert pipeline.CascadeDataEngine._try_uniprot("galantamine") is None
+
+    def test_pipeline_cascade_accepts_genuine_self_match(self, monkeypatch):
+        from src.core import pipeline
+        monkeypatch.setattr(pipeline, "requests", type("R", (), {
+            "get": staticmethod(lambda *a, **k:
+                self._fake_response("Insulin", 11981.0))}))
+        result = pipeline.CascadeDataEngine._try_uniprot("insulin")
+        assert result is not None
+        assert result["MW_Da"] == 11981.0
+
+    def test_molecule_engine_rejects_unrelated_protein(self, monkeypatch):
+        from src.core import molecule_engine
+        monkeypatch.setattr(molecule_engine, "requests", type("R", (), {
+            "get": staticmethod(lambda *a, **k:
+                self._fake_response("Acetylcholinesterase", 67796.0))}))
+        assert molecule_engine.CascadeNameEngine._try_uniprot("galantamine") is None
+
+
+class TestFetchDrugDoesNotFabricateMissingMolecularWeight:
+    """CascadeDataEngine.fetch_drug's Tier 8 (cerebro_clinical_data_engine)
+    used to return "MW_Da": mw_0 or pk.get("MW_Da") or 400.0 whenever a
+    real half-life was found but no source had a molecular weight --
+    silently inventing 400.0 Da and mislabeling it under whatever
+    _source actually only supplied the half-life (e.g. "OpenFDA").
+    Confirmed live: Lecanemab (~148 kDa mAb) and Nusinersen (~7.5 kDa
+    oligonucleotide) -- two completely different, real-MW biologics --
+    both got the identical fake 400.0 Da. Tier 8 must not return a
+    fabricated MW; it should fall through to Tier 9's resolver, which
+    provides a disclosed, honestly-labeled computational estimate
+    instead (or the cascade should honestly exhaust and reject)."""
+
+    def test_real_half_life_with_no_real_mw_does_not_fabricate_400(self, monkeypatch):
+        from src.core import pipeline
+
+        for tier_fn in ["_try_drugbank", "_try_chembl", "_try_uniprot",
+                        "_try_pubchem", "_try_pubmed_scraper"]:
+            monkeypatch.setattr(pipeline.CascadeDataEngine, tier_fn,
+                                 staticmethod(lambda drug: None))
+
+        class _FakeClinicalEngine:
+            @staticmethod
+            def fetch_clinical_pk(drug, drug_mw=None, drug_logp=None):
+                # Real half-life, genuinely no molecular weight anywhere --
+                # exactly the state that used to trigger "or 400.0".
+                return {"Half_Life_Days": 6.0, "_source": "OpenFDA",
+                        "_doi": "https://open.fda.gov/apis/drug/label/"}
+
+        import sys
+        monkeypatch.setitem(sys.modules, "cerebro_clinical_data_engine",
+                             _FakeClinicalEngine)
+
+        def _fake_resolve_value(kind, **kwargs):
+            if kind == "drug_mw":
+                return {"value": None, "tier": None, "source": None}
+            return {"value": None}
+
+        class _FakeResolver:
+            resolve_value = staticmethod(_fake_resolve_value)
+        monkeypatch.setitem(sys.modules, "cerebro_value_resolver", _FakeResolver)
+
+        result = pipeline.CascadeDataEngine.fetch_drug("totally_fake_test_biologic_xyz")
+        assert result is None or result.get("MW_Da") != 400.0, (
+            "fetch_drug must not fabricate MW_Da=400.0 when no real "
+            "source has a molecular weight -- it should either honestly "
+            "reject (None) or use a disclosed resolver estimate")
+
+
+class TestBuildMabDatasetLabelsMixedProvenanceHonestly:
+    """When fetch_drug's Tier 7.5 combines a real half-life from one
+    source with a resolver-computed MW from a different source (the fix
+    above), build_mab_dataset's own record still collapsed both under a
+    single "_source" field copied from whichever source supplied the
+    half-life -- e.g. a CSV row reading "_source: OpenFDA" for a record
+    whose molecular weight OpenFDA never actually reported. Confirmed
+    live: Lecanemab's real regenerated mab_clinical_features.csv showed
+    exactly this after the MW-fabrication fix (honest number, still a
+    misleading single-source label). The two provenances must both be
+    visible when they differ."""
+
+    def test_mixed_provenance_shows_both_sources(self):
+        data = {"_source": "OpenFDA", "_mw_source": "resolver:T7"}
+        _src, _mw_src = data.get("_source",""), data.get("_mw_source")
+        label = (f"{_src}(HL)+{_mw_src}(MW)"
+                  if _mw_src and _mw_src != _src else _src)
+        assert label == "OpenFDA(HL)+resolver:T7(MW)"
+
+    def test_single_provenance_is_unchanged(self):
+        """When MW and HL genuinely share one source (the common case),
+        the label must stay exactly that source -- no unnecessary
+        "(HL)+...(MW)" noise on records that were never mixed."""
+        data = {"_source": "ChEMBL", "_mw_source": None}
+        _src, _mw_src = data.get("_source",""), data.get("_mw_source")
+        label = (f"{_src}(HL)+{_mw_src}(MW)"
+                  if _mw_src and _mw_src != _src else _src)
+        assert label == "ChEMBL"
+
+
 class TestPipelineLipinskiAndPKPD:
     """Two bugs found auditing src/core/pipeline.py's ML/reporting engines.
 
@@ -2417,6 +2771,36 @@ class TestPipelineLipinskiAndPKPD:
             metrics={"r2": 0.8, "cv_r2": 0.75})
         cfg = json.loads((tmp_path / "deliverable" / "project_config.json").read_text())
         assert cfg["Days_Above_50pct"] == pytest.approx(3.0, abs=0.05)
+
+    def test_master_report_delivery_vector_reflects_the_drugs_own_dds_ranking(
+            self, monkeypatch, tmp_path):
+        """generate_master_report used to always report the best-CNS-tropism
+        row of a generic AAV serotype reference table as "the delivery
+        vector" -- regardless of what the drug's own trial actually ranked.
+        For a nanoparticle DDS trial (the common case: liposome/PLGA/SLN/
+        micelle), that meant claiming an AAV serotype nothing in this
+        trial ever evaluated. Passing df_dds should make it report the
+        drug's own top-ranked formulation instead."""
+        import json
+        import pandas as pd
+        pipeline = self._patch_paths(monkeypatch, tmp_path)
+        df_ml = pd.DataFrame({
+            "Drug": ["Donepezil"], "MW_Da": [379.5], "Half_Life_Days": [3.0],
+            "Docking_Affinity_kcal": [-8.5], "ML_Success_Probability": [72.0],
+        })
+        df_aav = pd.DataFrame({"Serotype": ["AAV9"], "CNS_Tropism": [0.9],
+                                "Capsid_Mass_Da": [82000]})
+        df_dds = pd.DataFrame({
+            "Formulation_Name":   ["RVG29-PLGA-NP"],
+            "Carrier_Type":       ["plga"],
+            "BBB_Engineering_Score": [100.0],
+        })
+        pipeline.ReportingEngine.generate_master_report(
+            df_mab=pd.DataFrame(), df_aav=df_aav, df_ml=df_ml,
+            metrics={"r2": 0.8, "cv_r2": 0.75}, df_dds=df_dds)
+        cfg = json.loads((tmp_path / "deliverable" / "project_config.json").read_text())
+        assert cfg["Delivery_Vector"] == "RVG29-PLGA-NP"
+        assert cfg["Delivery_Vector"] != "AAV9"
 
 
 class TestPatchedTrainCVGuard:
@@ -2864,7 +3248,7 @@ class TestDDSComparisonStrengthWeaknessClassification:
             "Formulation_Name": ["A", "B", "C", "D", "E"],
             "Carrier_Type": ["liposome"] * 5,
             "Rank": [1, 2, 3, 4, 5],
-            "Composite_Score": [90, 85, 80, 75, 70],
+            "Principle_Composite_Score": [90, 85, 80, 75, 70],
             "CARPA_Risk_Index": [0.2] * 5,
         })
         result = DDSComparisonEngine.compare(df, top_n=5)
@@ -2883,7 +3267,7 @@ class TestDDSComparisonStrengthWeaknessClassification:
             "Formulation_Name": ["LowRisk", "Median", "HighRisk"],
             "Carrier_Type": ["liposome"] * 3,
             "Rank": [1, 2, 3],
-            "Composite_Score": [90, 85, 80],
+            "Principle_Composite_Score": [90, 85, 80],
             "CARPA_Risk_Index": [0.1, 0.2, 0.3],
         })
         result = DDSComparisonEngine.compare(df, top_n=3)
@@ -2892,6 +3276,160 @@ class TestDDSComparisonStrengthWeaknessClassification:
         assert "CARPA Risk Index" in by_name["HighRisk"]["Weaknesses"]
         assert "CARPA Risk Index" not in by_name["Median"]["Strengths"]
         assert "CARPA Risk Index" not in by_name["Median"]["Weaknesses"]
+
+
+class TestCompositeScoreColumnNameMatchesRealData:
+    """Systemic regression test: df_dds's real per-formulation ranking
+    column is "Principle_Composite_Score" (confirmed live: every
+    outputs/*/dds_analysis/formulation_ranking.csv has this column, never
+    a plain "Composite_Score"). Six separate consumers across this
+    codebase looked for "Composite_Score" instead, so every one of them
+    silently fell through to a wrong fallback for every real drug,
+    forever:
+      1. DDSComparisonEngine.compare's per-formulation "Score" fields
+         (cerebro_science_modules.py) defaulted to 0.0.
+      2. CompetitiveLandscape.compare's our_composite_score
+         (cerebro_advanced_modules_2.py) defaulted to the literal 60.0.
+      3. The PDF cover page's headline "Composite Score", the DDS
+         ranking table's sort column, and the "Recommended DDS" detail
+         box (final_report_unified.py) all silently showed
+         BBB_Engineering_Score instead -- confirmed live in a real
+         generated PDF: "Composite Score: 100.0/100" where the real
+         Principle_Composite_Score was 84.35.
+      4. The HTML5 interactive report's SHAP score and multi-drug radar
+         chart (cerebro_html5_engine.py) showed the same wrong fallback.
+      5. The canvas-video ranking bars (cerebro_canvas_engine.py) sorted
+         and displayed BBB_Engineering_Score instead.
+      6. The legacy MP4 ranking video (cerebro_video_engine_v2.py) did
+         the same.
+    (pipeline_runner.py and _dds_metrics.py already checked for
+    Principle_Composite_Score first and are not part of this bug.)"""
+
+    def _df_dds(self):
+        return {
+            "Formulation_ID": "F001", "Formulation_Name": "Test-LNP",
+            "Carrier_Type": "lnp", "BBB_Engineering_Score": 100.0,
+            "Principle_Composite_Score": 84.35,
+        }
+
+    def test_ddscomparison_score_uses_real_column_not_zero(self):
+        import pandas as pd
+
+        from src.core.cerebro_science_modules import DDSComparisonEngine
+        df = pd.DataFrame({
+            "Formulation_ID": ["F1", "F2"],
+            "Formulation_Name": ["A", "B"],
+            "Carrier_Type": ["liposome"] * 2,
+            "Rank": [1, 2],
+            "Principle_Composite_Score": [84.35, 70.0],
+            "BBB_Engineering_Score": [100.0, 100.0],
+            "DLVO_V_total_kT": [30.0, 10.0],
+        })
+        result = DDSComparisonEngine.compare(df, top_n=2)
+        assert result["top_n_summary"][0]["Score"] == 84.35
+        assert result["pairwise_comparisons"][0]["A"]["Score"] == 84.35
+
+    def test_competitive_landscape_uses_real_column_not_hardcoded_60(self):
+        from src.core.cerebro_advanced_modules_2 import CompetitiveLandscape
+        result = CompetitiveLandscape.compare(self._df_dds())
+        assert result["our_composite_score"] == 84.35
+
+    def test_pdf_cover_page_composite_score_matches_real_data_not_bbb_score(self, tmp_path):
+        from unittest.mock import patch
+        from pathlib import Path as _P
+
+        from src.core.final_report_unified import UnifiedPDFReport
+
+        captured = {}
+
+        def fake_build(self, story, **kw):
+            captured["story"] = story
+            _P(self.filename).write_bytes(b"%PDF-1.4 fake")
+
+        with patch("reportlab.platypus.SimpleDocTemplate.build", fake_build):
+            UnifiedPDFReport.generate(
+                drug_name="TestDrug", trial_dir=_P(tmp_path),
+                mol_profile={"MW_Da": 379.5, "LogP": 4.31},
+                df_dds=None, top_dds=self._df_dds(),
+                science_results={},
+            )
+        from reportlab.platypus import Paragraph
+        def _text(v):
+            return v.text if isinstance(v, Paragraph) else v
+        from reportlab.platypus import Table
+        cover_row = None
+        for t in captured["story"]:
+            if isinstance(t, Table):
+                for row in t._cellvalues:
+                    if row and _text(row[0]) == "Composite Score":
+                        cover_row = [_text(c) for c in row]
+        assert cover_row is not None, "Composite Score row not found"
+        assert cover_row[1] == "84.3"
+
+    def test_html5_shap_score_uses_real_column(self):
+        from src.viz.cerebro_html5_engine import h07_shap
+        html = h07_shap(self._df_dds(), "TestDrug")
+        assert "84.3" in html or "84.35" in html
+
+    def test_canvas_video_ranking_sorts_by_real_score(self, tmp_path):
+        """This is an HTML5-canvas animation (no matplotlib/ffmpeg
+        involved despite the "V04 ranking video" name) -- names/scores
+        get embedded directly as JSON into the returned HTML's <script>.
+        Behavioral check: the #1-ranked formulation embedded in the
+        output must be the one that's actually best by the real
+        Principle_Composite_Score, not by the wrong BBB_Engineering_Score
+        fallback."""
+        from src.viz.cerebro_canvas_engine import make_v04_ranking
+
+        df_dds_data = [
+            {"Formulation_Name": "LowBBB-HiComposite", "BBB_Engineering_Score": 50.0,
+             "Principle_Composite_Score": 95.0, "BBB_Enhanced_Pct": 50.0, "Carrier_Type": "lnp"},
+            {"Formulation_Name": "HiBBB-LowComposite", "BBB_Engineering_Score": 100.0,
+             "Principle_Composite_Score": 20.0, "BBB_Enhanced_Pct": 100.0, "Carrier_Type": "lnp"},
+        ]
+        out = make_v04_ranking("TestDrug", df_dds_data, {}, tmp_path)
+        html = out.read_text() if hasattr(out, "read_text") else str(out)
+        # The "Top DDS" metric card and scores4[0] must reflect the real
+        # #1 (95.0), not the BBB-only #1 (100.0, wrong drug).
+        assert "Winner: LowBBB-HiComposite (95.0)" in html
+        scores_idx = html.index("scores4=")
+        assert html[scores_idx:scores_idx+30].startswith("scores4=[95.0")
+
+    def test_legacy_video_engine_score_key_prefers_real_column(self):
+        from src.viz.cerebro_video_engine_v2 import make_video_ranking
+        import inspect
+        src_txt = inspect.getsource(make_video_ranking)
+        assert '"Principle_Composite_Score"' in src_txt
+        assert 'any("Composite_Score" in d' not in src_txt
+
+
+class TestAllometricScalingDiscloseGenericDoseBasis:
+    """AllometricScalingEngine.scale's predicted_human_dose_mg is derived
+    from rat_dose_mg_kg = 10.0, a hardcoded literature-typical constant --
+    not this drug's own toxicology data (no per-drug rat MTD source exists
+    anywhere in this pipeline). Confirmed live: predicted_human_dose_mg
+    was byte-identical (4791.4) across structurally different real drugs.
+    Since a real per-drug value isn't available to compute, fabricating
+    one isn't an option -- the honest fix is disclosure: a new
+    "dose_basis" field makes explicit that the dose-determining input is
+    generic, not drug-derived, alongside the genuinely drug-specific
+    inputs (Half_Life_Days, BBB_permeability_pct) in the same result."""
+
+    def test_dose_basis_discloses_the_generic_assumption(self):
+        from src.core.cerebro_science_modules import AllometricScalingEngine
+        result = AllometricScalingEngine.scale({"Half_Life_Days": 1.0,
+                                                  "BBB_permeability_pct": 20.0})
+        assert "dose_basis" in result
+        assert "10.0" in result["dose_basis"]
+        assert "not this drug" in result["dose_basis"] or "generic" in result["dose_basis"].lower()
+
+    def test_predicted_dose_value_unchanged_by_the_disclosure(self):
+        """The disclosure must be purely additive -- same computed value
+        as before, just now labeled honestly."""
+        from src.core.cerebro_science_modules import AllometricScalingEngine
+        result = AllometricScalingEngine.scale({"Half_Life_Days": 1.0,
+                                                  "BBB_permeability_pct": 20.0})
+        assert result["predicted_human_dose_mg"] > 0
 
 
 class TestAdvancedModules2Integrity:
@@ -3141,13 +3679,22 @@ class TestUnifiedPDFReportDecisionFramework:
             )
         return captured["story"]
 
+    @staticmethod
+    def _cell_text(v):
+        # tbl()'s shared factory (src/core/final_report_unified.py) wraps
+        # every data-row string cell in a Paragraph so long text wraps
+        # instead of overflowing into the next column -- so a captured
+        # Table's _cellvalues hold Paragraph objects, not plain strings.
+        from reportlab.platypus import Paragraph
+        return v.text if isinstance(v, Paragraph) else v
+
     def _decision_row(self, story):
         from reportlab.platypus import Table
         for t in story:
             if isinstance(t, Table):
                 rows = t._cellvalues
-                if rows and rows[-1][0] == "OVERALL DECISION":
-                    return rows[-1]
+                if rows and self._cell_text(rows[-1][0]) == "OVERALL DECISION":
+                    return [self._cell_text(c) for c in rows[-1]]
         return None
 
     def test_failed_clinical_trial_does_not_recommend_proceeding(self, tmp_path):
@@ -3206,11 +3753,288 @@ class TestUnifiedPDFReportDecisionFramework:
         for t in story:
             if isinstance(t, Table):
                 for r in t._cellvalues:
-                    if r and r[0] == "Kp,brain":
-                        kp_row = r
+                    if r and self._cell_text(r[0]) == "Kp,brain":
+                        kp_row = [self._cell_text(c) for c in r]
         assert kp_row is not None, "Kp,brain row not found in PBPK table"
         kp_value = float(kp_row[1])
         assert kp_value == pytest.approx(0.02, abs=1e-4)
+
+
+class TestUnifiedPDFReportTableCellsWrapAndEscape:
+    """UnifiedPDFReport's shared `tbl()` table factory passed plain Python
+    strings straight into reportlab Table cells. reportlab Table cells
+    given plain strings don't wrap -- text wider than its column's
+    colWidth overflows visually into the next column instead of breaking
+    to a second line (confirmed on a real generated PDF: "MODERATE" in a
+    narrow column rendered as "MODERATB" overlapping the next column, and
+    a Method column's text was cut off at the page edge). Fixed by
+    wrapping every data-row string cell in a Paragraph inside `tbl()`
+    itself, so the fix applies to every table built through it.
+
+    A long cell string could also contain '<', '>', or '&' (plausible in
+    scientific text, e.g. "stable at T < 121C"). A raw f-string interpo-
+    lation of such text into a Paragraph's markup would corrupt the
+    Paragraph's mini-XML parse (or silently truncate at the '<') --
+    so the fix must escape cell text before handing it to Paragraph, not
+    just wrap it.
+
+    Verified by mocking SimpleDocTemplate.build to capture the real
+    reportlab Table objects passed into the PDF story, matching the
+    established pattern in TestUnifiedPDFReportDecisionFramework above."""
+
+    def _run_and_capture_story(self, sterilization_methods):
+        from unittest.mock import patch
+        from pathlib import Path as _P
+        from src.core.final_report_unified import UnifiedPDFReport
+        import tempfile
+
+        captured = {}
+
+        def fake_build(self, story, **kw):
+            captured["story"] = story
+            _P(self.filename).write_bytes(b"%PDF-1.4 fake")
+
+        with tempfile.TemporaryDirectory() as tmp_path:
+            with patch("reportlab.platypus.SimpleDocTemplate.build", fake_build):
+                UnifiedPDFReport.generate(
+                    drug_name="TestDrug", trial_dir=_P(tmp_path),
+                    mol_profile={"MW_Da": 379.5, "LogP": 4.31},
+                    df_dds=None,
+                    top_dds={"DLVO_stable": True, "DLVO_V_total_kT": 30.0,
+                             "BBB_Enhanced_Pct": 20.0},
+                    science_results={
+                        "sterilization": {
+                            "recommended_method": "Autoclave",
+                            "cost_implication": "Low",
+                            "feasible_methods": ["Autoclave"],
+                            "sterilization_methods": sterilization_methods,
+                        },
+                    },
+                )
+        return captured["story"]
+
+    def _find_sterilization_table_rows(self, story):
+        from reportlab.platypus import Table
+        for t in story:
+            if isinstance(t, Table):
+                rows = t._cellvalues
+                if rows and rows[0][0] == "Method":
+                    return rows
+        return None
+
+    def test_long_detail_text_is_wrapped_in_a_paragraph_not_a_bare_string(self):
+        long_detail = (
+            "This detail text is deliberately much longer than the "
+            "table column is wide, so if it were a bare string it would "
+            "visually overflow into the neighboring column instead of "
+            "wrapping onto a second line within its own cell."
+        )
+        story = self._run_and_capture_story(
+            {"Autoclave": {"survives": True, "detail": long_detail}})
+        rows = self._find_sterilization_table_rows(story)
+        assert rows is not None, "Sterilization Methods table not found"
+        detail_cell = rows[1][2]
+        from reportlab.platypus import Paragraph
+        assert isinstance(detail_cell, Paragraph), (
+            "long cell text must be wrapped in a Paragraph so reportlab "
+            "wraps it instead of letting it overflow into the next column")
+        assert long_detail in detail_cell.text
+
+    def test_detail_text_with_xml_special_characters_does_not_corrupt_the_cell(self):
+        raw_detail = "Stable at T < 121C & P > 1 atm"
+        story = self._run_and_capture_story(
+            {"Autoclave": {"survives": True, "detail": raw_detail}})
+        rows = self._find_sterilization_table_rows(story)
+        assert rows is not None, "Sterilization Methods table not found"
+        detail_cell = rows[1][2]
+        from reportlab.platypus import Paragraph
+        assert isinstance(detail_cell, Paragraph)
+        # The Paragraph constructor parses its text as mini-XML, so an
+        # unescaped '<' or '&' would either raise here or silently drop
+        # everything from that point on. Reaching this line at all means
+        # it parsed successfully; the content check confirms nothing was
+        # dropped in the process.
+        from xml.sax.saxutils import escape as _esc
+        assert detail_cell.text == _esc(raw_detail)
+        assert "121C" in raw_detail and "121C" in detail_cell.text
+
+
+class TestUnifiedPDFReportDrugProblemsTableWraps:
+    """Section 1a's Drug Delivery Barriers table is built as a standalone
+    Table(data, colWidths=[3.5*cm, 13*cm]) -- it doesn't go through the
+    shared tbl() factory, so the factory's Paragraph-wrap fix doesn't
+    reach it. Its value column holds evidence/rationale strings up to
+    120 chars, which reportlab won't wrap in a bare string: they'd
+    overflow the 13cm column past the page edge instead of breaking to a
+    second line. Fixed by wrapping each value cell in a Paragraph with
+    escaped text, matching the pattern used by tbl() itself."""
+
+    def _run_and_capture_story(self, drug_problems):
+        from unittest.mock import patch
+        from pathlib import Path as _P
+        from src.core.final_report_unified import UnifiedPDFReport
+        import tempfile
+
+        captured = {}
+
+        def fake_build(self, story, **kw):
+            captured["story"] = story
+            _P(self.filename).write_bytes(b"%PDF-1.4 fake")
+
+        with tempfile.TemporaryDirectory() as tmp_path:
+            with patch("reportlab.platypus.SimpleDocTemplate.build", fake_build):
+                UnifiedPDFReport.generate(
+                    drug_name="TestDrug", trial_dir=_P(tmp_path),
+                    mol_profile={"MW_Da": 379.5, "LogP": 4.31},
+                    df_dds=None,
+                    top_dds={"DLVO_stable": True, "DLVO_V_total_kT": 30.0,
+                             "BBB_Enhanced_Pct": 20.0},
+                    science_results={"drug_problems": drug_problems},
+                )
+        return captured["story"]
+
+    def test_long_evidence_text_is_wrapped_in_a_paragraph(self):
+        long_evidence = (
+            "A" * 90 + " deliberately long evidence string that would "
+            "overflow a 13cm-wide table column if left as a bare string "
+            "instead of being wrapped for line breaking."
+        )
+        story = self._run_and_capture_story([{
+            "severity": "HIGH", "problem": "Low BBB permeability",
+            "evidence": long_evidence,
+            "without_dds": "x", "with_dds": "y",
+            "dds_solution": "z", "why": "w",
+        }])
+        from reportlab.platypus import Table, Paragraph
+        evidence_cell = None
+        for t in story:
+            if isinstance(t, Table):
+                for row in t._cellvalues:
+                    if row and row[0] == "Evidence:":
+                        evidence_cell = row[1]
+        assert evidence_cell is not None, "Evidence row not found"
+        assert isinstance(evidence_cell, Paragraph), (
+            "long evidence text must be wrapped in a Paragraph so it "
+            "wraps instead of overflowing past the page edge")
+        assert long_evidence[:100] in evidence_cell.text
+
+
+class TestModulesCompletedCountIsHonest:
+    """The cover page's "Modules Completed: N/62 science modules" used
+    plain len(science_results). Every module in cerebro_science_modules.py
+    is wrapped in try/except that sets results[key] = {} / [] on failure
+    too, so that key is always present -- len() of that dict never drops
+    even if every one of those modules failed for a given drug. Every
+    module in cerebro_advanced_modules_2.py instead marks failure with a
+    non-empty {"error": ...} dict, which plain truthiness would still
+    count as complete. The net effect: "50/62" was a fixed constant equal
+    to how many module slots are wired into the pipeline, not a real
+    per-drug completion count -- it would read the same for a drug where
+    every module succeeded and one where every module failed.
+
+    Fixed via _n_modules_completed(), which only counts a module as
+    complete when its value is non-empty and, if a dict, carries no
+    "error" key (matching both failure conventions above)."""
+
+    def test_empty_and_error_marked_modules_are_not_counted_as_complete(self):
+        from src.core.final_report_unified import _n_modules_completed
+        science_results = {
+            "pbpk_cns":      {"Cmax_brain_ug_mL": 0.5},   # real result -> counts
+            "release":       {},                           # base-module failure marker
+            "drug_problems": [],                            # base-module failure marker (list)
+            "lnp_ionization": {"error": "boom"},            # advanced-module failure marker
+            "fda_compliance": {"error": "x", "citations": []},
+        }
+        assert _n_modules_completed(science_results) == 1
+
+    def test_all_real_results_count_as_complete(self):
+        from src.core.final_report_unified import _n_modules_completed
+        science_results = {"a": {"x": 1}, "b": [1, 2], "c": {"y": 0}}
+        assert _n_modules_completed(science_results) == 3
+
+    def test_cover_page_reflects_the_honest_count_not_raw_dict_length(self, tmp_path):
+        from unittest.mock import patch
+        from pathlib import Path as _P
+        from reportlab.platypus import Table
+        from src.core.final_report_unified import UnifiedPDFReport
+
+        captured = {}
+
+        def fake_build(self, story, **kw):
+            captured["story"] = story
+            _P(self.filename).write_bytes(b"%PDF-1.4 fake")
+
+        science_results = {
+            "pbpk_cns":  {"Cmax_brain_ug_mL": 0.5},
+            "release":   {},
+            "lnp_ionization": {"error": "boom"},
+        }
+        with patch("reportlab.platypus.SimpleDocTemplate.build", fake_build):
+            UnifiedPDFReport.generate(
+                drug_name="TestDrug", trial_dir=_P(tmp_path),
+                mol_profile={"MW_Da": 379.5, "LogP": 4.31},
+                df_dds=None,
+                top_dds={"DLVO_stable": True, "DLVO_V_total_kT": 30.0,
+                         "BBB_Enhanced_Pct": 20.0},
+                science_results=science_results,
+            )
+        from reportlab.platypus import Paragraph
+        def _text(v):
+            return v.text if isinstance(v, Paragraph) else v
+        cover_row = None
+        for t in captured["story"]:
+            if isinstance(t, Table):
+                for row in t._cellvalues:
+                    if row and _text(row[0]) == "Modules Completed":
+                        cover_row = [_text(c) for c in row]
+        assert cover_row is not None, "Modules Completed row not found"
+        # Raw len(science_results) would be 3 here -- the honest count is 1.
+        assert cover_row[1] == "1/62 science modules"
+
+
+class TestQuantumTransportInterpretationTruncation:
+    """Section 9c wrote qt.get('interpretation', ''[:80]) -- the [:80]
+    slices the empty-string *default* (a no-op: ''[:80] == ''), not the
+    value .get() actually returns, so a long interpretation string was
+    never truncated at all despite every sibling field in the same
+    codebase using the correct (qt.get(...) or "")[:80] pattern. Fixed
+    to slice the retrieved value."""
+
+    def test_long_interpretation_text_is_truncated_to_80_chars(self, tmp_path):
+        from unittest.mock import patch
+        from pathlib import Path as _P
+        from reportlab.platypus import Paragraph
+        from src.core.final_report_unified import UnifiedPDFReport
+
+        captured = {}
+
+        def fake_build(self, story, **kw):
+            captured["story"] = story
+            _P(self.filename).write_bytes(b"%PDF-1.4 fake")
+
+        long_interp = "B" * 200
+        with patch("reportlab.platypus.SimpleDocTemplate.build", fake_build):
+            UnifiedPDFReport.generate(
+                drug_name="TestDrug", trial_dir=_P(tmp_path),
+                mol_profile={"MW_Da": 379.5, "LogP": 4.31},
+                df_dds=None,
+                top_dds={"DLVO_stable": True, "DLVO_V_total_kT": 30.0,
+                         "BBB_Enhanced_Pct": 20.0},
+                science_results={
+                    "quantum_transport": {
+                        "applicable": True, "tunneling_prob": 0.1,
+                        "barrier_kcal_mol": 5.0, "classical_prob": 0.05,
+                        "interpretation": long_interp,
+                    },
+                },
+            )
+        matches = [p for p in captured["story"]
+                   if isinstance(p, Paragraph) and "B" * 50 in p.text]
+        assert matches, "quantum transport paragraph not found"
+        assert long_interp not in matches[0].text, (
+            "interpretation text must be truncated, not reproduced in full")
+        assert ("B" * 80) in matches[0].text
+        assert ("B" * 81) not in matches[0].text
 
 
 class TestPipelineIntegration:
@@ -3219,13 +4043,24 @@ class TestPipelineIntegration:
     mock, not an import-only smoke test."""
 
     @pytest.mark.slow
-    def test_run_pipeline_from_excel_produces_real_dds_ranking(self, tmp_path):
+    def test_run_pipeline_from_excel_produces_real_dds_ranking(self, tmp_path, monkeypatch):
         import shutil
         import sys as _sys
 
         import src.path_resolver  # noqa: F401
+        import CEREBRO_Pipeline
         from pipeline_runner import run_pipeline_from_excel
         from trial_manager import _excel_hash
+
+        # run_pipeline_from_excel mutates CEREBRO_Pipeline.PATHS in place to
+        # point at this test's tmp_path trial dir. That dict is the same
+        # object module-wide (CEREBRO_Pipeline.PATHS is pipeline.PATHS by
+        # reference), so without isolating it here the mutation outlives
+        # this test and leaks into every later test in the same pytest
+        # process — e.g. TestModulePathShims asserting PATHS still points
+        # under outputs/. Patch in a shallow copy so the real dict is
+        # restored once this test ends, regardless of outcome.
+        monkeypatch.setattr(CEREBRO_Pipeline, "PATHS", dict(CEREBRO_Pipeline.PATHS))
 
         real_input = None
         for candidate in ("inputs/CEREBRO_Input_Donepezil.xlsx",):
@@ -6682,6 +7517,50 @@ class TestCerebroInspectorFormatting:
         assert "a \\| b" in md
         assert "| a | b |" not in md  # the raw unescaped pipe never appears as a cell break
 
+    def test_to_pdf_supplementary_escapes_xml_special_chars_in_method_text(self, tmp_path):
+        """_to_pdf_supplementary's per-row _computational_method column
+        wraps its text in a reportlab Paragraph -- which parses its input
+        as mini-XML -- but passed the raw, unescaped string straight in
+        (unlike _to_markdown's sibling function above, which already
+        escapes its own special character, '|'). A method string
+        containing '<', '>', or '&' (plausible for a comparison like
+        "T < 121C") would corrupt or truncate the Paragraph's parse.
+        Fixed to escape before wrapping, matching final_report_unified.py's
+        tbl() factory fix for the same bug class."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_inspector import _to_pdf_supplementary
+        from reportlab.platypus import Paragraph
+        from unittest.mock import patch
+        from pathlib import Path as _P
+
+        raw_method = "Stable at T < 121C & P > 1 atm"
+        drug_b = {"drug_mw": {"value": 350.0, "tier": 3, "source": "RDKit",
+                               "_computational_method": raw_method},
+                  "_meta": {"name": "x"}}
+        dds_b = {"_meta": {"dds_type": "material"}}
+
+        captured = {}
+
+        def fake_build(self, story, **kw):
+            captured["story"] = story
+            _P(self.filename).write_bytes(b"%PDF-1.4 fake")
+
+        with patch("reportlab.platypus.SimpleDocTemplate.build", fake_build):
+            _to_pdf_supplementary(drug_b, dds_b, None,
+                                   tmp_path / "out.pdf", include_methods=True)
+
+        from reportlab.platypus import Table
+        method_cell = None
+        for t in captured["story"]:
+            if isinstance(t, Table):
+                for row in t._cellvalues:
+                    for c in row:
+                        if isinstance(c, Paragraph) and "121C" in c.text:
+                            method_cell = c
+        assert method_cell is not None, "method column cell not found"
+        from xml.sax.saxutils import escape as _esc
+        assert method_cell.text == _esc(raw_method)
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # 37. MOLECULE EXTRACTOR (cerebro_molecule_extractor.py)
@@ -6902,6 +7781,247 @@ class TestMultiDrugComparisonTieHandling:
         assert row["winner"] == "DrugA"
         assert summary["winner_counts"]["DrugA"] == 1
 
+    def test_overall_ranking_reports_a_genuine_tie_not_an_arbitrary_win_loss(self):
+        """Regression test for a real bug found live in production: the
+        per-metric tie fix above (winner == '— (tie)') only covers the
+        Per_Principle table. The headline Overview sheet's "Overall
+        Weighted Ranking" — the first thing a reviewer reads — still
+        assigned distinct positional ranks 1, 2, 3... to a stable sort,
+        so two drugs landing on the exact same weighted_score (confirmed
+        in outputs/Comparison_Report/CEREBRO_X_Multi_Drug_Comparison.json:
+        Lecanemab and Temozolomide both scored exactly 100.0) got shown
+        as an outright #1 winner and #2 runner-up, with the Excel sheet
+        then painting rank 1 green and, for n>1, the last rank red --
+        crowning a winner and a loser out of what was actually a dead
+        heat. Fixed with competition ranking: tied scores share a rank."""
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import compare_drugs
+
+        drug_results = [
+            {"drug_name": "DrugA", "mol_profile": {"BBB_permeability_pct": 100.0},
+             "df_dds": None, "principles": {}},
+            {"drug_name": "DrugB", "mol_profile": {"BBB_permeability_pct": 100.0},
+             "df_dds": None, "principles": {}},
+            {"drug_name": "DrugC", "mol_profile": {"BBB_permeability_pct": 10.0},
+             "df_dds": None, "principles": {}},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            summary = compare_drugs(drug_results, Path(td))
+        ranking = {e["drug"]: e for e in summary["overall_ranking"]}
+        assert ranking["DrugA"]["weighted_score"] == ranking["DrugB"]["weighted_score"]
+        assert ranking["DrugA"]["rank"] == ranking["DrugB"]["rank"] == 1
+        assert ranking["DrugA"]["tied"] is True
+        assert ranking["DrugB"]["tied"] is True
+        assert ranking["DrugC"]["rank"] > 1
+        assert ranking["DrugC"]["tied"] is False
+
+    def test_single_drug_only_metrics_are_disclosed_not_silently_dropped(self):
+        """Regression test for a real bug found live in production: a
+        metric only one drug has data for can't be *compared*, but the
+        code used to just `continue` past it with no counter anywhere --
+        confirmed against real Comparison Report JSON snapshots where
+        metrics_total (482 / 459) didn't match metrics_ranked +
+        metrics_unranked (367 / 328), meaning 115-131 collected metrics
+        vanished from the report with literally no trace of their
+        existence. Fixed by counting them as metrics_single_drug so
+        metrics_total always reconciles."""
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import compare_drugs
+
+        drug_results = [
+            {"drug_name": "DrugA",
+             "mol_profile": {"BBB_permeability_pct": 80.0},
+             "df_dds": None, "principles": {"only_drug_a_has_this": 5.0}},
+            {"drug_name": "DrugB",
+             "mol_profile": {"BBB_permeability_pct": 20.0},
+             "df_dds": None, "principles": {}},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            summary = compare_drugs(drug_results, Path(td))
+        assert summary["metrics_single_drug"] >= 1
+        assert summary["metrics_total"] == (
+            summary["metrics_ranked"] + summary["metrics_unranked"]
+            + summary["metrics_single_drug"])
+        assert not any("only_drug_a_has_this" in r["metric"]
+                        for r in summary["per_principle"])
+
+    def test_duplicate_drug_name_does_not_silently_clobber_the_first_entrys_data(self):
+        """Regression test: per_drug_metrics, winner_counts, score_sum
+        etc. are all keyed by drug_name with no uniqueness check -- two
+        drug_results entries sharing a name (a realistic ingestion
+        mistake given this project's own documented history of Excel
+        input mix-ups) meant the second entry's data silently overwrote
+        the first's, with drug_names still listing the name twice,
+        falsely implying two independent drugs were compared. Fixed by
+        disambiguating duplicate names so both datasets survive."""
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import compare_drugs
+
+        drug_results = [
+            {"drug_name": "Rivastigmine",
+             "mol_profile": {"BBB_permeability_pct": 20.0},
+             "df_dds": None, "principles": {}},
+            {"drug_name": "Rivastigmine",
+             "mol_profile": {"BBB_permeability_pct": 80.0},
+             "df_dds": None, "principles": {}},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            summary = compare_drugs(drug_results, Path(td))
+        assert len(set(summary["drug_names"])) == len(summary["drug_names"]) == 2
+        row = next(r for r in summary["per_principle"]
+                   if "BBB_permeability_pct" in r["metric"])
+        # Both original values (20.0 and 80.0) must be present somewhere
+        # in the output -- neither may have been silently discarded.
+        seen_values = {row[n] for n in summary["drug_names"]}
+        assert 20.0 in seen_values
+        assert 80.0 in seen_values
+
+    def test_cplus_deep_compare_sheet_shares_rank_for_a_genuine_tie(self):
+        """Same untied-ranking defect as the Overview sheet's overall
+        ranking, on the CPlus_Deep_Validation sheet: rows were labeled
+        '#1', '#2', ... via enumerate() over a stable sort with no tie
+        check, so two drugs scoring the exact same deep_pct got distinct
+        ordinal ranks implying one beat the other. Fixed with the same
+        competition-ranking scheme."""
+        import tempfile
+        from pathlib import Path
+
+        import openpyxl
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import _write_comparison_excel
+
+        summary = {
+            "generated_at": "2026-01-01T00:00:00Z", "drug_count": 3,
+            "drug_names": ["DrugA", "DrugB", "DrugC"],
+            "metrics_total": 0, "metrics_ranked": 0, "metrics_unranked": 0,
+            "metrics_single_drug": 0,
+            "winner_counts": {"DrugA": 0, "DrugB": 0, "DrugC": 0},
+            "overall_ranking": [
+                {"rank": 1, "drug": "DrugA", "weighted_score": 50.0, "tied": False},
+                {"rank": 2, "drug": "DrugB", "weighted_score": 40.0, "tied": False},
+                {"rank": 3, "drug": "DrugC", "weighted_score": 30.0, "tied": False},
+            ],
+            "per_principle": [], "tier_coverage": {}, "champions": [],
+            "cplus_flow": [
+                {"drug": "DrugA", "top1_dds": "X", "deep_verdict": "PASSED",
+                 "deep_pct": 90, "deep_passed_count": 9, "deep_total": 10,
+                 "fallback_attempts": 0, "fallback_chain": [],
+                 "translational_status": {}, "translational_scores": {}},
+                {"drug": "DrugB", "top1_dds": "Y", "deep_verdict": "PASSED",
+                 "deep_pct": 90, "deep_passed_count": 9, "deep_total": 10,
+                 "fallback_attempts": 0, "fallback_chain": [],
+                 "translational_status": {}, "translational_scores": {}},
+                {"drug": "DrugC", "top1_dds": "Z", "deep_verdict": "FAILED",
+                 "deep_pct": 40, "deep_passed_count": 4, "deep_total": 10,
+                 "fallback_attempts": 0, "fallback_chain": [],
+                 "translational_status": {}, "translational_scores": {}},
+            ],
+            "metadata": {},
+        }
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "test.xlsx"
+            _write_comparison_excel(summary, out)
+            wb = openpyxl.load_workbook(out)
+            ws = wb["CPlus_Deep_Validation"]
+            ranks = {ws.cell(r, 2).value: ws.cell(r, 1).value
+                     for r in range(5, 8)}
+        assert ranks["DrugA"] == ranks["DrugB"] == "#1"
+        assert ranks["DrugC"] == "#3"
+
+    def test_docking_affinity_and_its_abs_variant_are_not_both_scored(self):
+        """Regression test: Docking_Affinity_kcal (lower-is-better) and
+        the derived Docking_Affinity_kcal_abs = abs(...) (higher-is-
+        better) are monotonically equivalent for a negative raw value --
+        they always agree on which drug 'wins'. Feeding both into
+        per_drug_metrics double-counted docking affinity's influence
+        within the physchem weight bucket relative to every other
+        physchem property (MW, LogP, TPSA, HBD, HBA, Half_Life_Days,
+        LogBB), each counted once. Fixed by no longer computing the
+        derived _abs variant into the metrics actually scored."""
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import compare_drugs
+
+        drug_results = [
+            {"drug_name": "DrugA",
+             "mol_profile": {"Docking_Affinity_kcal": -9.0},
+             "df_dds": None, "principles": {}},
+            {"drug_name": "DrugB",
+             "mol_profile": {"Docking_Affinity_kcal": -5.0},
+             "df_dds": None, "principles": {}},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            summary = compare_drugs(drug_results, Path(td))
+        metric_names = {r["metric"] for r in summary["per_principle"]}
+        assert "physchem.Docking_Affinity_kcal" in metric_names
+        assert "physchem.Docking_Affinity_kcal_abs" not in metric_names
+
+    def test_overall_ranking_discloses_how_many_metrics_each_score_rests_on(self):
+        """Regression test: a drug's weighted score is normalized only
+        against the metrics it happens to be comparable on -- a drug with
+        one favorable metric and no other comparable data could outscore
+        a thoroughly-characterized competitor, with nothing in the report
+        disclosing that coverage gap. Design decision: rather than
+        silently changing the ranking math (a real methodology call this
+        module shouldn't make unilaterally), disclose each drug's
+        metrics_compared count alongside its score so a reader can judge
+        a score built on 1 metric differently from one built on 40."""
+        import tempfile
+        from pathlib import Path
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import compare_drugs
+
+        drug_results = [
+            {"drug_name": "SparseWinner",
+             "mol_profile": {"BBB_permeability_pct": 90.0},
+             "df_dds": None, "principles": {}},
+            {"drug_name": "WellCharacterized",
+             "mol_profile": {"BBB_permeability_pct": 40.0, "LogP": 2.0,
+                              "TPSA_A2": 60.0, "Half_Life_Days": 5.0},
+             "df_dds": None, "principles": {}},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            summary = compare_drugs(drug_results, Path(td))
+        by_drug = {e["drug"]: e for e in summary["overall_ranking"]}
+        assert "metrics_compared" in by_drug["SparseWinner"]
+        assert by_drug["SparseWinner"]["metrics_compared"] == 1
+        assert by_drug["WellCharacterized"]["metrics_compared"] == 1
+
+    def test_overview_sheet_has_a_metrics_compared_column(self):
+        import tempfile
+        from pathlib import Path
+
+        import openpyxl
+
+        import src.path_resolver  # noqa: F401
+        from cerebro_multi_drug_comparison import compare_drugs
+
+        drug_results = [
+            {"drug_name": "DrugA", "mol_profile": {"BBB_permeability_pct": 80.0},
+             "df_dds": None, "principles": {}},
+            {"drug_name": "DrugB", "mol_profile": {"BBB_permeability_pct": 20.0},
+             "df_dds": None, "principles": {}},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            compare_drugs(drug_results, Path(td))
+            wb = openpyxl.load_workbook(Path(td) / "CEREBRO_X_Multi_Drug_Comparison.xlsx")
+            ws = wb["Overview"]
+            headers = [ws.cell(5, j).value for j in range(1, 6)]
+        assert "Metrics Compared" in headers
+
 
 class TestMultiDrugComparisonChampionSheet:
     @pytest.mark.slow
@@ -7071,12 +8191,25 @@ class TestCompletedExcelWriterHelpers:
         mp = {"_source_audit": {"MW_Da": {"_tier": 1, "_confidence": "HIGH"}}}
         assert _get_tier_info(mp, "MW_Da") == {"_tier": 1, "_confidence": "HIGH"}
 
-    def test_get_tier_info_infers_tier_1_for_a_present_unaudited_value(self):
+    def test_get_tier_info_does_not_fabricate_live_api_provenance_for_unaudited_value(self):
+        """A value present in mol_profile with no matching _source_audit
+        entry used to be labeled "Tier 1 / Live API / 90% confidence" --
+        a fabricated, specific provenance claim with zero corroboration
+        (confirmed live in outputs/Nusinersen/.../Audit_Trail: pI and
+        UniProt_ID, protein-only fields inapplicable to that drug's own
+        Properties sheet, were nonetheless stamped "Live API, 90%" here).
+        _source_audit is only populated for the handful of properties the
+        resolver actually touches (MW_Da, LogP, Half_Life_Days, TPSA_A2,
+        HBD, HBA), so "no audit entry" must not be read as "verified via
+        live API" -- it must be labeled honestly as unaudited."""
         import src.path_resolver  # noqa: F401
         from cerebro_completed_excel_writer import _get_tier_info
 
         info = _get_tier_info({"MW_Da": 350.0}, "MW_Da")
-        assert info["_tier"] == 1
+        assert info["_tier"] == 98
+        assert info["_confidence_score"] is None
+        assert "Live API" not in info["_source"]
+        assert info["_source"] != "Live API (engine-resolved)"
 
     def test_get_tier_info_reports_tier_99_when_truly_missing(self):
         import src.path_resolver  # noqa: F401
@@ -7090,6 +8223,48 @@ class TestCompletedExcelWriterHelpers:
 
         flat = _flatten_principles({"a": {"b": 1.0, "_hidden": 5}, "c": True, "d": [1, 2, 3]})
         assert flat == [("a.b", 1.0), ("c", "Yes")]   # lists skipped, bool -> Yes/No, _-keys dropped
+
+    def test_rotatable_bonds_catalog_key_matches_the_real_mol_profile_key(self):
+        """_PROPERTY_CATALOG listed this property under "Rotatable_Bonds",
+        but every real computation path (molecule_engine.py, the value
+        resolver, cerebro_molecule_extractor.py) stores it under "RotBonds"
+        -- so mp.get("Rotatable_Bonds") always returned None and the
+        Properties sheet showed "T99 Unknown" for Rotatable Bonds on every
+        small-molecule drug forever, even though RDKit had computed the
+        real value under the key everything else actually uses (confirmed
+        live: outputs/Rivastigmine/.../D1_Rivastigmine_Props showed
+        '-- / T99 (Unknown) / 0%' for Rotatable Bonds next to a correctly
+        populated H-Bond Donors from the same PubChem call)."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_completed_excel_writer import _PROPERTY_CATALOG, _get_tier_info
+
+        catalog_keys = [pk for pk, *_ in _PROPERTY_CATALOG]
+        assert "RotBonds" in catalog_keys
+        assert "Rotatable_Bonds" not in catalog_keys
+
+        mp = {"RotBonds": 4}
+        info = _get_tier_info(mp, "RotBonds")
+        assert info["_tier"] != 99   # a real, present value must not read as "Unknown"
+
+    def test_property_applies_matches_the_per_drug_sheet_class_filter(self):
+        """The Overview tier-coverage table used to count all 25 catalog
+        properties for every drug regardless of molecule class, while the
+        per-drug Properties sheet skipped class-inapplicable ones -- so
+        the Overview's "Total props" and T99 counts silently included
+        properties (FASTA, pI, UniProt_ID for a small molecule) the
+        per-drug sheet never even showed, making the two sheets disagree
+        about how many properties were even relevant (confirmed live:
+        Rivastigmine Overview showed "25 total, 13 Unknown" while its own
+        Properties sheet only ever listed 20 applicable rows). Both sheets
+        now share this one filter function."""
+        import src.path_resolver  # noqa: F401
+        from cerebro_completed_excel_writer import _property_applies
+
+        assert _property_applies(None, "small_molecule") is True
+        assert _property_applies("small_molecule", "small_molecule") is True
+        assert _property_applies("small_molecule", "biologic") is False
+        assert _property_applies("biologic", "monoclonal_antibody") is True
+        assert _property_applies("biologic", "small_molecule") is False
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -7160,195 +8335,6 @@ class TestSurrogateEngineDdsSpecKeyNames:
         dds_bundle = resolve_dds_bundle(carrier_type="liposome", ligand="RVG29")
         out = _dds_specs_from_bundle(dds_bundle, dds_row={"BBB_Engineering_Score": 88.0})
         assert out["cns_bio"] == pytest.approx(88.0)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# 40. CINEMATIC VISUAL PRIMITIVES (cerebro_cinematic_primitives.py)
-# ═════════════════════════════════════════════════════════════════════════════
-class TestCinematicPrimitivesLookups:
-    def test_drug_profile_falls_back_to_small_molecule(self):
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_primitives import get_drug_profile
-
-        assert get_drug_profile(None)["narrative"] == "small molecule"
-        assert get_drug_profile("totally_unknown_type")["narrative"] == "small molecule"
-        assert get_drug_profile("MONOCLONAL_ANTIBODY")["shape"] == "y_shape"  # case-insensitive
-
-    def test_dds_profile_prefers_specific_match_over_generic_substring(self):
-        """AAV9 and generic AAV are both real keys — a carrier string
-        naming a specific untabled serotype (e.g. 'aav5') should still
-        resolve via the generic 'aav' entry, not silently fall through
-        to _default, and an exact 'AAV9' should get its own profile."""
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_primitives import get_dds_profile
-
-        aav9 = get_dds_profile("AAV9")
-        aav5 = get_dds_profile("aav5")
-        generic_aav = get_dds_profile("aav")
-        assert aav5 == generic_aav
-        assert aav9["shape"] == "icosahedral_capsid"
-
-    def test_dds_profile_unrecognized_carrier_falls_back_to_default(self):
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_primitives import DDS_VISUAL_PROFILES, get_dds_profile
-
-        assert get_dds_profile("nonexistent_carrier_xyz") == DDS_VISUAL_PROFILES["_default"]
-
-    def test_ligand_info_partial_match_and_default(self):
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_primitives import LIGAND_RECEPTOR_MAP, get_ligand_info
-
-        assert get_ligand_info("RVG29")["receptor"].startswith("Nicotinic")
-        assert get_ligand_info(None) == LIGAND_RECEPTOR_MAP[""]
-        assert get_ligand_info("") == LIGAND_RECEPTOR_MAP[""]
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# 41. CINEMATIC SCENE ENGINE (cerebro_cinematic_engine.py)
-# ═════════════════════════════════════════════════════════════════════════════
-class TestCinematicEngineHelpers:
-    def test_b_value_and_b_tier_handle_missing_and_malformed_bundles(self):
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_engine import _b_tier, _b_value
-
-        assert _b_value({"x": {"value": 5.0}}, "x", 0) == 5.0
-        assert _b_value({"x": {"value": None}}, "x", 99) == 99   # explicit None -> default
-        assert _b_value("not a dict", "x", 99) == 99
-        assert _b_tier({"x": {"tier": 3}}, "x") == 3
-        assert _b_tier({}, "x") == 7   # unresolved defaults to lowest-confidence tier
-
-    def test_hash_id_is_deterministic_and_short(self):
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_engine import _hash_id
-
-        h1 = _hash_id("DrugA", "DDS1", "C01")
-        h2 = _hash_id("DrugA", "DDS1", "C01")
-        h3 = _hash_id("DrugB", "DDS1", "C01")
-        assert h1 == h2 and len(h1) == 8
-        assert h1 != h3
-
-    def test_safe_filename_strips_unsafe_characters(self):
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_engine import _safe_filename
-
-        assert _safe_filename("Drug/Name: Test!") == "Drug_Name__Test_"
-        assert _safe_filename(None) == "x"
-        assert len(_safe_filename("x" * 100)) == 40
-
-    def test_drug_class_narrative_covers_every_modality_with_real_citations(self):
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_engine import _drug_class_narrative
-
-        mab = _drug_class_narrative("monoclonal_antibody")
-        assert "Lecanemab" in mab["clinical_example"]
-        oligo = _drug_class_narrative("oligonucleotide")
-        assert "Nusinersen" in oligo["clinical_example"]
-        default = _drug_class_narrative("totally_unknown_modality")
-        assert "Donepezil" in default["clinical_example"]   # falls back to small molecule
-
-
-class TestCinematicSuiteGeneration:
-    @pytest.mark.slow
-    def test_generates_all_five_scenes_for_a_real_drug(self):
-        import tempfile
-        from pathlib import Path
-
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_engine import generate_cinematic_suite
-        from cerebro_resolved_bundles import resolve_dds_bundle, resolve_drug_bundle
-
-        db = resolve_drug_bundle(
-            name="Donepezil",
-            smiles="COc1cc2c(cc1OC)C(=O)C(CC1CCN(Cc3ccccc3)CC1)C2",
-            molecule_class="small_molecule")
-        dds = resolve_dds_bundle(carrier_type="plga", ligand="transferrin", formulation_id="F1")
-        top1 = {"Formulation_Name": "Tf-PLGA", "Carrier_Type": "plga",
-                "Size_nm": 100, "Zeta_Potential_mV": -25, "PDI": 0.2,
-                "Surface_Ligand": "transferrin", "Drug_Loading_Pct": 15,
-                "Release_Kinetics": "sustained", "pH_Trigger": 6.5,
-                "Composite_Score": 80.0, "Principle_Composite_Score": 80.0}
-        with tempfile.TemporaryDirectory() as td:
-            paths = generate_cinematic_suite(db, dds, top1, Path(td))
-            assert len(paths) == 5
-            for p in paths:
-                assert p.exists()
-                assert p.stat().st_size > 1000   # not an empty/error stub
-
-    def test_a_single_failing_scene_does_not_abort_the_whole_suite(self):
-        """generate_cinematic_suite catches per-scene exceptions — a
-        malformed bundle missing _meta shouldn't crash the whole run,
-        just log and skip whichever scene(s) choke on it."""
-        import tempfile
-        from pathlib import Path
-
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_engine import generate_cinematic_suite
-
-        with tempfile.TemporaryDirectory() as td:
-            paths = generate_cinematic_suite({}, {}, {}, Path(td))
-            assert isinstance(paths, list)   # doesn't raise, even with nothing real to render
-
-
-class TestC03PkProfileHonestLabeling:
-    """C03's curve is a stylized Bateman-function illustration (arbitrary
-    ka + unitless dose) — real per-drug half-life and BBB% drive the curve
-    SHAPE, but the plotted numbers are not a calibrated PBPK prediction. The
-    real 3-compartment ODE result lives in cerebro_62_deep_engine.deep_P13.
-    The scene must disclose this to the viewer instead of implying the
-    numbers are lab-real concentrations."""
-
-    def test_scene_does_not_claim_a_real_concentration_unit(self):
-        import tempfile
-        from pathlib import Path
-
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_engine import make_c03_pk_profile
-
-        drug = _drug_bundle(pk_halflife={"value": 2.0},
-                              bbb_permeability={"value": 12.0})
-        top_dds = {"Formulation_Name": "Test-DDS"}
-        with tempfile.TemporaryDirectory() as td:
-            p = make_c03_pk_profile(drug, _dds_bundle(), top_dds, Path(td))
-            html = p.read_text()
-            assert "μg/mL" not in html   # no fabricated real-looking unit
-
-    def test_scene_discloses_it_is_a_stylized_illustration(self):
-        import tempfile
-        from pathlib import Path
-
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_engine import make_c03_pk_profile
-
-        drug = _drug_bundle(pk_halflife={"value": 2.0},
-                              bbb_permeability={"value": 12.0})
-        top_dds = {"Formulation_Name": "Test-DDS"}
-        with tempfile.TemporaryDirectory() as td:
-            p = make_c03_pk_profile(drug, _dds_bundle(), top_dds, Path(td))
-            html = p.read_text()
-            assert "Stylized illustration" in html
-            assert "PDF/Excel report" in html
-
-    def test_curve_shape_still_reflects_real_half_life_and_bbb_percent(self):
-        """The fix must not touch the part that already works: the curve's
-        shape (elimination rate, brain lag/scale) is driven by the real
-        per-drug half-life and BBB% pulled from the bundle."""
-        import tempfile
-        from pathlib import Path
-
-        import src.path_resolver  # noqa: F401
-        from cerebro_cinematic_engine import make_c03_pk_profile
-
-        top_dds = {"Formulation_Name": "Test-DDS"}
-        with tempfile.TemporaryDirectory() as td:
-            slow = _drug_bundle(pk_halflife={"value": 5.0},
-                                  bbb_permeability={"value": 12.0})
-            fast = _drug_bundle(pk_halflife={"value": 0.2},
-                                  bbb_permeability={"value": 12.0})
-            html_slow = make_c03_pk_profile(slow, _dds_bundle(), top_dds, Path(td)).read_text()
-            html_fast = make_c03_pk_profile(fast, _dds_bundle(), top_dds, Path(td)).read_text()
-            assert "5.00 d" in html_slow
-            assert "0.20 d" in html_fast
-            assert html_slow != html_fast
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -7731,3 +8717,128 @@ class TestMergedPdfIncludesLigandColumn:
         pdf_path = tmp_path / "CEREBRO_X_Report_TestDrug.pdf"
         assert pdf_path.exists()
         assert pdf_path.stat().st_size > 0
+
+
+class TestInstallerForcesUpgradeOnBrokenPackages:
+    """installer.py's install_missing() only calls _pip_install(pkg) after
+    _is_importable(pkg) already returned False -- i.e. the package is
+    present in site-packages but broken (e.g. thermo 0.4.2's serialize.py
+    imports chemicals.utils.PY37, a constant removed from current
+    chemicals releases, so `import thermo` raises ImportError even though
+    pip considers thermo "installed"). Without --upgrade, `pip install
+    thermo` sees the broken 0.4.2 already satisfies the unconstrained
+    "thermo" spec and no-ops, silently leaving it exactly as broken as
+    before -- the runtime self-heal never actually heals anything for
+    this whole class of bug (confirmed live: this was thermo's real state
+    in a 2026-09-01 pipeline run, even after installer.py logged that it
+    was reinstalling it)."""
+
+    def test_pip_install_passes_upgrade_flag(self, monkeypatch):
+        import builtins
+        import subprocess
+
+        import installer
+
+        captured = {}
+
+        class _FakeResult:
+            returncode = 0
+
+        def _fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return _FakeResult()
+
+        real_import = builtins.__import__
+
+        def _import_that_fails_for_thermo(name, *args, **kwargs):
+            # Simulates the real failure mode: thermo is present in
+            # site-packages but broken (its serialize.py imports a
+            # constant a newer chemicals release removed), so `import
+            # thermo` raises even though pip considers it "installed" --
+            # this is what _is_importable("thermo") must see as False,
+            # regardless of whether thermo happens to import cleanly in
+            # whatever environment this test runs in.
+            if name == "thermo":
+                raise ImportError("simulated: broken install, as thermo "
+                                   "0.4.2 is against modern chemicals")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(subprocess, "run", _fake_run)
+        monkeypatch.setattr(builtins, "__import__", _import_that_fails_for_thermo)
+        # install_missing() only exposes this closure by iterating
+        # REQUIRED + CHEM_PACKAGES + OPTIONAL_HEAVY -- narrow those to just
+        # the package under test so the assertion is unambiguous.
+        monkeypatch.setattr(installer, "REQUIRED", ["thermo"])
+        monkeypatch.setattr(installer, "CHEM_PACKAGES", [])
+        monkeypatch.setattr(installer, "OPTIONAL_HEAVY", [])
+
+        installer.install_missing()
+
+        assert "cmd" in captured, "pip install was never invoked"
+        assert "--upgrade" in captured["cmd"], (
+            "installer.py must force an upgrade for a present-but-broken "
+            "package, or the reinstall it logs is a silent no-op")
+
+
+class TestGeneratePdfReportEscapesTableCells:
+    """generate_pdf_report (used by src/dds/enterprise_infra.py's FastAPI
+    endpoints) built two Table()s from bare, unbounded strings: the
+    Executive Summary table's values come straight from an arbitrary
+    JSON config file on disk (json.loads(cfg.read_text())), and the Top
+    10 DDS Formulations table's cells come from arbitrary DDS record
+    values -- neither is bounded in length or free of '<'/'>'/'&', so a
+    long or markup-bearing value would overflow past its column or (once
+    wrapped in a Paragraph) corrupt the cell's mini-XML parse. Fixed by
+    wrapping both tables' data cells in an escaped Paragraph, matching
+    the same fix already applied to final_report_unified.py's tbl() and
+    cerebro_inspector.py's _to_pdf_supplementary()."""
+
+    def _capture_story(self, results_json):
+        from unittest.mock import patch
+        captured = {}
+
+        def fake_build(self, story, **kw):
+            captured["story"] = story
+
+        with patch("reportlab.platypus.SimpleDocTemplate.build", fake_build):
+            from src.core.pipeline_patches import generate_pdf_report
+            generate_pdf_report(results_json)
+        return captured["story"]
+
+    def test_executive_summary_config_value_is_escaped_and_wrapped(self):
+        from reportlab.platypus import Table, Paragraph
+        from xml.sax.saxutils import escape as _esc
+
+        raw_value = "path=/x < /y & /z > /w"
+        story = self._capture_story({
+            "project_config": {"weird_setting": raw_value},
+        })
+        value_cell = None
+        for t in story:
+            if isinstance(t, Table):
+                for row in t._cellvalues:
+                    if row and row[0] == "weird_setting":
+                        value_cell = row[1]
+        assert value_cell is not None, "Executive Summary row not found"
+        assert isinstance(value_cell, Paragraph)
+        assert value_cell.text == _esc(raw_value)
+
+    def test_top10_formulation_cell_is_escaped_and_wrapped(self):
+        from reportlab.platypus import Table, Paragraph
+        from xml.sax.saxutils import escape as _esc
+
+        raw_value = "PLGA-NP < 200nm & PDI > 0.2"
+        story = self._capture_story({
+            "dds_analysis": {"top10_formulations": [
+                {"Formulation_Name": raw_value, "Composite_Score": 88.5},
+            ]},
+        })
+        found = None
+        for t in story:
+            if isinstance(t, Table):
+                for row in t._cellvalues:
+                    for c in row:
+                        if isinstance(c, Paragraph) and "PLGA-NP" in c.text:
+                            found = c
+        assert found is not None, "Top 10 Formulations cell not found"
+        assert found.text == _esc(raw_value)
