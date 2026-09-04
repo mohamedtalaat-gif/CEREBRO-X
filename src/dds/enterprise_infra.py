@@ -1220,7 +1220,7 @@ if _HAS_FASTAPI:
     def list_animations():
         """List all generated GIF/video files with Base64 content."""
         from cerebro_pipeline_patches import encode_file_base64
-        figs_dir = OUTPUT_ROOT / "figures"
+        figs_dir = OUTPUT_ROOT / "media" / "figures"
         result = {}
         if figs_dir.exists():
             for fp in figs_dir.glob("*.gif"):

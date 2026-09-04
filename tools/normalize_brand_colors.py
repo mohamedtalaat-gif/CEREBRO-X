@@ -58,8 +58,6 @@ TARGET_FILES = [
     "cerebro_multi_drug_comparison.py",
     "cerebro_dds_principle_comparison.py",
     "cerebro_per_dds_principles.py",
-    "cerebro_cinematic_engine.py",
-    "cerebro_cinematic_primitives.py",
     "cerebro_inspector.py",
 ]
 

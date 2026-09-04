@@ -97,7 +97,7 @@ Below is the full 15-section audit as requested.
 |---|---|---|
 | A. Pure alias, no file on disk | `cerebro_auth`, `cerebro_mlops`, `cerebro_orchestrator`, `cerebro_science_engines`, `cerebro_pbbm_engine` | Only resolve if `path_resolver` ran first |
 | B. Root shim forwarding to `src/` | `CEREBRO_Pipeline.py`, `cerebro_pipeline_patches.py`, `cerebro_enterprise_infra.py` | Thin (22–61 line) fallback files |
-| C. Genuine flat implementation, never migrated | `cerebro_62_*.py` (5 files), `cerebro_cinematic_*.py`, `cerebro_brand.py`, `cerebro_completed_excel_writer.py`, `cerebro_dds_principle_evaluator.py`, `cerebro_molecule_extractor.py`, etc. | Real code lives only at project root |
+| C. Genuine flat implementation, never migrated | `cerebro_62_*.py` (5 files), `cerebro_brand.py`, `cerebro_completed_excel_writer.py`, `cerebro_dds_principle_evaluator.py`, `cerebro_molecule_extractor.py`, etc. | Real code lives only at project root |
 
 **[CRITICAL] Production entrypoint is broken.** `docker-compose.prod.yml` runs `python -m uvicorn src.api.app:app` directly. `src/api/app.py` imports `from cerebro_auth import ...` (and 4 similar flat imports) relying on `path_resolver` having already run — but nothing in the `uvicorn src.api.app:app` import chain (`src/__init__.py`, `src/api/__init__.py`, both checked directly) ever imports `path_resolver`. **This container crashes on first import with `ModuleNotFoundError: No module named 'cerebro_auth'` every time.** It only "works" today because `run.py` (the dev entrypoint) imports `path_resolver` before starting uvicorn in-process — masking the bug in the one path that's actually been exercised.
 *Fix:* add `import src.path_resolver` as the first line of `src/api/app.py`, or better, rewrite its imports to proper dotted `from src.api.auth import ...` form and stop relying on the alias registry for internal `src`→`src` imports.
@@ -262,7 +262,7 @@ Covered in §6 (REST API design subsection). Summary: functional FastAPI app wit
 
 ## 10. Frontend Review
 
-**Not applicable in the traditional sense** — CEREBRO-X has no JS/React/Vue frontend. User-facing output is generated HTML reports (`src/viz/cerebro_html5_engine.py`, 2,555 lines; `cerebro_cinematic_engine.py`, 1,451 lines) and PDF/Excel artifacts. I didn't go deep on accessibility/responsiveness here — flagging that as a gap in this audit's coverage, not a clean bill of health. If these HTML reports are shared externally (as the GitHub repo's interactive demos already are), they should get the same "does the presentation honestly reflect the underlying computation" scrutiny applied in §4.
+**Not applicable in the traditional sense** — CEREBRO-X has no JS/React/Vue frontend. User-facing output is generated HTML reports (`src/viz/cerebro_html5_engine.py`, 2,555 lines) and PDF/Excel artifacts. I didn't go deep on accessibility/responsiveness here — flagging that as a gap in this audit's coverage, not a clean bill of health. If these HTML reports are shared externally (as the GitHub repo's interactive demos already are), they should get the same "does the presentation honestly reflect the underlying computation" scrutiny applied in §4.
 
 ---
 

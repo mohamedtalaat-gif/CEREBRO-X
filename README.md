@@ -129,9 +129,8 @@ drugs and a list of candidate drug-delivery systems (DDS), produces:
   for the `independent_pct` metric that separates the two
 * **Full provenance**: every numeric value is traceable to its computational source
   via the **7-tier resolver cascade** with explicit `_computational_method` strings
-* **Illustrative media**: 5 drug+DDS-customized HTML5/Canvas animations per Top-1
 * **Per-drug deliverables**: PDF report, HTML5 dashboard, completed Excel with
-  provenance, cinematic scenes, MP4 videos
+  provenance, MP4 videos
 * **Multi-drug comparison**: cross-drug ranking sheet + comparison HTML5 dashboard
 
 CEREBRO-X's resolver cascade always attempts to reach a computed answer with
@@ -268,12 +267,6 @@ TrialName/
 ├── CEREBRO_X_Final_Report_<drug>.html           ← shareable HTML report
 ├── html5/
 │   └── CEREBRO_X_Interactive_<drug>.html        ← interactive 27-chart dashboard
-├── cinematic/
-│   ├── C01_Identity_<drug>_<dds>.html           ← drug + DDS identity card
-│   ├── C02_BBB_<drug>_<dds>.html                ← BBB crossing animation
-│   ├── C03_PK_<drug>_<dds>.html                 ← PK time course
-│   ├── C04_Release_<drug>_<dds>.html            ← release mechanics
-│   └── C05_Therapeutic_<drug>_<dds>.html        ← therapeutic effect
 ├── canvas_videos/
 │   └── V0[1-5]_*_<drug>.html                    ← 5 HTML5 Canvas animations
 ├── videos/
@@ -491,8 +484,6 @@ molecule; subsequent cache hit: 0.02ms.
 | `engine/cerebro_62_deep_engine.py` | 7 Class-B deep physics principles |
 | `engine/cerebro_62_translational_engine.py` | 7 Class-C translational principles |
 | `engine/cerebro_62_orchestrator.py` | C+ Flow orchestration with pathway compatibility |
-| `engine/cerebro_cinematic_engine.py` | 5-scene drug+DDS-customized media (Phase 5) |
-| `engine/cerebro_cinematic_primitives.py` | Visual profiles per drug class & DDS type |
 | `engine/cerebro_inspector.py` | CLI for inspecting any drug+DDS resolved values |
 | `engine/cerebro_completed_excel_writer.py` | 12-sheet output Excel with provenance |
 | `engine/cerebro_multi_drug_comparison.py` | Cross-drug comparison generator |

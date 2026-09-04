@@ -115,9 +115,13 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
             log.warning(f"[PIPELINE] Clinical PK patch error: {_cpke}")
 
     # ── Step 4: Override output paths to trial_dir ────────────────────────
-    # We monkey-patch PATHS so everything goes into Trial_N/ not the global dir
+    # We monkey-patch PATHS so everything goes into Trial_N/ not the global dir.
+    # "figures" is routed under trial_dir/media/ to join the other media
+    # subfolders (videos, canvas_videos, schematics) instead of sitting as
+    # its own top-level folder next to media/.
     for key in list(cp.PATHS.keys()):
-        sub = trial_dir / cp.PATHS[key].name
+        base = trial_dir / "media" if key == "figures" else trial_dir
+        sub = base / cp.PATHS[key].name
         sub.mkdir(parents=True, exist_ok=True)
         cp.PATHS[key] = sub
 
@@ -330,6 +334,23 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
                       f"{deep_summary_top1.get('verdict','?')} | "
                       f"Translational: "
                       f"{len([t for t in translational_top1.values() if t.get('status') not in ('failed','skipped_deep_validation_insufficient')])}/{len(translational_top1)} ready")
+
+            # df_dds is now sorted by Principle_Composite_Score, but its "Rank"
+            # column still holds each row's OLD position from the
+            # BBB_Engineering_Score sort in _run_dds_from_yaml -- sort_values
+            # reorders rows, it doesn't touch column values. Every downstream
+            # consumer (this report, TRIAL_DOCUMENTATION.txt, the PDF) treats
+            # row 0 of this df as "the top pick", so a stale Rank made that
+            # pick display as e.g. "#2" -- self-contradictory, and out of
+            # sync with the on-disk formulation_ranking.csv, which was
+            # written before this re-rank ran and still reflects the old
+            # order. Recompute Rank to match the current (real) order and
+            # rewrite both CSVs so the disk artifact a reviewer opens agrees
+            # with what the report actually recommends.
+            df_dds["Rank"] = range(1, len(df_dds) + 1)
+            _dds_dir = trial_dir / "dds_analysis"
+            df_dds.to_csv(_dds_dir / "formulation_ranking.csv", index=False)
+            df_dds.head(10).to_csv(_dds_dir / "top10_formulations.csv", index=False)
         except Exception as _de:
             log.warning(f"[62-ORCH] Per-DDS evaluation skipped: {_de}")
             import traceback; log.debug(traceback.format_exc())
@@ -501,39 +522,6 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
         except Exception as _ecv:
             log.warning(f"[CANVAS] {_ecv}")
 
-        # ── Step 10b: CINEMATIC ENGINE (drug+DDS-customized animations) ────
-        # Phase 5 directive (2026-04-30): produce Simulation-Plus-quality
-        # cinematic media — never repeating between drugs/DDS, professional
-        # output suitable for academic publication and industrial demo.
-        try:
-            from cerebro_cinematic_engine import generate_cinematic_suite
-            from cerebro_resolved_bundles import resolve_dds_bundle
-            if drug_bundle_top1 is not None and isinstance(_top_dds_dict, dict):
-                _top_dds_carrier = (_top_dds_dict.get("Carrier_Type") or
-                                       _top_dds_dict.get("carrier_type") or "plga")
-                _top_dds_ligand  = (_top_dds_dict.get("Surface_Ligand") or
-                                       _top_dds_dict.get("surface_ligand") or "")
-                _top_dds_bundle  = resolve_dds_bundle(
-                    carrier_type=_top_dds_carrier,
-                    ligand=_top_dds_ligand,
-                    formulation_id=str(_top_dds_dict.get("Formulation_ID","F1")),
-                )
-                _cine_dir = trial_dir / "media" / "cinematic"
-                _cine_paths = generate_cinematic_suite(
-                    drug_bundle=drug_bundle_top1,
-                    dds_bundle=_top_dds_bundle,
-                    top_dds=_top_dds_dict,
-                    out_dir=_cine_dir,
-                )
-                log.info(f"[CINEMATIC] {len(_cine_paths)}/5 scenes for "
-                          f"{drug_name} × {_top_dds_dict.get('Formulation_Name','?')}")
-            else:
-                log.info("[CINEMATIC] Skipped — no drug_bundle_top1 or top_dds")
-        except ImportError:
-            log.warning("[CINEMATIC] cerebro_cinematic_engine.py not found")
-        except Exception as _cine_e:
-            log.warning(f"[CINEMATIC] Failed: {_cine_e}")
-
     except ImportError:
         log.warning("[PIPELINE] cerebro_advanced_viz.py not found — using basic figures")
         _make_static_figures(df_ml, df_dds, df_pk, trial_dir)
@@ -656,7 +644,7 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
     # ── Step 13: Master report text (legacy) ──────────────────────────────
     try:
         df_aav = cp.CascadeDataEngine.fetch_aav_data()
-        cp.ReportingEngine.generate_master_report(df_mab, df_aav, df_ml, metrics)
+        cp.ReportingEngine.generate_master_report(df_mab, df_aav, df_ml, metrics, df_dds=df_dds)
     except Exception as _exc_silenced:
         # FIXED: was silent — now logged
         import logging as _elog
@@ -809,9 +797,12 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
         log.info(f"[MULTI-DRUG] Output dir → {_extra_trial_dir}")
 
         # ── Reset cp.PATHS to this drug's own trial dir ──────────────
-        # Without this, Drug 2 & 3 outputs overwrite Drug 1's files
+        # Without this, Drug 2 & 3 outputs overwrite Drug 1's files.
+        # "figures" joins the other media subfolders under media/ (see the
+        # matching comment at the primary-drug PATHS reset above).
         for _key in list(cp.PATHS.keys()):
-            _sub = _extra_trial_dir / cp.PATHS[_key].name
+            _base = _extra_trial_dir / "media" if _key == "figures" else _extra_trial_dir
+            _sub = _base / cp.PATHS[_key].name
             _sub.mkdir(parents=True, exist_ok=True)
             cp.PATHS[_key] = _sub
         cp.DB_PATH          = str(_extra_trial_dir / "cerebro.db")
@@ -957,6 +948,14 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
                           f"{len(_extra_df_dds)} DDS — top: "
                           f"{_orch_extra['top1_dds_name']} "
                           f"(deep: {_extra_deep_summary.get('verdict','?')})")
+
+                # Same fix as the primary-drug path above: recompute Rank to
+                # match the post-rerank row order and rewrite both CSVs so
+                # they agree with what the report treats as the top pick.
+                _extra_df_dds["Rank"] = range(1, len(_extra_df_dds) + 1)
+                _extra_dds_dir = _extra_trial_dir / "dds_analysis"
+                _extra_df_dds.to_csv(_extra_dds_dir / "formulation_ranking.csv", index=False)
+                _extra_df_dds.head(10).to_csv(_extra_dds_dir / "top10_formulations.csv", index=False)
             except Exception as _de2:
                 log.warning(f"[62-ORCH] Per-DDS eval failed for "
                             f"{_extra_name}: {_de2}")
@@ -1029,30 +1028,6 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
             log.info(f"[MULTI-DRUG] PDF generated for {_extra_name} ✅")
         except Exception as _pe:
             log.warning(f"[MULTI-DRUG] PDF failed for {_extra_name}: {_pe}")
-
-        # ── Cinematic engine for this drug × Top-1 DDS ──────────────────
-        try:
-            from cerebro_cinematic_engine import generate_cinematic_suite
-            from cerebro_resolved_bundles import resolve_dds_bundle as _rdb_extra
-            if _extra_top is not None and _extra_drug_bundle is not None:
-                _ext_carrier = (_extra_top.get("Carrier_Type") or
-                                  _extra_top.get("carrier_type") or "plga")
-                _ext_ligand  = (_extra_top.get("Surface_Ligand") or
-                                  _extra_top.get("surface_ligand") or "")
-                _ext_dds_b   = _rdb_extra(carrier_type=_ext_carrier,
-                                            ligand=_ext_ligand,
-                                            formulation_id=str(
-                                                _extra_top.get("Formulation_ID","F1")))
-                _ext_cine    = generate_cinematic_suite(
-                    drug_bundle=_extra_drug_bundle,
-                    dds_bundle=_ext_dds_b,
-                    top_dds=_extra_top,
-                    out_dir=_extra_trial_dir / "media" / "cinematic",
-                )
-                log.info(f"[CINEMATIC] {len(_ext_cine)}/5 scenes for "
-                          f"{_extra_name} × {_extra_top.get('Formulation_Name','?')}")
-        except Exception as _cine_e:
-            log.warning(f"[CINEMATIC] {_extra_name} skipped: {_cine_e}")
 
         all_drug_results.append({
             "drug_name": _extra_name, "trial_dir": _extra_trial_dir,

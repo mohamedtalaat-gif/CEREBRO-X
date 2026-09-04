@@ -45,8 +45,6 @@ OUTPUT_FILES = {
     "cerebro_multi_drug_comparison.py",
     "cerebro_dds_principle_comparison.py",
     "cerebro_per_dds_principles.py",
-    # Cinematic engine — figure titles
-    "cerebro_cinematic_engine.py",
     # FastAPI surfaces (OpenAPI + dashboard endpoints)
     "src/api/app.py",
     "src/dds/enterprise_infra.py",
