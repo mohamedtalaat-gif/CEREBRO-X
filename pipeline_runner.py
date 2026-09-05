@@ -174,7 +174,8 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
     # Try MoleculeEngine first (handles SMILES/FASTA/PDB/HELM/name)
     try:
         from cerebro_molecule_engine import analyze_molecule
-        _engine_profile = analyze_molecule(mol_input, drug_name)
+        _engine_profile = analyze_molecule(mol_input, drug_name,
+                                            molecule_class=_excel_molecule_class)
         # Merge: Excel-supplied fields override engine's auto-detection
         if isinstance(_engine_profile, dict):
             _engine_profile.update(mol_profile)    # mol_profile (Excel) wins
@@ -227,15 +228,69 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
 
     df_mab = cp.CascadeDataEngine.build_mab_dataset([drug_name])
 
-    # Inject MoleculeEngine data if cascade missed anything
+    # Prefer MoleculeEngine's values over the cascade's. MoleculeEngine
+    # computes these directly from the drug's actual molecular input
+    # (RDKit for SMILES, Biopython for FASTA/protein sequences, residue
+    # count for anything else) -- build_mab_dataset()/fetch_drug() instead
+    # looks up the drug by NAME through ChEMBL/OpenFDA/etc, and when a
+    # biologic isn't in those bioactivity databases with a numeric MW, it
+    # falls through to cerebro_value_resolver's generic Tier-7 estimate,
+    # which doesn't know the sequence at all. That estimate isn't 0 or NaN
+    # (so the old "only fill gaps" guard below never replaced it) -- it's a
+    # confidently-wrong flat placeholder. Confirmed live: Lecanemab's real
+    # MW is 13,060 Da (Biopython, from its actual FASTA), but the cascade's
+    # fetch_drug() returned exactly 350.0 Da tagged "resolver:T7", which
+    # then propagated into Master_Report.txt as this drug's headline
+    # molecular weight. MoleculeEngine's value wins whenever it has one.
     if not df_mab.empty and mol_profile:
-        import pandas as pd
+        _overrode_any = False
         for field, col in [("MW_Da","MW_Da"), ("LogP","LogP"),
                             ("Half_Life_Days","Half_Life_Days")]:
-            if mol_profile.get(field) and (df_mab[col].iloc[0] == 0
-                                            or pd.isna(df_mab[col].iloc[0])):
-                df_mab.loc[df_mab.index[0], col] = mol_profile[field]
-                log.info(f"  [PIPELINE] Injected {field}={mol_profile[field]} from MoleculeEngine")
+            if mol_profile.get(field):
+                try:
+                    _val = float(mol_profile[field])
+                except (TypeError, ValueError):
+                    log.warning(f"  [PIPELINE] MoleculeEngine {field}={mol_profile[field]!r} "
+                                f"isn't numeric -- keeping cascade value")
+                    continue
+                # Assigning a raw (possibly non-float) scalar into a numeric
+                # column silently upcasts the whole column to object dtype,
+                # which then breaks any later numeric comparison on it --
+                # confirmed live: this crashed Galantamine's run with
+                # "'<' not supported between instances of 'str' and 'int'"
+                # on df["MW_Da"] < 500 in patched_train(), even though
+                # MW_Da had been a clean float column until this override.
+                df_mab.loc[df_mab.index[0], col] = _val
+                _overrode_any = True
+                log.info(f"  [PIPELINE] Using MoleculeEngine {field}={_val} "
+                         f"(cascade/resolver value overridden)")
+        # Docking_Affinity_kcal was computed by build_mab_dataset() from
+        # the pre-override MW/LogP, so it's stale by the same bug even
+        # though the MW term's own weight in that formula is small.
+        if _overrode_any and "Docking_Affinity_kcal" in df_mab.columns:
+            _mw  = float(df_mab.loc[df_mab.index[0], "MW_Da"])
+            _lp  = float(df_mab.loc[df_mab.index[0], "LogP"])
+            df_mab.loc[df_mab.index[0], "Docking_Affinity_kcal"] = round(
+                -8.5 + (_lp * 0.3) - (_mw / 180_000), 3)
+        # _source still names whatever cascade tier build_mab_dataset() used
+        # (e.g. "resolver:T7(MW)") even for fields just overridden above --
+        # a provenance label should say where the value actually came from.
+        if _overrode_any and "_source" in df_mab.columns:
+            df_mab.loc[df_mab.index[0], "_source"] = (
+                str(df_mab.loc[df_mab.index[0], "_source"])
+                + "; MW/LogP/HalfLife overridden by MoleculeEngine")
+        # build_mab_dataset() already wrote mab_clinical_features.csv with
+        # its own (possibly wrong, see above) values before returning --
+        # re-save it now so the file on disk matches what the report
+        # actually uses, instead of leaving a stale, contradicting number
+        # sitting in a real user-facing data file.
+        if _overrode_any:
+            try:
+                _mab_csv = cp.PATHS["data"] / "mab_clinical_features.csv"
+                df_mab.to_csv(_mab_csv, index=False)
+            except Exception as _mab_save_e:
+                log.warning(f"  [PIPELINE] Could not re-save mab_clinical_features.csv "
+                            f"with corrected values: {_mab_save_e}")
 
     if df_mab.empty:
         log.error("[PIPELINE] No drug data retrieved — trial aborted")
@@ -860,7 +915,9 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
         _extra_mol: dict = {}
         try:
             from cerebro_molecule_engine import analyze_molecule
-            _extra_mol = analyze_molecule(_extra_mol_input, _extra_name)
+            _extra_mol = analyze_molecule(
+                _extra_mol_input, _extra_name,
+                molecule_class=extra_drug_cfg.get("molecule_class", ""))
             log.info(f"[MULTI-DRUG] {_extra_name}: MW={_extra_mol.get('MW_Da')} "
                      f"LogP={_extra_mol.get('LogP')}")
         except Exception as _me:

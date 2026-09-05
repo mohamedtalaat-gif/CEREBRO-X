@@ -574,6 +574,76 @@ class BiologicEngine:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# NUCLEOTIDE ENGINE  (antisense oligos, siRNA, aptamers — raw sequence input)
+# ─────────────────────────────────────────────────────────────────────────────
+# Standard IUPAC nucleotide letters (ACGT/ACGU) are a subset of the amino
+# acid single-letter alphabet, so detect_input_type()'s FASTA-protein regex
+# matches a bare oligo sequence like Nusinersen's "TCACTTTCATAATGCTGG" just
+# as readily as a real peptide -- there was previously no nucleotide path at
+# all, so any such sequence silently ran through BiologicEngine.from_fasta()
+# as if it were a protein, giving an impossibly low MW (18 "residues" at the
+# ~88 Da average of Thr/Cys/Ala/Gly came out to 1,593.78 Da, versus the
+# ~5,465 Da a standard unmodified DNA oligo of that exact sequence should
+# weigh). Reachable only when the Excel's own molecule_class explicitly says
+# oligonucleotide/ASO/siRNA/etc -- the letter overlap makes content-only
+# auto-detection unreliable, so this doesn't run on ambiguous input.
+class NucleotideEngine:
+    """Handles raw DNA/RNA sequence input (antisense oligos, siRNA, aptamers).
+
+    Computes standard-backbone (unmodified phosphodiester) molecular weight
+    from base composition. Real synthetic oligos are near-universally
+    chemically modified (phosphorothioate backbone, 2'-MOE/2'-F sugars,
+    locked nucleic acids, etc.) for nuclease resistance -- none of that
+    chemistry is captured by a bare sequence string, so the result here is
+    a same-order-of-magnitude baseline, not the exact modified-drug MW, and
+    is labeled as such via _imputed_fields rather than presented as exact.
+    """
+
+    # Anhydrous internal-residue masses (Da) referenced to a 5'-phosphate
+    # terminus, standard values used by common oligo MW calculators.
+    _DNA_MASS = {"A": 313.21, "T": 304.20, "C": 289.18, "G": 329.21}
+    _RNA_MASS = {"A": 329.20, "U": 306.20, "C": 305.20, "G": 345.20}
+    _TERMINAL_5P_CORRECTION = 61.96  # 5'-OH instead of 5'-phosphate
+
+    @staticmethod
+    def from_sequence(seq_input: str, name: str = "unknown") -> dict[str, Any]:
+        profile = _empty_profile(name)
+        profile["input_type"]     = "nucleotide_sequence"
+        profile["molecule_class"] = "oligonucleotide"
+
+        lines = seq_input.strip().split("\n")
+        seq = "".join(lines[1:] if lines[0].startswith(">") else lines)
+        seq = re.sub(r'\s', '', seq).upper()
+
+        is_rna = "U" in seq and "T" not in seq
+        valid_alphabet = set(NucleotideEngine._RNA_MASS if is_rna
+                              else NucleotideEngine._DNA_MASS)
+        seq_clean = "".join(c for c in seq if c in valid_alphabet)
+        if len(seq_clean) < 4:
+            log.warning(f"  [OLIGO] {name}: sequence too short/invalid "
+                        f"({len(seq_clean)} valid bases)")
+            return profile
+
+        profile["FASTA_sequence"]  = seq_clean  # reuse existing field for the sequence
+        profile["sequence_length"] = len(seq_clean)
+
+        mass_table = NucleotideEngine._RNA_MASS if is_rna else NucleotideEngine._DNA_MASS
+        mw = sum(mass_table[b] for b in seq_clean) - NucleotideEngine._TERMINAL_5P_CORRECTION
+        profile["MW_Da"] = round(mw, 2)
+        profile["_source"] = "computed:standard_unmodified_backbone"
+        profile["_imputed_fields"].append(
+            "MW_Da:standard_unmodified_" + ("RNA" if is_rna else "DNA") +
+            "_backbone — real synthetic oligos (phosphorothioate, 2'-MOE, "
+            "LNA, etc.) weigh more than this baseline; exact modified MW "
+            "requires the specific chemistry, not captured by a bare sequence")
+
+        log.info(f"  [OLIGO] {name}: MW={profile['MW_Da']:.1f} Da "
+                 f"({'RNA' if is_rna else 'DNA'}, {len(seq_clean)}-mer, "
+                 f"standard unmodified backbone)")
+        return profile
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CASCADE NAME ENGINE  (fallback for drug names)
 # ─────────────────────────────────────────────────────────────────────────────
 class CascadeNameEngine:
@@ -758,13 +828,23 @@ class CascadeNameEngine:
 # ─────────────────────────────────────────────────────────────────────────────
 # MASTER DISPATCHER
 # ─────────────────────────────────────────────────────────────────────────────
-def analyze_molecule(raw_input: str, name: str = None) -> dict[str, Any]:
+_OLIGO_CLASSES = {"oligonucleotide", "aso", "antisense", "sirna", "mirna",
+                   "aptamer"}
+
+def analyze_molecule(raw_input: str, name: str = None,
+                      molecule_class: str = "") -> dict[str, Any]:
     """
     Master entry point. Auto-detects input format and routes accordingly.
 
     Args:
         raw_input : SMILES | FASTA | PDB ID | PDB file path | HELM | drug name
         name      : Optional display name for the molecule
+        molecule_class: Optional explicit classification (from Excel). Used
+            only to route oligonucleotide sequences correctly -- DNA/RNA
+            letters (A/C/G/T/U) are a subset of the amino-acid single-letter
+            alphabet, so content-only detection can't reliably tell a short
+            oligo sequence apart from a short peptide FASTA. Everything
+            else still auto-detects from raw_input alone, unchanged.
 
     Returns:
         MoleculeProfile dict (unified schema — all fields documented)
@@ -773,8 +853,15 @@ def analyze_molecule(raw_input: str, name: str = None) -> dict[str, Any]:
         log.error("analyze_molecule: empty input")
         return _empty_profile(name or "unknown")
 
-    input_type = detect_input_type(raw_input.strip())
-    mol_name   = name or raw_input[:40]
+    mol_name = name or raw_input[:40]
+    stripped = raw_input.strip()
+
+    if (molecule_class or "").strip().lower() in _OLIGO_CLASSES:
+        log.info(f"  analyze_molecule: detected 'oligonucleotide' "
+                 f"(Excel molecule_class) for '{mol_name}'")
+        return NucleotideEngine.from_sequence(stripped, mol_name)
+
+    input_type = detect_input_type(stripped)
 
     log.info(f"  analyze_molecule: detected '{input_type}' for '{mol_name}'")
 

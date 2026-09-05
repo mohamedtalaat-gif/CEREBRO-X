@@ -1568,7 +1568,23 @@ class ReportingEngine:
         aff=next((c for c in ["Docking_Affinity_kcal","Binding_Affinity_kcal",
                                "Estimated_Affinity_kcal"] if c in df_ml.columns),None)
         if not df_ml.empty and aff and "ML_Success_Probability" in df_ml.columns:
-            best=df_ml.loc[df_ml[aff].idxmin()]
+            # Every trial here is single-drug, so df_ml is always the one
+            # real row plus up to 8 Gaussian-noise synthetic neighbours
+            # from _augment_single_drug() (needed for ML training, not for
+            # reporting). idxmin(aff) picked whichever row had the most
+            # negative affinity with no regard for which row was real --
+            # confirmed live: Lecanemab (real MW 13,060 Da) and Nusinersen
+            # (real MW 1,594 Da) both reported an identical, wrong
+            # "Molecular Weight: 339.49 Da" in this report, because a
+            # synthetic row's own independently-noised MW got picked
+            # instead of the real molecule's. Restricting to real rows
+            # first means this section always describes the actual drug,
+            # regardless of type -- small molecule, mAb, or oligonucleotide.
+            _real_ml = (df_ml[df_ml["_synthetic"] == False]
+                        if "_synthetic" in df_ml.columns else df_ml)
+            if _real_ml.empty:
+                _real_ml = df_ml
+            best=_real_ml.loc[_real_ml[aff].idxmin()]
             # Same 150 kDa-referenced C0 as AnalyticsEngine.simulate_pkpd,
             # capped at 100% for the same reason: uncapped, a real
             # small-molecule candidate (e.g. donepezil, MW~380) inflates
