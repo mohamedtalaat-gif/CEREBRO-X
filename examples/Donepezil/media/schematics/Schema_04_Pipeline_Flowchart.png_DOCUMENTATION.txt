@@ -1,0 +1,32 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : Schema_04_Pipeline_Flowchart.png
+  Generated : 2026-09-05  07:58:17
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+CEREBRO-X complete pipeline flowchart.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Communicates the full analysis workflow to stakeholders and partners.
+
+──────────────────────────────────────────────────────────────────────
+  THEORETICAL & PRACTICAL SCIENCE
+──────────────────────────────────────────────────────────────────────
+From Excel input through molecule analysis, ML training, DDS scoring, science simulations, to merged PDF report.
+
+──────────────────────────────────────────────────────────────────────
+  METHODOLOGY
+──────────────────────────────────────────────────────────────────────
+Pure matplotlib: FancyBboxPatch, annotate arrows, text.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Read top-to-bottom: yellow = input, blue/teal = analysis, green = output. Side boxes = parallel processing paths.
+
+======================================================================

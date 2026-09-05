@@ -1,0 +1,27 @@
+======================================================================
+  CEREBRO-X |  FIGURE DOCUMENTATION
+  File      : 14_SHAP_XAI_Temozolomide.png
+  Generated : 2026-09-05  08:08:38
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Correlation-based feature importance for Temozolomide (no trained model was available, so this falls back to |Pearson r| rather than real SHAP values).
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Explains which molecular/formulation properties most influence the ML model. Enables informed drug delivery system optimisation.
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC BASIS
+──────────────────────────────────────────────────────────────────────
+No trained model was available for this run, so this uses absolute Pearson correlation with the target as a feature-importance proxy instead of real Shapley values. Correlation captures linear association only, not per-prediction attribution or feature interactions the way SHAP does.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Large bar = high feature influence. Teal bars (waterfall) = increase predicted score. Red bars = decrease score. Target the top features for formulation optimisation.
+
+======================================================================

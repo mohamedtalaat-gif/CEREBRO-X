@@ -1,0 +1,42 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : PKPD_Brain_Kinetics.png
+  Generated : 2026-09-05  07:58:54
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Brain concentration kinetics for all candidates over 60 days.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Shows how long each drug stays above 50% therapeutic threshold.
+
+──────────────────────────────────────────────────────────────────────
+  STRATEGIC DECISION
+──────────────────────────────────────────────────────────────────────
+Longest time above 50% = fewest re-doses = preferred.
+
+──────────────────────────────────────────────────────────────────────
+  THEORETICAL & PRACTICAL SCIENCE
+──────────────────────────────────────────────────────────────────────
+C(t) = C₀·e^(−kt),  k=ln2/t½,  C₀=min(100, 100·(150kDa/MW))% — capped at 100% of administered dose; the MW ratio is tuned around a 150 kDa antibody-scale reference (see lecanemab citation below), so it only reduces C₀ below 100% for MW > 150 kDa candidates, and gives smaller molecules full credit rather than an unphysical >100% starting concentration.
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC VALIDITY
+──────────────────────────────────────────────────────────────────────
+Aligned with lecanemab CSF PK (van Dyck et al., NEJM 2023).
+
+──────────────────────────────────────────────────────────────────────
+  METHODOLOGY
+──────────────────────────────────────────────────────────────────────
+500-point linspace 0–60d. MW-normalised C₀.
+
+──────────────────────────────────────────────────────────────────────
+  COMPUTATIONAL ARCHITECTURE
+──────────────────────────────────────────────────────────────────────
+NumPy exp · matplotlib.
+
+======================================================================

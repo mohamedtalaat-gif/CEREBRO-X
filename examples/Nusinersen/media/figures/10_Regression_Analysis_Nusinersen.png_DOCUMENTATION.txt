@@ -1,0 +1,27 @@
+======================================================================
+  CEREBRO-X |  FIGURE DOCUMENTATION
+  File      : 10_Regression_Analysis_Nusinersen.png
+  Generated : 2026-09-05  08:05:30
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Regression analysis of DDS parameters — Nusinersen.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Quantifies relationships between engineering parameters and outcomes. Polynomial fit captures non-linear Goldilocks optimum zones.
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC BASIS
+──────────────────────────────────────────────────────────────────────
+Ordinary Least Squares regression. 95% CI via t-distribution (df=n-2). R² = variance explained (0-1).
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Steep slope = strong parameter influence. *** p<0.001 = highly significant. 'ns' = no significant relationship.
+
+======================================================================

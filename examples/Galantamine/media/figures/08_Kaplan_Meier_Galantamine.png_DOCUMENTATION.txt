@@ -1,0 +1,27 @@
+======================================================================
+  CEREBRO-X |  FIGURE DOCUMENTATION
+  File      : 08_Kaplan_Meier_Galantamine.png
+  Generated : 2026-09-05  07:59:35
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Kaplan-Meier style exposure survival for Galantamine.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Shows how long each carrier maintains drug above therapeutic threshold. Essential for dosing interval decisions.
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC BASIS
+──────────────────────────────────────────────────────────────────────
+C(t)=C₀·e^(-λz·t). Threshold at 50% = minimal effective concentration (MEC). t50 (vertical dotted lines) = re-dosing interval.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Steeper drop = faster elimination = more frequent dosing needed. Carrier with longest t50 → recommended for chronic CNS therapy.
+
+======================================================================

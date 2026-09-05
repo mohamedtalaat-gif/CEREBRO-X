@@ -1,0 +1,27 @@
+======================================================================
+  CEREBRO-X |  FIGURE DOCUMENTATION
+  File      : 13_PBBM_Diagnostics_Rivastigmine.png
+  Generated : 2026-09-05  08:07:16
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Simulated PK curve and per-group spaghetti plot — Rivastigmine.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Shows the single simulated concentration-time trajectory with an illustrative variability envelope, plus per-group profiles.
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC BASIS
+──────────────────────────────────────────────────────────────────────
+The envelope is an assumed ±20% band drawn around the one deterministic simulated curve, not a statistical prediction interval derived from replicate simulations or independent observed data — no such second dataset exists in this pipeline. Spaghetti: individual profiles reveal per-group differences.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Do not read the shaded band as a validated model-vs-observation check (no observed clinical data is being compared here).
+
+======================================================================

@@ -1,0 +1,33 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : 05_3D_Performance_Space.png
+  Generated : 2026-09-05  08:00:08
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+3D pharmacological performance space for Galantamine candidates.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Ideal drug occupies top-right-back corner: long half-life, strong binding, high ML success probability.
+
+──────────────────────────────────────────────────────────────────────
+  THEORETICAL & PRACTICAL SCIENCE
+──────────────────────────────────────────────────────────────────────
+Three axes avoid information collapse of 2D projection. ML score from TrainAwareScaler ensemble (RF+GBR+SVR+XGB). Half-life proxy for CNS exposure duration.
+
+──────────────────────────────────────────────────────────────────────
+  METHODOLOGY
+──────────────────────────────────────────────────────────────────────
+matplotlib Axes3D. Three viewing angles: standard, front, top.
+All synthetic (_synthetic=True) rows excluded.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Nearest to top-right-back = lead candidate. Bottom-left-front = poor drug properties.
+
+======================================================================

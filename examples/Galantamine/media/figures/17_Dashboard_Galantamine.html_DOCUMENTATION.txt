@@ -1,0 +1,27 @@
+======================================================================
+  CEREBRO-X |  FIGURE DOCUMENTATION
+  File      : 17_Dashboard_Galantamine.html
+  Generated : 2026-09-05  07:59:37
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Self-contained HTML dashboard for Galantamine.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Single-file dashboard embeds all figures. Open in any browser — no server needed. Can be shared via email or uploaded to any web server.
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC BASIS
+──────────────────────────────────────────────────────────────────────
+All PNGs base64-encoded into HTML. CSS grid layout. Compatible with Streamlit/Dash upgrades.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Open file in browser. Scroll for all figures and Top-10 table. Click 'Save as' to archive the dashboard.
+
+======================================================================

@@ -1,0 +1,27 @@
+======================================================================
+  CEREBRO-X |  FIGURE DOCUMENTATION
+  File      : 15_DoE_Response_Surface_Nusinersen.png
+  Generated : 2026-09-05  08:05:32
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+DoE response surface for Nusinersen.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Identifies optimal size+PEGylation combination for maximum BBB score. Red contour = BBB 75 boundary (minimum viable formulation).
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC BASIS
+──────────────────────────────────────────────────────────────────────
+Cubic griddata interpolation on scattered experimental points. Response surface methodology (RSM) — Box-Behnken design.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Peak of 3D surface = optimal formulation design space. Stay above the red contour line for viable CNS delivery.
+
+======================================================================

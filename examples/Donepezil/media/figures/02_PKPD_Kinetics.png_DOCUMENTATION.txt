@@ -1,0 +1,36 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : 02_PKPD_Kinetics.png
+  Generated : 2026-09-05  07:58:16
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Two-compartment CNS PK/PD kinetics for Donepezil.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Brain concentration over time is the primary efficacy predictor. Time above therapeutic threshold determines dosing interval.
+
+──────────────────────────────────────────────────────────────────────
+  THEORETICAL & PRACTICAL SCIENCE
+──────────────────────────────────────────────────────────────────────
+Two-compartment CNS model:
+C(t) = A·e^(−αt) + B·e^(−βt)
+where α (fast) = distribution phase, β (slow) = elimination phase.
+LogBB = log10(AUC_brain / AUC_plasma). Target > -1 for CNS drugs.
+
+──────────────────────────────────────────────────────────────────────
+  METHODOLOGY
+──────────────────────────────────────────────────────────────────────
+Left: linear scale (therapeutic window visible).
+Right: semi-log (terminal elimination slope = -k_el/2.303).
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Blue dashed = plasma. Teal solid = brain. Steeper log-scale terminal slope = faster elimination.
+
+======================================================================

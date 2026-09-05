@@ -1,0 +1,34 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : 04_DLVO_Stability.png
+  Generated : 2026-09-05  08:05:58
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+DLVO colloidal stability and transcytosis energy landscape for Nusinersen.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Particles with V_total > 25 kT won't aggregate in blood. Negative transcytosis ΔG (green bars) confirms receptor-mediated BBB entry.
+
+──────────────────────────────────────────────────────────────────────
+  THEORETICAL & PRACTICAL SCIENCE
+──────────────────────────────────────────────────────────────────────
+DLVO: V_total = V_vdW (London attraction) + V_EDL (electrostatic repulsion). Stable if V_total > 25 kT. Debye length κ⁻¹ = 0.78 nm at I=150 mM. Bell model: ΔG = E_membrane_deform - n_bonds·G_bond. Negative ΔG → thermodynamically spontaneous uptake.
+
+──────────────────────────────────────────────────────────────────────
+  METHODOLOGY
+──────────────────────────────────────────────────────────────────────
+Left: scatter (size, zeta) coloured by kT stability.
+Right: bar chart of transcytosis ΔG per formulation.
+Green = favourable (ΔG < 0), Red = unfavourable.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Hot colours (red) = unstable colloid. Cool colours (green) = stable. Green bars = endocytosis will occur spontaneously. Red bars = need to increase ligand density or reduce particle size.
+
+======================================================================

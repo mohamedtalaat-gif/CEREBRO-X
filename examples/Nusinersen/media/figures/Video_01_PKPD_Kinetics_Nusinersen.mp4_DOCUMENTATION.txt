@@ -1,0 +1,33 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : Video_01_PKPD_Kinetics_Nusinersen.mp4
+  Generated : 2026-09-05  08:06:01
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+MP4: PK/PD brain concentration kinetics animated — Nusinersen.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Animated videos communicate drug behaviour more intuitively than static plots in presentations and grant applications.
+
+──────────────────────────────────────────────────────────────────────
+  THEORETICAL & PRACTICAL SCIENCE
+──────────────────────────────────────────────────────────────────────
+Same kinetics model as Fig02. Animation reveals temporal evolution: fast rise (distribution phase) then slow decay (elimination phase).
+
+──────────────────────────────────────────────────────────────────────
+  METHODOLOGY
+──────────────────────────────────────────────────────────────────────
+80 frames; each frame = cumulative time window up to that point.
+Writer: imageio. FPS: 20.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Watch for: peak brain concentration height and timing, how long the curve stays above the 50% threshold.
+
+======================================================================

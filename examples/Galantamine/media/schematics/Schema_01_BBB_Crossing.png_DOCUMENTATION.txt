@@ -1,0 +1,33 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : Schema_01_BBB_Crossing.png
+  Generated : 2026-09-05  08:00:09
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+BioRender-style schematic of Vexosome BBB crossing mechanism for Galantamine.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Communicates the nanocarrier delivery concept to non-technical audience (investors, clinicians, regulators) and publications.
+
+──────────────────────────────────────────────────────────────────────
+  THEORETICAL & PRACTICAL SCIENCE
+──────────────────────────────────────────────────────────────────────
+RVG29/Angiopep-2 surface ligand binds nAChR/LRP1 on endothelial cells. Receptor-mediated endocytosis → vesicle formation → transcytosis across BBB → exocytosis on abluminal side → drug release into brain parenchyma.
+
+──────────────────────────────────────────────────────────────────────
+  METHODOLOGY
+──────────────────────────────────────────────────────────────────────
+Pure matplotlib: FancyBboxPatch, Circle, annotate arrows.
+No external tools (BioRender, Inkscape, etc.) required.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Orange = blood vessel. Blue bar = endothelial cells. Light blue = brain. Navy sphere = Vexosome with gold PEG brush and ligand. Orange dot = drug payload. Green arrow = transcytosis direction.
+
+======================================================================

@@ -1,0 +1,27 @@
+======================================================================
+  CEREBRO-X |  FIGURE DOCUMENTATION
+  File      : 03_Interactive_Dashboard_Donepezil.html
+  Generated : 2026-09-05  07:53:25
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Plotly interactive HTML dashboard for Donepezil.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Allows researchers to zoom, pan, hover for exact values. Exportable to PNG via browser screenshot.
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC BASIS
+──────────────────────────────────────────────────────────────────────
+Plotly.js runs in-browser — no server required. Open in any browser.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Hover over bubbles for exact values. Bubble size = encapsulation efficiency. Colour = BBB score.
+
+======================================================================

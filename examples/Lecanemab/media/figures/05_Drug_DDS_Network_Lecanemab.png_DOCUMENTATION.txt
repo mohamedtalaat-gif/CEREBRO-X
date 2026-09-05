@@ -1,0 +1,27 @@
+======================================================================
+  CEREBRO-X |  FIGURE DOCUMENTATION
+  File      : 05_Drug_DDS_Network_Lecanemab.png
+  Generated : 2026-09-05  08:02:08
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Drug–DDS interaction network for Lecanemab.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Visualises relationships between drug, carrier classes, and formulations. Thick edges = higher BBB score. Gold nodes = viable formulations.
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC BASIS
+──────────────────────────────────────────────────────────────────────
+Spring-layout force-directed graph. Edge weight ∝ BBB Engineering Score.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Drug node (dark) connects to carrier classes (teal). Gold nodes = ready for in-vitro testing (BBB ≥ 75).
+
+======================================================================

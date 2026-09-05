@@ -1,0 +1,27 @@
+======================================================================
+  CEREBRO-X |  FIGURE DOCUMENTATION
+  File      : 02_Seaborn_Statistical_Temozolomide.png
+  Generated : 2026-09-05  08:08:36
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Seaborn statistical visualizations for DDS formulations — Temozolomide.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Correlation matrix identifies which parameters co-vary. Violin+strip reveals distribution shape per carrier type.
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC BASIS
+──────────────────────────────────────────────────────────────────────
+Pearson correlation r ∈ [-1,1]. |r|>0.7 = strong correlation.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Red in correlation = positive (both parameters increase together). Blue = inverse. Widest violin = most variable carrier type.
+
+======================================================================

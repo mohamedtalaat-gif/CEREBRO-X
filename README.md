@@ -82,6 +82,13 @@ drugs (Lecanemab, Temozolomide, Nusinersen) referenced in the
 plus three more covering the small-molecule/biologic/oligonucleotide split
 this pipeline is built to handle.
 
+The full set — PDF report, interactive HTML5 dashboard, every generated
+figure/animation, and the completed-data Excel workback — for all six drugs
+above lives in [`examples/`](examples/), straight from `outputs/` with
+nothing curated out except internal-only artifacts (databases, caches,
+quarantine logs) that aren't meant to be public. Clone the repo and open
+any of it locally, no server required.
+
 ## ✨ Key Features
 
 - 🎯 **62-criterion scoring rubric** spanning BBB physics, PK/PD, colloidal stability, safety, and manufacturability — one composite score, full per-criterion breakdown
@@ -138,6 +145,27 @@ actually found, at every layer of the stack:
 - An interactive t-SNE panel that had been showing a raw Python stack trace
   instead of a plot on every single run, because of a renamed scikit-learn
   parameter nobody had re-checked.
+- "Real AutoDock Vina docking" never actually ran, in any environment,
+  because the `vina` package has no wheel for the Python version this
+  project's Docker image runs — every call silently fell back to the
+  labeled LIE approximation. Fixing the install uncovered three more
+  layers of the same problem (an outdated ligand-prep API call, missing
+  transitive dependency, non-reproducible conformer generation, and a
+  receptor ID that was never wired through) before it actually worked.
+- Two drugs — one antibody, one antisense oligonucleotide — showed an
+  *identical* molecular weight (339.49 Da) in the plain-text summary
+  report, because a synthetic ML-training row (Gaussian noise added to
+  pad a single-drug dataset) got picked over the real one with no check
+  for which was which. Fixing that surfaced a second bug underneath it:
+  the real row's own MW was *also* wrong (a flat 350 Da placeholder from
+  a name-lookup cascade that doesn't know biologics), silently
+  overriding the pipeline's own correct, sequence-computed value.
+- Nucleotide sequences (antisense oligos, siRNA) were being silently
+  misread as protein sequences and run through protein-weight chemistry
+  — because DNA/RNA letters (A/C/G/T) are a strict subset of the amino-acid
+  alphabet, so a bare oligo sequence passes the same "looks like a
+  protein" check a real peptide does. There was no nucleotide input path
+  at all until this was found.
 
 None of these were found by a user complaint — they were found by treating
 "looks like it works" as a starting hypothesis to try to break, not a
@@ -191,8 +219,8 @@ the single-metric BBB score alone):
 | Drug | Class | MW | Top-1 chosen | Composite Score | Verdict |
 |---|---|---|---|---|---|
 | **Lecanemab** | monoclonal_antibody | 13.1 kDa | Tf-PEG-Liposome | 62.7/100 | CONDITIONAL GO |
-| **Temozolomide** | small_molecule | 194 Da | RVG29-PLGA-NP | 81.1/100 | CONDITIONAL GO |
-| **Nusinersen** | oligonucleotide | 1.6 kDa | **ApoE-LNP** | 78.1/100 | CONDITIONAL GO |
+| **Temozolomide** | small_molecule | 194 Da | RVG29-PLGA-NP | 81.7/100 | CONDITIONAL GO |
+| **Nusinersen** | oligonucleotide | 5.5 kDa | **ApoE-LNP** | 78.1/100 | CONDITIONAL GO |
 
 Each drug picks the pharmacologically-correct carrier class — exactly as the
 FDA has approved in clinical practice (Leqembi, Temodar, Spinraza analogs) —

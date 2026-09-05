@@ -1,0 +1,27 @@
+======================================================================
+  CEREBRO-X |  FIGURE DOCUMENTATION
+  File      : 06_Box_Plots_Donepezil.png
+  Generated : 2026-09-05  07:53:26
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Box plots of DDS parameters for Donepezil.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+5-number summaries reveal outliers and distribution shapes per carrier type. Notched boxes: if notches don't overlap, medians are significantly different.
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC BASIS
+──────────────────────────────────────────────────────────────────────
+Box = IQR (Q1-Q3). Whiskers = 1.5×IQR. Points = outliers beyond 1.5×IQR.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Wider notch = higher uncertainty in median. Gold line = median. Points above whisker = outlier formulations.
+
+======================================================================

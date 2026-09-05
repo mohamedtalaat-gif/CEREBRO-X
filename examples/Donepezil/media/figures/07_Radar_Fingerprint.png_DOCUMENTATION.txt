@@ -1,0 +1,32 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : 07_Radar_Fingerprint.png
+  Generated : 2026-09-05  07:58:17
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Polar radar molecular fingerprint — Donepezil.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Shows multi-attribute drug profile. Larger enclosed area = stronger candidate.
+
+──────────────────────────────────────────────────────────────────────
+  THEORETICAL & PRACTICAL SCIENCE
+──────────────────────────────────────────────────────────────────────
+Min-Max normalised (0–1), abs() so negative affinities are positive. All axes equal scale for fair comparison.
+
+──────────────────────────────────────────────────────────────────────
+  METHODOLOGY
+──────────────────────────────────────────────────────────────────────
+matplotlib polar. Min-Max per column on training set (no leakage).
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Largest enclosed area = best candidate. Note which axes are weak (small radial extent) — these are the optimisation targets for next-generation analogues.
+
+======================================================================

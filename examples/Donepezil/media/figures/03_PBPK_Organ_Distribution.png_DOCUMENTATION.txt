@@ -1,0 +1,33 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : 03_PBPK_Organ_Distribution.png
+  Generated : 2026-09-05  07:58:16
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+PBPK organ distribution heatmap for Donepezil.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Identifies off-target organ accumulation (liver = hepatotoxicity risk, kidney = nephrotoxicity). Gold border = brain (target tissue).
+
+──────────────────────────────────────────────────────────────────────
+  THEORETICAL & PRACTICAL SCIENCE
+──────────────────────────────────────────────────────────────────────
+7-compartment PBPK: Kp = 10^(slope·logP) per organ. Colour intensity ∝ drug concentration. High liver/kidney accumulation warns of off-target toxicity.
+
+──────────────────────────────────────────────────────────────────────
+  METHODOLOGY
+──────────────────────────────────────────────────────────────────────
+seaborn heatmap of pivoted PBPK timeseries.
+Row = organ, column = time point, cell = mean concentration.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Darker = more drug. Gold border on brain = target. Avoid carriers that concentrate heavily in liver (hepatotox risk).
+
+======================================================================

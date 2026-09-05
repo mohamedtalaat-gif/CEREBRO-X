@@ -198,25 +198,31 @@ def build_drug_input(ws, n_drug_slots: int = 3) -> None:
                 "fetch data from PubChem/ChEMBL/UniProt/DrugBank.")
     row += 1
     _input_row(ws, row, "Molecule Class",
-                "small_molecule | biologic | peptide",
+                "small_molecule | biologic | peptide | oligonucleotide",
                 "YES",
                 "Determines which PK fallback class is used",
-                "One of: small_molecule, biologic, peptide. "
-                "If left blank, the pipeline assumes small_molecule.")
+                "One of: small_molecule, biologic, peptide, oligonucleotide "
+                "(also accepts aso, sirna, mirna, mrna, aptamer). "
+                "If left blank, the pipeline assumes small_molecule. "
+                "oligonucleotide is required for a raw DNA/RNA sequence -- "
+                "without it, the letters are ambiguous with a short protein "
+                "FASTA and will be analyzed as one.")
     # Data validation dropdown for Molecule Class
     dv_class = DataValidation(type="list",
-        formula1='"small_molecule,biologic,peptide,monoclonal_antibody"',
+        formula1='"small_molecule,biologic,peptide,monoclonal_antibody,oligonucleotide"',
         allow_blank=True, showDropDown=False)
     dv_class.add(f"B{row}")
     ws.add_data_validation(dv_class)
     row += 1
     _input_row(ws, row,
                 "Molecule Input (SMILES / FASTA / PDB / HELM / InChIKey)",
-                "SMILES: COc1cc2c… | FASTA: >seq\\nMVLS… | PDB: 2NAO",
+                "SMILES: COc1cc2c… | FASTA: >seq\\nMVLS… | PDB: 2NAO | "
+                "DNA/RNA: TCACTTTCATAATGCTGG",
                 "STRONGLY RECOMMENDED",
                 "Pipeline auto-detects the type",
                 "Paste a SMILES string, a FASTA sequence (starting with '>'), "
-                "a 4-char PDB ID, or HELM peptide notation. "
+                "a 4-char PDB ID, HELM peptide notation, or a raw DNA/RNA "
+                "sequence (set Molecule Class to oligonucleotide for this). "
                 "If left blank, the pipeline tries to resolve from Drug Name.")
     row += 1
     _input_row(ws, row, "Indication (Disease Target)", "Alzheimer's Disease",
@@ -292,15 +298,16 @@ def build_drug_input(ws, n_drug_slots: int = 3) -> None:
         _input_row(ws, row, "Drug Name", "e.g. Donepezil", "Optional", "")
         row += 1
         _input_row(ws, row, "Molecule Class",
-                    "small_molecule | biologic | peptide", "Optional", "")
+                    "small_molecule | biologic | peptide | oligonucleotide",
+                    "Optional", "")
         dv = DataValidation(type="list",
-            formula1='"small_molecule,biologic,peptide,monoclonal_antibody"',
+            formula1='"small_molecule,biologic,peptide,monoclonal_antibody,oligonucleotide"',
             allow_blank=True)
         dv.add(f"B{row}"); ws.add_data_validation(dv)
         row += 1
         _input_row(ws, row,
                     "Molecule Input (SMILES / FASTA / PDB / InChIKey)",
-                    "SMILES or sequence", "Optional", "")
+                    "SMILES, FASTA, or DNA/RNA sequence", "Optional", "")
         row += 1
         _input_row(ws, row, "Indication", "Alzheimer's Disease", "Optional", "")
         row += 1

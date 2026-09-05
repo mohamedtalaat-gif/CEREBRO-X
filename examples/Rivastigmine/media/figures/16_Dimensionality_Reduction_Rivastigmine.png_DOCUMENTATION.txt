@@ -1,0 +1,27 @@
+======================================================================
+  CEREBRO-X |  FIGURE DOCUMENTATION
+  File      : 16_Dimensionality_Reduction_Rivastigmine.png
+  Generated : 2026-09-05  08:07:17
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Dimensionality reduction plots (PCA, t-SNE, UMAP) — Rivastigmine.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Reveals natural clusters among 100 formulations based on all parameters. Clusters = groups with similar BBB scores → guide carrier class selection.
+
+──────────────────────────────────────────────────────────────────────
+  SCIENTIFIC BASIS
+──────────────────────────────────────────────────────────────────────
+PCA: linear projection maximising variance. t-SNE: non-linear, preserves local structure. UMAP: preserves global + local topology.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Colour = BBB score. Clusters of high BBB (yellow/green) = top design space. PCA arrows show which features drive separation.
+
+======================================================================

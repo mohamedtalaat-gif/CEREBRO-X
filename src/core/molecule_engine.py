@@ -829,7 +829,7 @@ class CascadeNameEngine:
 # MASTER DISPATCHER
 # ─────────────────────────────────────────────────────────────────────────────
 _OLIGO_CLASSES = {"oligonucleotide", "aso", "antisense", "sirna", "mirna",
-                   "aptamer"}
+                   "aptamer", "mrna"}
 
 def analyze_molecule(raw_input: str, name: str = None,
                       molecule_class: str = "") -> dict[str, Any]:

@@ -1,0 +1,33 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : 06_Formulation_Heatmap.png
+  Generated : 2026-09-05  08:00:08
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Formulation property heatmap: 25 DDS systems × 8 parameters.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Quick visual scan for which formulations are uniformly excellent (all dark blue) vs. tradeoff-heavy (mixed colours). Guides multi-objective optimisation.
+
+──────────────────────────────────────────────────────────────────────
+  THEORETICAL & PRACTICAL SCIENCE
+──────────────────────────────────────────────────────────────────────
+All parameters normalised 0–1. For 'lower is better' parameters (size, CARPA, liver off-target) the scale is inverted so dark = good. A uniformly dark row = optimal formulation across all engineering dimensions.
+
+──────────────────────────────────────────────────────────────────────
+  METHODOLOGY
+──────────────────────────────────────────────────────────────────────
+Min-max normalisation per column. Inverted for negative parameters.
+seaborn heatmap with custom CEREBRO-X colormap.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+All dark blue = best. Mixed colours = tradeoffs. Identify rows that are uniformly dark → these are the strongest candidates.
+
+======================================================================

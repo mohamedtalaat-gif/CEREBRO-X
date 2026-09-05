@@ -1,0 +1,35 @@
+======================================================================
+  CEREBRO-X |  FILE DOCUMENTATION
+  File      : 01_BBB_Score_Ranking.png
+  Generated : 2026-09-05  07:58:16
+======================================================================
+
+──────────────────────────────────────────────────────────────────────
+  OVERVIEW
+──────────────────────────────────────────────────────────────────────
+BBB Engineering Score ranking: top 30/8 DDS formulations for Donepezil.
+
+──────────────────────────────────────────────────────────────────────
+  SIGNIFICANCE
+──────────────────────────────────────────────────────────────────────
+Identifies optimal carrier architectures. Scores > 75 with ADMET=OK proceed to in-vitro BBB TEER assay validation.
+
+──────────────────────────────────────────────────────────────────────
+  THEORETICAL & PRACTICAL SCIENCE
+──────────────────────────────────────────────────────────────────────
+BBB Engineering Score: composite of size optimality (60–100 nm for caveolae transcytosis), zeta stability (±5–15 mV), PEGylation stealth (2–7 mol%), surface ligand receptor affinity (RVG +20, ApoE3 +22), ligand density Goldilocks (0.5–1.5/nm²), EE ≥ 80%, P-gp escape, Tm safety, CARPA risk, liver off-target penalty.
+
+──────────────────────────────────────────────────────────────────────
+  METHODOLOGY
+──────────────────────────────────────────────────────────────────────
+1. Sort top-N by BBB score.
+2. Horizontal bar per formulation, colour = carrier type.
+3. Score label right of bar.
+4. ADMET REVIEW marked with orange triangle.
+
+──────────────────────────────────────────────────────────────────────
+  HOW TO INTERPRET
+──────────────────────────────────────────────────────────────────────
+Longest bar = best formulation. Gold dashed line at 75 = minimum for wet-lab. Orange triangles = safety concern requiring reformulation.
+
+======================================================================
