@@ -82,6 +82,7 @@ def _bundle_drug_specs(drug_bundle: dict) -> dict[str, Any]:
         "drug_type":   drug_bundle.get("_meta",{}).get("drug_type", "small_molecule"),
         "name":        drug_bundle.get("_meta",{}).get("name", ""),
         "smiles":      drug_bundle.get("_meta",{}).get("identifiers",{}).get("smiles",""),
+        "pdb_id":      drug_bundle.get("_meta",{}).get("target_pdb_id") or "",
     }
 
 
@@ -473,10 +474,11 @@ def deep_P47(drug_bundle: dict, dds_bundle: dict,
     hbd   = float(d["hbd"])
     hba   = float(d["hba"])
     smiles = d.get("smiles") or ""
-    # No PDB ID is threaded through the bundle pipeline yet (tracked as
-    # follow-up work) — passing None makes run_autodock_vina take its
-    # documented LIE fallback path deterministically, without attempting a
-    # network fetch or importing `vina`.
+    # Threaded from the Excel "Target PDB ID" field via resolve_drug_bundle()
+    # -> _meta.target_pdb_id -> _bundle_drug_specs(). Empty/None here means
+    # the field genuinely wasn't provided (e.g. secondary drugs in a
+    # multi-drug Excel, which have no PDB ID column at all) -- correctly
+    # takes the LIE fallback path in that case rather than fabricating one.
     pdb_id = d.get("pdb_id") or None
 
     if _HAS_DOCKING_ENGINE:

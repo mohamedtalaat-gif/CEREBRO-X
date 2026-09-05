@@ -130,9 +130,18 @@ def _prepare_ligand_pdbqt(smiles: str, pdbqt_path: Path,
         if mol is None:
             return False, f"Invalid SMILES: {smiles[:30]}"
 
-        # Add hydrogens and generate 3D conformer
+        # Add hydrogens and generate 3D conformer. ETKDGv3's randomSeed
+        # defaults to -1 ("pick a new one each call"), so the exact same
+        # SMILES embeds a different starting 3D geometry every run -- MMFF
+        # then optimizes that different geometry, and Vina docks a
+        # different ligand shape, so the seed=42 on Vina() below wasn't
+        # enough on its own to make docking reproducible; confirmed live
+        # (same molecule/receptor, two runs, current code): -7.69 vs
+        # -7.54 kcal/mol before this fix.
         mol_h = Chem.AddHs(mol)
-        AllChem.EmbedMolecule(mol_h, AllChem.ETKDGv3())
+        embed_params = AllChem.ETKDGv3()
+        embed_params.randomSeed = 42
+        AllChem.EmbedMolecule(mol_h, embed_params)
         result = MMFFOptimizeMolecule(mol_h)
 
         # Write SDF
@@ -141,30 +150,29 @@ def _prepare_ligand_pdbqt(smiles: str, pdbqt_path: Path,
         writer.write(mol_h)
         writer.close()
 
-        # Convert SDF → PDBQT using meeko
-        try:
-            from meeko import MoleculePreparation
-            preparator = MoleculePreparation()
-            setup, _ = preparator.prepare(mol_h)
-            pdbqt_string = MoleculePreparation.write_pdbqt_string(setup)
-            pdbqt_path.write_text(pdbqt_string)
-            log.info(f"[DOCK] Ligand PDBQT via meeko: {pdbqt_path.stat().st_size}B")
-            return True, ""
-        except Exception as me:
-            log.debug(f"[DOCK] Meeko failed ({me}), using basic PDBQT")
-            # Write minimal PDBQT from atom coords
-            pdbqt_lines = [f"REMARK CEREBRO-X ligand {smiles[:40]}"]
-            conf = mol_h.GetConformer()
-            for i, atom in enumerate(mol_h.GetAtoms()):
-                pos = conf.GetAtomPosition(i)
-                sym = atom.GetSymbol()
-                pdbqt_lines.append(
-                    f"ATOM  {i+1:5d}  {sym:<3s} LIG A   1    "
-                    f"{pos.x:8.3f}{pos.y:8.3f}{pos.z:8.3f}"
-                    f"  1.00  0.00          {sym:>2s}")
-            pdbqt_lines.append("TORSDOF 0")
-            pdbqt_path.write_text("\n".join(pdbqt_lines))
-            return True, ""
+        # Convert SDF → PDBQT using meeko. meeko >=0.6 dropped
+        # MoleculePreparation.write_pdbqt_string() -- prepare() now returns a
+        # list of MoleculeSetup objects, and writing requires the separate
+        # PDBQTWriterLegacy class. There is no honest "basic" fallback for a
+        # malformed ligand: a hand-rolled PDBQT with bare element symbols
+        # instead of AutoDock atom types, zero partial charges, and no
+        # ROOT/ENDROOT/BRANCH torsion tree isn't a degraded approximation --
+        # Vina's parser rejects it outright ("Unknown or inappropriate tag"),
+        # so the previous fallback here never actually let docking run; it
+        # just replaced a clear "meeko unavailable" error with a confusing
+        # one two layers downstream. Returning False here lets the caller
+        # fall back to the real LIE approximation cleanly instead.
+        from meeko import MoleculePreparation, PDBQTWriterLegacy
+        preparator = MoleculePreparation()
+        mol_setups = preparator.prepare(mol_h)
+        if not mol_setups:
+            return False, "meeko produced no molecule setups"
+        pdbqt_string, is_ok, err_msg = PDBQTWriterLegacy.write_string(mol_setups[0])
+        if not is_ok:
+            return False, f"meeko PDBQT write failed: {err_msg}"
+        pdbqt_path.write_text(pdbqt_string)
+        log.info(f"[DOCK] Ligand PDBQT via meeko: {pdbqt_path.stat().st_size}B")
+        return True, ""
     except Exception as e:
         return False, str(e)
 
@@ -290,7 +298,17 @@ def run_autodock_vina(smiles: str, pdb_id: str,
         cx, cy, cz, box = _detect_binding_site(pdb_path)
 
         # Step 5: Run AutoDock Vina
-        v = Vina(sf_name="vina", cpu=2, verbosity=0)
+        # seed=0 (the constructor default) means "randomly choose a seed" per
+        # Vina's own docs -- every call was picking a new one, so the same
+        # molecule against the same receptor produced a different binding
+        # pose/affinity each run. That affinity feeds AdvancedMLEngine's
+        # training target, so the drift propagated into ML_Success_Probability
+        # and ultimately Principle_Composite_Score -- observed directly as
+        # Donepezil scoring 82.9 in one clean regen and 80.5 in another, and
+        # Galantamine's top-2 candidates (0.02 apart) flipping rank. Fixed
+        # seed makes docking reproducible, matching random_state=42 used
+        # everywhere else in this codebase (pipeline.py, pipeline_runner.py).
+        v = Vina(sf_name="vina", cpu=2, seed=42, verbosity=0)
         v.set_receptor(str(rec_pdbqt))
         v.set_ligand_from_file(str(lig_pdbqt))
         v.compute_vina_maps(center=[cx, cy, cz],
@@ -313,7 +331,15 @@ def run_autodock_vina(smiles: str, pdb_id: str,
         Kd_nM = Kd_M * 1e9
 
         # Save docking output
-        v.write_poses(str(out_pdbqt), n_poses=n_poses)
+        # overwrite=True: out_pdbqt is a fixed per-drug cache path, not a
+        # per-call unique one, so every docking call after the first for the
+        # same drug hit "Cannot overwrite ... already exists" and fell back
+        # to LIE -- confirmed live (Donepezil, 4 deep_P47 calls in one run:
+        # 1 real success, 3 forced fallbacks) before this fix. The pdbqt
+        # file is a write-only artifact for inspection; poses_dG above
+        # already came from v.energies() in-memory, so overwriting it
+        # doesn't affect the returned result.
+        v.write_poses(str(out_pdbqt), n_poses=n_poses, overwrite=True)
         poses_summary = [{"rank": i+1, "dG_kcal_mol": round(e, 2)} for i, e in enumerate(poses_dG)]
 
         result = {

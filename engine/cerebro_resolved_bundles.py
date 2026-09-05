@@ -108,12 +108,16 @@ def resolve_drug_bundle(name: str = "", smiles: str = "",
                           fasta: str = "", sequence: str = "",
                           molecule_class: str = "",
                           researcher_overrides: dict | None = None,
+                          target_pdb_id: str = "",
                           **extra_kwargs) -> dict:
     """Resolve ALL drug-side properties in a single bundle.
 
     Args:
         name, smiles, fasta, sequence: identifiers (any combination)
         molecule_class: optional pre-classified type
+        target_pdb_id: optional Excel "Target PDB ID" -- threaded into
+            _meta so deep_P47 (cerebro_62_deep_engine.py) can attempt real
+            AutoDock Vina docking instead of always taking the LIE fallback
         researcher_overrides: dict mapping category → user-provided value
             from the Excel "Your Input" column
 
@@ -145,6 +149,7 @@ def resolve_drug_bundle(name: str = "", smiles: str = "",
                 "fasta":    fasta or None,
                 "sequence": sequence or None,
             },
+            "target_pdb_id": (target_pdb_id or "").strip().upper() or None,
             "researcher_overrides": list(researcher_overrides.keys()),
         }
     }

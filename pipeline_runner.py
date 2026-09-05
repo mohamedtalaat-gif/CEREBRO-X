@@ -313,6 +313,7 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
                 sequence  = mol_profile.get("sequence", ""),
                 molecule_class = mol_profile.get("molecule_class", ""),
                 researcher_overrides = _researcher_overrides,
+                target_pdb_id = cfg.get("drug", {}).get("target_pdb_id", ""),
             )
             log.info(f"[BUNDLES] {drug_name}: drug bundle resolved "
                       f"(drug_type={drug_bundle_top1.get('_meta',{}).get('drug_type')}, "
@@ -932,6 +933,7 @@ def run_pipeline_from_excel(excel_path: Path, excel_hash: str,
                     sequence = _extra_mol.get("sequence", ""),
                     molecule_class = _extra_mol.get("molecule_class", ""),
                     researcher_overrides = _extra_overrides,
+                    target_pdb_id = extra_drug_cfg.get("target_pdb_id", ""),
                 )
                 _orch_extra = evaluate_all_dds_62(drug_bundle=_extra_drug_bundle,
                                                     df_dds=_extra_df_dds,

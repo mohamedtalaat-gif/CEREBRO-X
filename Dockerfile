@@ -22,11 +22,21 @@ LABEL org.cerebro.version="22.1"
 ARG PYTHON_ENV=production
 
 # ── Layer 1: System dependencies + brand typography ────────────────────────
+# libboost-all-dev + swig: required to build the `vina` PyPI package from
+# source. vina 1.2.7 (the version real_docking_engine.py targets) ships
+# prebuilt wheels only up to cp312 -- none for this image's Python 3.13 --
+# so `pip install vina` needs the actual C++ build toolchain (Boost +
+# SWIG-generated bindings) rather than a wheel. Without these two packages
+# the install fails outright and every docking call silently falls back to
+# the LIE approximation, which is what was happening before this line
+# existed despite the README/outreach materials already claiming real
+# AutoDock Vina docking.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc g++ gfortran \
         libffi-dev libssl-dev \
         libopenblas-dev liblapack-dev \
         libhdf5-dev \
+        libboost-all-dev swig \
         curl wget git \
         ca-certificates \
         fonts-inter fonts-liberation fontconfig \
@@ -85,6 +95,17 @@ RUN pip install --no-cache-dir pubchempy==1.0.4               || echo "[BUILD-WA
 # for linux/aarch64 + cp313 yet, so pip builds it from source using the
 # gcc/gfortran/openblas/lapack toolchain installed in Layer 1.
 RUN pip install --no-cache-dir MDAnalysis==2.10.0             || echo "[BUILD-WARN] MDAnalysis"
+# vina 1.2.7 pinned to match real_docking_engine.py's docstring and the
+# capability already described to outside parties. No cp313 wheel exists
+# (see Layer 1 comment), so this builds from source against the Boost/SWIG
+# toolchain installed above -- expect this step to take several minutes.
+RUN pip install --no-cache-dir vina==1.2.7                    || echo "[BUILD-WARN] vina"
+# meeko converts RDKit molecules to PDBQT for Vina. Pure-Python (py3-none-
+# any wheel), no build toolchain needed. gemmi is meeko's own dependency
+# for macrocycle/mmCIF handling -- meeko's package metadata doesn't declare
+# it as a hard require, so pip installs meeko without it and it only
+# surfaces as a runtime ModuleNotFoundError the first time ligand prep runs.
+RUN pip install --no-cache-dir meeko>=0.6 gemmi>=0.6           || echo "[BUILD-WARN] meeko/gemmi"
 
 # ── Layer 4: Phase 5 first-principles libraries (latest, conflict-free) ─────
 #    - thermo and chemicals are tightly coupled; let pip resolve latest compatible
