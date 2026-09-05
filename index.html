@@ -804,7 +804,7 @@ footer strong { color:var(--text-1); }
             <td><span class="mono" style="font-size:.8rem">LogP 4.77 · MW 379.5 Da</span></td>
             <td>RVG29-PLGA-NP</td>
             <td><strong style="color:var(--gold)">80.7</strong>/100 <span class="badge badge-excellent">EXCELLENT</span></td>
-            <td><span class="badge badge-passed">PASSED</span> 20/28 (71.4%)</td>
+            <td><span class="badge badge-marginal">MARGINAL</span> 19/28 (67.9%)</td>
           </tr>
           <tr>
             <td><strong>Rivastigmine</strong></td>
@@ -812,7 +812,7 @@ footer strong { color:var(--text-1); }
             <td><span class="mono" style="font-size:.8rem">LogP 2.30 · MW 250.3 Da</span></td>
             <td>RVG29-PLGA-NP</td>
             <td><strong style="color:var(--gold)">83.2</strong>/100 <span class="badge badge-excellent">EXCELLENT</span></td>
-            <td><span class="badge badge-passed">PASSED</span> 20/28 (71.4%)</td>
+            <td><span class="badge badge-marginal">MARGINAL</span> 19/28 (67.9%)</td>
           </tr>
           <tr>
             <td><strong>Galantamine</strong></td>
@@ -825,9 +825,9 @@ footer strong { color:var(--text-1); }
           <tr>
             <td><strong>Lecanemab</strong></td>
             <td><span class="badge badge-bio">Biologic (mAb)</span></td>
-            <td><span class="mono" style="font-size:.8rem">13.1 kDa · IgG1 (VH domain)</span></td>
+            <td><span class="mono" style="font-size:.8rem">147.1 kDa · IgG1</span></td>
             <td>Tf-PEG-Liposome</td>
-            <td><strong style="color:var(--gold)">63.7</strong>/100 <span class="badge badge-acceptable">ACCEPTABLE</span></td>
+            <td><strong style="color:var(--gold)">62.1</strong>/100 <span class="badge badge-acceptable">ACCEPTABLE</span></td>
             <td><span class="badge badge-failed">FAILED</span> 12/28 (42.9%)</td>
           </tr>
           <tr>
@@ -841,10 +841,10 @@ footer strong { color:var(--text-1); }
           <tr>
             <td><strong>Nusinersen</strong></td>
             <td><span class="badge badge-aso">ASO</span></td>
-            <td><span class="mono" style="font-size:.8rem">5.5 kDa · Phosphorothioate</span></td>
+            <td><span class="mono" style="font-size:.8rem">5.7 kDa · Phosphorothioate</span></td>
             <td>ApoE-LNP</td>
             <td><strong style="color:var(--gold)">76.3</strong>/100 <span class="badge badge-verdict-good">GOOD</span></td>
-            <td><span class="badge badge-failed">FAILED</span> 12/28 (42.9%)</td>
+            <td><span class="badge badge-failed">FAILED</span> 11/28 (39.3%)</td>
           </tr>
         </tbody>
       </table>
@@ -852,10 +852,12 @@ footer strong { color:var(--text-1); }
     <div class="insight-box reveal">
       <strong>Key Insight:</strong> Six drugs, three molecule classes, six different
       Top-1 carriers — chosen from molecular descriptors alone, no manual tuning.
-      But the honest finding is in the last column: three of six candidates that
-      score well on the fast surrogate rubric (Class A) do <em>not</em> hold up
-      under deep physics re-validation (Class B) at the 70% threshold. That gap
-      is exactly why CEREBRO-X reports both numbers instead of one polished score.
+      But the honest finding is in the last column: not one of the six candidates
+      that scores well on the fast surrogate rubric (Class A) currently clears
+      the 70% threshold under deep physics re-validation (Class B) — the closest
+      are at 67.9%. That gap is exactly why CEREBRO-X reports both numbers
+      instead of one polished score, and why nothing here should be read as a
+      finished, ready-to-formulate answer.
     </div>
   </div>
 </section>
@@ -907,7 +909,7 @@ footer strong { color:var(--text-1); }
         <div class="drug-meta">
           <span>LogP <strong>4.77</strong></span>
           <span>MW <strong>379.5 Da</strong></span>
-          <span>Class B <strong style="color:var(--teal-lt)">PASSED 20/28</strong></span>
+          <span>Class B <strong style="color:#FFA040">MARGINAL 19/28</strong></span>
         </div>
         <div class="drug-dds">
           <div class="label">Optimal DDS</div>
@@ -949,7 +951,7 @@ footer strong { color:var(--text-1); }
         <div class="drug-meta">
           <span>LogP <strong>2.30</strong></span>
           <span>MW <strong>250.3 Da</strong></span>
-          <span>Class B <strong style="color:var(--teal-lt)">PASSED 20/28</strong></span>
+          <span>Class B <strong style="color:#FFA040">MARGINAL 19/28</strong></span>
         </div>
         <div class="drug-dds">
           <div class="label">Optimal DDS</div>
@@ -1023,16 +1025,16 @@ footer strong { color:var(--text-1); }
               <stop stop-color="#B89A3F"/><stop offset="1" stop-color="#D4B563"/>
             </linearGradient></defs>
             <text x="32" y="37" text-anchor="middle" fill="#C9A84C"
-              font-family="Outfit,sans-serif" font-size="13" font-weight="800">64</text>
+              font-family="Outfit,sans-serif" font-size="13" font-weight="800">62</text>
           </svg>
           <div class="ring-info">
             <div class="label">Composite (Class A)</div>
-            <div class="val">63.7 / 100</div>
+            <div class="val">62.1 / 100</div>
           </div>
         </div>
         <div class="drug-meta">
-          <span>MW <strong>13.1 kDa</strong></span>
-          <span>Type <strong>IgG1 (VH domain)</strong></span>
+          <span>MW <strong>147.1 kDa</strong></span>
+          <span>Type <strong>IgG1</strong></span>
           <span>Class B <strong style="color:#FF7A7A">FAILED 12/28</strong></span>
         </div>
         <div class="drug-dds">
@@ -1115,9 +1117,9 @@ footer strong { color:var(--text-1); }
           </div>
         </div>
         <div class="drug-meta">
-          <span>MW <strong>5.5 kDa</strong></span>
+          <span>MW <strong>5.7 kDa</strong></span>
           <span>Type <strong>Phosphorothioate</strong></span>
-          <span>Class B <strong style="color:#FF7A7A">FAILED 12/28</strong></span>
+          <span>Class B <strong style="color:#FF7A7A">FAILED 11/28</strong></span>
         </div>
         <div class="drug-dds">
           <div class="label">Optimal DDS</div>

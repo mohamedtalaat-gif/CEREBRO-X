@@ -51,7 +51,7 @@ button:hover { background: var(--void-elevated); border-color: var(--gold);
 <body>
 <div class="container">
   <h2>CEREBRO-X | V01 — BBB Crossing | Lecanemab</h2>
-  <p class="subtitle">Carrier: liposome | Ligand: Transferrin | BBB Enhancement: 100.0% (vs native 77.0%)</p>
+  <p class="subtitle">Carrier: liposome | Ligand: Transferrin | BBB Enhancement: 100.0% (vs native 5.3%)</p>
   <canvas id="c01" width="860" height="340"></canvas>
   <div class="progress"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
   <div class="ctrl">
@@ -61,7 +61,7 @@ button:hover { background: var(--void-elevated); border-color: var(--gold);
   </div>
   <div class="metrics">
   <div class="metric"><div class="metric-val">100.0%</div><div class="metric-lbl">BBB Enhancement</div></div>
-  <div class="metric"><div class="metric-val">77.0%</div><div class="metric-lbl">Native BBB</div></div>
+  <div class="metric"><div class="metric-val">5.3%</div><div class="metric-lbl">Native BBB</div></div>
   <div class="metric"><div class="metric-val">58.0%</div><div class="metric-lbl">CNS Bioavailability</div></div>
   <div class="metric"><div class="metric-val">105nm</div><div class="metric-lbl">Carrier Size</div></div>
 </div>
@@ -71,7 +71,7 @@ button:hover { background: var(--void-elevated); border-color: var(--gold);
 const C = document.getElementById('c01');
 const X = C.getContext('2d');
 const DATA = {drug:'Lecanemab',carrier:'liposome',ligand:'Transferrin',
-  size:105.0,bbbEnh:100.0,bbbNat:77.0123,cnsBA:58.00000000000001,ee:75.0,peg:5.0};
+  size:105.0,bbbEnh:100.0,bbbNat:5.2769,cnsBA:58.00000000000001,ee:75.0,peg:5.0};
 
 const anim = (function(){
   let t=0, playing=false, raf=null;

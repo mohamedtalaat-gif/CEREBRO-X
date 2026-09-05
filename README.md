@@ -166,6 +166,20 @@ actually found, at every layer of the stack:
   alphabet, so a bare oligo sequence passes the same "looks like a
   protein" check a real peptide does. There was no nucleotide input path
   at all until this was found.
+- The FASTA input for a real biologic in this repo's own case-study set
+  was only its ~13 kDa variable-domain fragment, not the ~147 kDa
+  complete antibody — a leftover from copy/paste, not a deliberate
+  choice — and the engine had no way to compute a multi-chain complex's
+  weight even if it had been given all four chains (it read one FASTA
+  record and stopped). Sourced the real published variable-domain
+  sequence from a structural antibody database, added the standard
+  human constant-region sequences (identical across any IgG1/kappa
+  antibody, not drug-specific), and extended the engine to sum multiple
+  chains — computed weight for the reassembled real antibody landed
+  within 0.06% of its published mass. Also added standard phosphorothioate-
+  backbone chemistry for antisense oligonucleotide inputs specifically
+  (the real, near-universal modification for that drug class), applied
+  generically by declared molecule class, not hardcoded to one drug.
 
 None of these were found by a user complaint — they were found by treating
 "looks like it works" as a starting hypothesis to try to break, not a
@@ -218,9 +232,9 @@ the single-metric BBB score alone):
 
 | Drug | Class | MW | Top-1 chosen | Composite Score | Verdict |
 |---|---|---|---|---|---|
-| **Lecanemab** | monoclonal_antibody | 13.1 kDa | Tf-PEG-Liposome | 62.7/100 | CONDITIONAL GO |
+| **Lecanemab** | monoclonal_antibody | 147.1 kDa | Tf-PEG-Liposome | 62.1/100 | CONDITIONAL GO |
 | **Temozolomide** | small_molecule | 194 Da | RVG29-PLGA-NP | 81.7/100 | CONDITIONAL GO |
-| **Nusinersen** | oligonucleotide | 5.5 kDa | **ApoE-LNP** | 78.1/100 | CONDITIONAL GO |
+| **Nusinersen** | oligonucleotide | 5.7 kDa | **ApoE-LNP** | 78.1/100 | CONDITIONAL GO |
 
 Each drug picks the pharmacologically-correct carrier class — exactly as the
 FDA has approved in clinical practice (Leqembi, Temodar, Spinraza analogs) —

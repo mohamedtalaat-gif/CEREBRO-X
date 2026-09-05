@@ -300,27 +300,56 @@ class BiologicEngine:
         profile["input_type"]     = "fasta"
         profile["molecule_class"] = "biologic"
 
-        # Extract pure sequence (remove FASTA header if present)
-        lines = fasta_input.strip().split("\n")
-        if lines[0].startswith(">"):
-            profile["_doi"] = lines[0][1:].strip()
-            seq = "".join(lines[1:]).replace(" ", "").upper()
+        # Split into one or more FASTA records (">header\nSEQ" blocks). A
+        # single polypeptide chain is the common case (most FASTA inputs
+        # here), but a real antibody or other multi-subunit complex is
+        # multiple disulfide-linked chains -- e.g. a full IgG1 is 2 heavy +
+        # 2 light chains, ~147 kDa total, not the ~13-25 kDa a single
+        # variable-domain-only chain would give. MW is extensive (sums
+        # correctly across chains); pI/instability/GRAVY are per-chain
+        # properties without a well-defined sum, so those are reported for
+        # the longest chain (the most structurally representative one)
+        # with the multi-chain caveat recorded in _imputed_fields. List
+        # every chain the complex actually has, once per copy (e.g. paste
+        # the heavy chain twice for 2 copies) -- there's no stoichiometry
+        # shorthand, summing every listed record is deliberately simple
+        # and works the same for any multi-chain biologic, not just mAbs.
+        raw = fasta_input.strip()
+        if raw.startswith(">"):
+            records = re.split(r'(?m)^(?=>)', raw)
+            chains = []
+            for rec in records:
+                rec_lines = rec.strip().split("\n")
+                if not rec_lines or not rec_lines[0].startswith(">"):
+                    continue
+                header = rec_lines[0][1:].strip()
+                seq = re.sub(r'[^ACDEFGHIKLMNPQRSTVWY]',
+                             '', "".join(rec_lines[1:]).upper())
+                if len(seq) >= 5:
+                    chains.append((header, seq))
         else:
-            seq = "".join(lines).replace(" ", "").upper()
+            seq_clean = re.sub(r'[^ACDEFGHIKLMNPQRSTVWY]', '', raw.upper())
+            chains = [("", seq_clean)] if len(seq_clean) >= 5 else []
 
-        # Clean: keep only standard amino acid letters
-        seq_clean = re.sub(r'[^ACDEFGHIKLMNPQRSTVWY]', '', seq)
-        if len(seq_clean) < 5:
-            log.warning(f"  FASTA: sequence too short ({len(seq_clean)} aa)")
+        if not chains:
+            log.warning(f"  FASTA: no valid chain >=5 aa found for '{name}'")
             return profile
 
-        profile["FASTA_sequence"]  = seq_clean
-        profile["sequence_length"] = len(seq_clean)
+        if chains[0][0]:
+            profile["_doi"] = chains[0][0]
+        longest_seq = max((c[1] for c in chains), key=len)
+        profile["FASTA_sequence"]  = longest_seq if len(chains) == 1 else \
+            "+".join(c[1] for c in chains)
+        profile["sequence_length"] = len(longest_seq)
 
         if _HAS_BIOPYTHON:
             try:
-                pa = ProteinAnalysis(seq_clean)
-                profile["MW_Da"]             = round(pa.molecular_weight(), 2)
+                total_mw = 0.0
+                for _, seq in chains:
+                    total_mw += ProteinAnalysis(seq).molecular_weight()
+                profile["MW_Da"] = round(total_mw, 2)
+
+                pa = ProteinAnalysis(longest_seq)
                 profile["pI"]                = round(pa.isoelectric_point(), 2)
                 profile["instability_index"] = round(pa.instability_index(), 2)
                 profile["gravy"]             = round(pa.gravy(), 4)
@@ -334,19 +363,26 @@ class BiologicEngine:
                 # LogP proxy for proteins: GRAVY × 0.3
                 profile["LogP"] = round(pa.gravy() * 0.3, 3)
                 profile["_source"] = "BioPython"
-                log.info(f"  [FASTA] {name}: MW={profile['MW_Da']:.0f} Da, "
-                         f"pI={profile['pI']:.2f}, "
-                         f"length={profile['sequence_length']} aa")
+                if len(chains) > 1:
+                    profile["_imputed_fields"].append(
+                        f"pI/instability/gravy/aromaticity/secondary_structure:"
+                        f"longest_chain_only ({len(chains)} chains summed for "
+                        f"MW_Da, these per-chain properties reported for the "
+                        f"longest chain as representative, not a complex-wide value)")
+                log.info(f"  [FASTA] {name}: {len(chains)} chain(s), "
+                         f"MW={profile['MW_Da']:.0f} Da, "
+                         f"pI={profile['pI']:.2f} (longest chain), "
+                         f"length={profile['sequence_length']} aa (longest chain)")
             except Exception as e:
                 log.warning(f"  BioPython analysis failed: {e}")
                 # Fallback: estimate MW from sequence length
-                profile["MW_Da"] = len(seq_clean) * 110   # ~110 Da per residue
+                profile["MW_Da"] = sum(len(s) for _, s in chains) * 110
                 profile["_imputed_fields"].append(
                     "MW_Da:estimated(residue_count×110Da)")
 
         else:
             # BioPython unavailable — use residue count heuristic
-            profile["MW_Da"] = len(seq_clean) * 110
+            profile["MW_Da"] = sum(len(s) for _, s in chains) * 110
             profile["_imputed_fields"].append(
                 "MW_Da:estimated(residue_count×110Da) — install biopython for precision")
             log.warning("  BioPython not installed. Using MW heuristic.")
@@ -604,9 +640,22 @@ class NucleotideEngine:
     _DNA_MASS = {"A": 313.21, "T": 304.20, "C": 289.18, "G": 329.21}
     _RNA_MASS = {"A": 329.20, "U": 306.20, "C": 305.20, "G": 345.20}
     _TERMINAL_5P_CORRECTION = 61.96  # 5'-OH instead of 5'-phosphate
+    # Non-bridging phosphate O -> S per linkage: atomic mass(S)-atomic mass(O)
+    _PHOSPHOROTHIOATE_DELTA = 16.06
+    # Full phosphorothioate backbone is the near-universal standard for
+    # approved antisense oligonucleotide drugs specifically (nuclease
+    # resistance) -- Nusinersen, fomivirsen, mipomersen, inotersen,
+    # volanesorsen, the eteplirsen/golodirsen family, etc. all use it.
+    # Deliberately NOT applied to siRNA/miRNA/mRNA/aptamer: those classes'
+    # real modification patterns (2'-O-methyl, 2'-F, partial/terminal-only
+    # PS linkages, unmodified for mRNA) are too heterogeneous to safely
+    # generalize the same way, so guessing there would trade one wrong
+    # default for another rather than fixing anything.
+    _PHOSPHOROTHIOATE_CLASSES = {"aso", "antisense", "oligonucleotide"}
 
     @staticmethod
-    def from_sequence(seq_input: str, name: str = "unknown") -> dict[str, Any]:
+    def from_sequence(seq_input: str, name: str = "unknown",
+                       molecule_class: str = "") -> dict[str, Any]:
         profile = _empty_profile(name)
         profile["input_type"]     = "nucleotide_sequence"
         profile["molecule_class"] = "oligonucleotide"
@@ -629,17 +678,33 @@ class NucleotideEngine:
 
         mass_table = NucleotideEngine._RNA_MASS if is_rna else NucleotideEngine._DNA_MASS
         mw = sum(mass_table[b] for b in seq_clean) - NucleotideEngine._TERMINAL_5P_CORRECTION
+
+        is_aso = (molecule_class or "").strip().lower() in \
+            NucleotideEngine._PHOSPHOROTHIOATE_CLASSES
+        n_linkages = len(seq_clean) - 1
+        if is_aso:
+            mw += n_linkages * NucleotideEngine._PHOSPHOROTHIOATE_DELTA
+
         profile["MW_Da"] = round(mw, 2)
-        profile["_source"] = "computed:standard_unmodified_backbone"
-        profile["_imputed_fields"].append(
-            "MW_Da:standard_unmodified_" + ("RNA" if is_rna else "DNA") +
-            "_backbone — real synthetic oligos (phosphorothioate, 2'-MOE, "
-            "LNA, etc.) weigh more than this baseline; exact modified MW "
-            "requires the specific chemistry, not captured by a bare sequence")
+        backbone_label = "phosphorothioate" if is_aso else "unmodified_phosphodiester"
+        profile["_source"] = f"computed:standard_{backbone_label}_backbone"
+        if is_aso:
+            profile["_imputed_fields"].append(
+                "MW_Da:standard_" + ("RNA" if is_rna else "DNA") +
+                "_backbone_fully_phosphorothioate (default for molecule_class="
+                f"{molecule_class!r}) — real drug may also carry 2'-sugar "
+                "modifications (2'-MOE, 2'-F, LNA, etc.) not captured by a "
+                "bare sequence, which would add further mass beyond this")
+        else:
+            profile["_imputed_fields"].append(
+                "MW_Da:standard_unmodified_" + ("RNA" if is_rna else "DNA") +
+                "_backbone — real synthetic oligos (phosphorothioate, 2'-MOE, "
+                "LNA, etc.) weigh more than this baseline; exact modified MW "
+                "requires the specific chemistry, not captured by a bare sequence")
 
         log.info(f"  [OLIGO] {name}: MW={profile['MW_Da']:.1f} Da "
                  f"({'RNA' if is_rna else 'DNA'}, {len(seq_clean)}-mer, "
-                 f"standard unmodified backbone)")
+                 f"{backbone_label} backbone)")
         return profile
 
 
@@ -859,7 +924,7 @@ def analyze_molecule(raw_input: str, name: str = None,
     if (molecule_class or "").strip().lower() in _OLIGO_CLASSES:
         log.info(f"  analyze_molecule: detected 'oligonucleotide' "
                  f"(Excel molecule_class) for '{mol_name}'")
-        return NucleotideEngine.from_sequence(stripped, mol_name)
+        return NucleotideEngine.from_sequence(stripped, mol_name, molecule_class)
 
     input_type = detect_input_type(stripped)
 
