@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite it as below. Cite it as software
+  (research prototype, not an independently validated scientific method —
+  see the README's Status section), and disclose which components you
+  relied on, since the codebase mixes independently-cited correlations
+  with in-house, unvalidated heuristics.
+title: >-
+  CEREBRO-X: A Computational Research Pipeline (Prototype) with Integrated
+  Machine-Learning Modules for CNS Drug Delivery System Exploration
+version: "22.1"
+date-released: 2026-09-07
+url: "https://github.com/mohamedtalaat-gif/CEREBRO-X"
+repository-code: "https://github.com/mohamedtalaat-gif/CEREBRO-X"
+license: MIT
+authors:
+  - family-names: Talaat
+    given-names: Muhammad
+    affiliation: "Faculty of Pharmacy, Ain Shams University"
+    email: mohamed.talaat@pharma.asu.edu.eg

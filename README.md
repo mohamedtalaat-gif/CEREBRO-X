@@ -612,7 +612,9 @@ retain their own licenses/terms; check each before commercial use.
 If you use CEREBRO-X in published research, please cite it as software (not
 as a validated scientific method — see Status above) and disclose which
 components you relied on, since the codebase mixes independently-cited
-correlations with in-house, unvalidated heuristics:
+correlations with in-house, unvalidated heuristics. The same information,
+plus APA/BibTeX export, is also available via GitHub's "Cite this
+repository" button ([CITATION.cff](CITATION.cff)):
 
 ```bibtex
 @software{talaat_cerebrox_2026,
